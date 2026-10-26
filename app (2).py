@@ -348,7 +348,28 @@ if "guia_activa" in st.session_state:
 
   # Render del documento
   st.markdown(
+      # Comprobante visual tipo documento formal
+  st.markdown(
       f"""
+    <div style="border: 2px solid #ccc; padding: 25px; border-radius: 10px; background-color: white; color: black; font-family: sans-serif;">
+        <h2 style="text-align: center; color: #1f77b4; margin-bottom: 0;">MARKLOGISTIC ERP</h2>
+        <p style="text-align: center; color: #555; font-size: 13px; margin-top: 5px;">GUÍA DE TRANSPORTE Y DESPACHO DE BODEGA</p>
+        <hr style="border: 1px solid #ddd;">
+        
+        <table style="width: 100%; font-size: 14px; margin-bottom: 15px;">
+            <tr>
+                <td style="width: 50%;"><b>N° de Guía / Folio:</b> {g['folio']}</td>
+                <td><b>Fecha y Hora (Chile):</b> {g['fecha']}</td>
+            </tr>
+            <tr>
+                <td><b>Cliente:</b> {g['cliente']}</td>
+                <td><b>Motivo:</b> {g['motivo']}</td>
+            </tr>
+        </table>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
     <div style="border: 2px solid #ccc; padding: 25px; border-radius: 10px; background-color: white; color: black; font-family: sans-serif;">
         <h2 style="text-align: center; color: #1f77b4; margin-bottom: 0;">MARKLOGISTIC ERP</h2>
         <p style="text-align: center; color: #555; font-size: 13px; margin-top: 5px;">GUÍA DE TRANSPORTE Y DESPACHO DE BODEGA</p>
