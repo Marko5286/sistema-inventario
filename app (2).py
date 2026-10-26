@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 from io import BytesIO
 
-st.set_page_config(page_title="WMS Marklogistic", layout="wide")
+st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
@@ -63,7 +63,7 @@ def verificar_credenciales(usuario, clave):
     return False
 
 if not st.session_state.autenticado:
-    st.title("🔐 Acceso al WMS Marklogistic")
+    st.title("🔐 Acceso al ERP Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
     
     with st.form("form_login"):
@@ -84,19 +84,14 @@ if not st.session_state.autenticado:
 # ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
-st.sidebar.title("📦 WMS Marklogistic")
-# ---------------------------------------------------------
+st.sidebar.title("📦 ERP Marklogistic")
 
-# Usando un enlace web directo de tu logo:
-st.sidebar.image("https://https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true/tu-logo.png", width=259)
+try:
+    st.sidebar.image("https://i.imgur.com/tu_logo_ejemplo.png", width=200)
+except:
+    pass
 
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
-
-# --- AGREGAR LOGO AQUÍ ---
-try:
-    st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=290) # Ajusta el ancho según prefieras
-except:
-    pass # Si el archivo no existe aún, la app sigue funcionando sin error
 
 if st.sidebar.button("Cerrar Sesión"):
     st.session_state.autenticado = False
@@ -112,7 +107,9 @@ menu = st.sidebar.radio(
         "4. Despacho y Guía",
         "5. Inventario",
         "6. Trazabilidad",
-        "7. Etiquetas"
+        "7. Etiquetas",
+        "8. Eliminar Transacciones",
+        "9. Asistente IA"
     ]
 )
 
@@ -311,7 +308,6 @@ elif menu == "3. Picking de Materiales":
             st.write("No hay órdenes de picking registradas.")
 
 # ---------------------------------------------------------
-# ---------------------------------------------------------
 # MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
@@ -389,8 +385,11 @@ elif menu == "4. Despacho y Guía":
 
         html_guia = f"""
         <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
-            <h2 style="text-align: center; margin: 0;">WMS MARKLOGISTIC </h2>
-            <p style="text-align: center; margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
+            <div style="text-align: center;">
+                <img src="https://i.imgur.com/tu_logo_ejemplo.png" style="max-height: 80px; margin-bottom: 5px;">
+                <h2 style="margin: 0;">ERP MARKLOGISTIC S.A.</h2>
+                <p style="margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
+            </div>
             <hr style="border: 1px solid #000;">
             <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE DESPACHO</h3>
             <h3 style="text-align: right; margin: 0;">N° {guia['Numero_Guia']}</h3>
@@ -425,6 +424,7 @@ elif menu == "4. Despacho y Guía":
         st.markdown(html_guia, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
+
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
@@ -522,3 +522,91 @@ elif menu == "7. Etiquetas":
                 st.markdown(html_etiqueta, unsafe_allow_html=True)
             
             st.info("💡 **Para imprimir:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
+
+# ---------------------------------------------------------
+# MÓDULO 8: ELIMINAR TRANSACCIONES (NUEVO)
+# ---------------------------------------------------------
+elif menu == "8. Eliminar Transacciones":
+    st.header("🗑️ Gestión y Anulación de Transacciones (Ingresos / Despachos)")
+    
+    if st.session_state.movimientos.empty:
+        st.info("No hay transacciones registradas para eliminar.")
+    else:
+        st.write("Selecciona el movimiento que deseas eliminar o anular. **Nota:** Si eliminas un Ingreso o Despacho, el stock del material se ajustará automáticamente.")
+        
+        # Mostrar tabla de movimientos con opción de selección
+        st.dataframe(st.session_state.movimientos, use_container_width=True)
+        
+        id_a_eliminar = st.selectbox("Seleccionar ID de Movimiento a Eliminar", st.session_state.movimientos["ID_Mov"])
+        
+        if st.button("🗑️ Eliminar Transacción Seleccionada", type="primary"):
+            # Obtener datos del movimiento antes de borrarlo
+            mov_reg = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] == id_a_eliminar].iloc[0]
+            tipo_mov = mov_reg["Tipo"]
+            sku_mov = mov_reg["SKU"]
+            cant_mov = mov_reg["Cantidad"]
+            
+            # Revertir stock según el tipo de movimiento
+            if sku_mov in st.session_state.materiales["SKU"].values:
+                idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_mov].tolist()[0]
+                
+                if tipo_mov in ["INGRESO", "STOCK_INICIAL"]:
+                    # Si se borra un ingreso, se resta del stock actual
+                    st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cant_mov
+                elif tipo_mov == "DESPACHO":
+                    # Si se borra un despacho, se devuelve al stock actual
+                    st.session_state.materiales.loc[idx_mat, "Stock_Actual"] += cant_mov
+            
+            # Eliminar el movimiento del DataFrame
+            st.session_state.movimientos = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] != id_a_eliminar].reset_index(drop=True)
+            
+            # Guardar cambios
+            guardar_datos()
+            st.success(f"✅ Transacción {id_a_eliminar} eliminada y stock actualizado correctamente.")
+            st.rerun()
+
+# ---------------------------------------------------------
+# MÓDULO 9: ASISTENTE DE INTELIGENCIA ARTIFICIAL (GEMINI)
+# ---------------------------------------------------------
+elif menu == "9. Asistente IA":
+    st.header("🤖 Asistente Inteligente de Bodega y Logística")
+    st.write("Pregúntale al asistente sobre el stock, productos o el estado actual de tu ERP en lenguaje natural.")
+
+    if "GEMINI_API_KEY" in st.secrets:
+        try:
+            from google import genai
+            client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+
+            pregunta_usuario = st.text_input("¿Qué deseas consultar al sistema?", placeholder="Ej: ¿Qué productos tienen menos stock actual?")
+
+            if st.button("Consultar a la IA") and pregunta_usuario:
+                with st.spinner("Analizando la base de datos del ERP..."):
+                    resumen_stock = st.session_state.materiales.to_string() if not st.session_state.materiales.empty else "No hay materiales."
+                    resumen_movimientos = st.session_state.movimientos.tail(10).to_string() if not st.session_state.movimientos.empty else "No hay movimientos."
+
+                    prompt_sistema = f"""
+                    Eres un asistente logístico experto para el ERP Marklogistic. 
+                    Tienes acceso a los siguientes datos actuales de la bodega:
+                    
+                    --- MATERIALES Y STOCK ---
+                    {resumen_stock}
+                    
+                    --- ÚLTIMOS MOVIMIENTOS ---
+                    {resumen_movimientos}
+                    
+                    Responde de forma clara, profesional y directa a la siguiente pregunta del usuario basándote exclusivamente en estos datos:
+                    {pregunta_usuario}
+                    """
+
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=prompt_sistema,
+                    )
+
+                    st.markdown("### 💡 Respuesta del Asistente:")
+                    st.success(response.text)
+
+        except Exception as e:
+            st.error(f"Error al conectar con la Inteligencia Artificial: {e}")
+    else:
+        st.warning("⚠️ Para usar este módulo, debes configurar tu `GEMINI_API_KEY` en los secretos de Streamlit Cloud.")
