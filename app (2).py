@@ -408,7 +408,7 @@ if "guia_activa" in st.session_state:
                         <p><b>Cliente:</b> {destinatario} | <b>RUT/ID:</b> {rut_cliente}</p>
                         <p><b>Dirección de Entrega:</b> {direccion}</p>
                         <br>
-                        <h4>🚚 Datos del Transporte:</h4>
+                        <h4>Datos del Transporte:</h4>
                         <p><b>Transportista:</b> {transportista} | <b>Patente Vehículo:</b> {patente}</p>
                         <br>
                         <h4>📋 Detalle de Materiales:</h4>
