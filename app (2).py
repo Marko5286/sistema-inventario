@@ -411,7 +411,7 @@ if "guia_activa" in st.session_state:
                         <h4>Datos del Transporte:</h4>
                         <p><b>Transportista:</b> {transportista} | <b>Patente Vehículo:</b> {patente}</p>
                         <br>
-                        <h4>📋 Detalle de Materiales:</h4>
+                        <h4>&#128203; Detalle de Materiales:</h4>
                     """, unsafe_allow_html=True)
 
                     df_guia = pd.DataFrame(items_guia)
