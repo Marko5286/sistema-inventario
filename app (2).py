@@ -433,6 +433,28 @@ if not st.session_state.materiales.empty:
         file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+    # ---------------------------------------------------------
+# BOTÓN DE RESPALDO DE SEGURIDAD EN LA BARRA LATERAL
+# ---------------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.subheader("💾 Copia de Seguridad")
+
+if not st.session_state.materiales.empty:
+    # Convertir el DataFrame a Excel en memoria para descarga directa
+    from io import BytesIO
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
+        st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
+    
+    excel_data = output.getvalue()
+    
+    st.sidebar.download_button(
+        label="📥 Descargar Respaldo de Base de Datos",
+        data=excel_data,
+        file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 # ---------------------------------------------------------
 # MÓDULO 6: TRAZABILIDAD
 # ---------------------------------------------------------
