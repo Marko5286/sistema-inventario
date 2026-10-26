@@ -5,7 +5,7 @@ from datetime import datetime
 st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
-# 1. INICIALIZACIÓN DE BASE DE DATOS (En memoria con Session State)
+# 1. INICIALIZACIÓN DE BASE DE DATOS
 # ---------------------------------------------------------
 if "materiales" not in st.session_state:
     st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Stock_Actual"])
@@ -93,11 +93,9 @@ elif menu == "2. Ingreso de Materiales":
             
             btn_ingresar = st.form_submit_button("Registrar Ingreso")
             if btn_ingresar:
-                # Actualizar Stock
                 idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_ingreso].tolist()[0]
                 st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_ingreso
                 
-                # Registrar Movimiento
                 mov = pd.DataFrame([{
                     "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
                     "Tipo": "INGRESO",
@@ -110,4 +108,149 @@ elif menu == "2. Ingreso de Materiales":
                 st.success(f"Se ingresaron {cant_ingreso} unidades del SKU {sku_ingreso}.")
 
 # ---------------------------------------------------------
+# MÓDULO 3: PICKING DE MATERIALES
+# ---------------------------------------------------------
+elif menu == "3. Picking de Materiales":
+    st.header("🛒 Generación y Preparación de Pedidos (Picking)")
+    
+    if st.session_state.materiales.empty:
+        st.info("No hay materiales registrados.")
+    else:
+        st.subheader("Crear Nueva Orden de Picking")
+        with st.form("form_picking"):
+            cliente = st.text_input("Cliente / Destino")
+            sku_pick = st.selectbox("Material a Extraer", st.session_state.materiales["SKU"])
+            cant_pick = st.number_input("Cantidad a Preparar", min_value=1, value=1)
+            
+            btn_crear_pick = st.form_submit_button("Crear Orden de Picking")
+            if btn_crear_pick:
+                stock_disponible = st.session_state.materiales.loc[
+                    st.session_state.materiales["SKU"] == sku_pick, "Stock_Actual"
+                ].values[0]
+                
+                if cant_pick > stock_disponible:
+                    st.error(f"Stock insuficiente. Stock disponible: {stock_disponible}")
+                else:
+                    id_ord = f"PICK-{len(st.session_state.ordenes_picking)+1:04d}"
+                    st.session_state.ordenes_picking.append({
+                        "ID_Picking": id_ord,
+                        "Cliente": cliente,
+                        "SKU": sku_pick,
+                        "Cantidad": cant_pick,
+                        "Estado": "Pendiente Despacho"
+                    })
+                    st.success(f"Orden {id_ord} registrada exitosamente.")
 
+        st.subheader("Órdenes de Picking Actuales")
+        if st.session_state.ordenes_picking:
+            st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
+        else:
+            st.write("No hay órdenes de picking registradas.")
+
+# ---------------------------------------------------------
+# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
+# ---------------------------------------------------------
+elif menu == "4. Despacho y Guía":
+    st.header("🚚 Despacho y Emisión de Guía de Despacho")
+    
+    pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
+    
+    if not pendientes:
+        st.info("No hay órdenes de picking pendientes por despachar.")
+    else:
+        df_pendientes = pd.DataFrame(pendientes)
+        st.write("Seleccione la orden que desea despachar:")
+        
+        orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
+        datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
+        
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            transporte = st.text_input("Empresa de Transporte / Chofer")
+            patente = st.text_input("Patente Vehículo / Placa")
+        with col_d2:
+            motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
+        
+        if st.button("Confirmar Despacho y Generar Guía"):
+            idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
+            st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
+            
+            datos_orden["Estado"] = "Despachado"
+            
+            mov = pd.DataFrame([{
+                "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                "Tipo": "DESPACHO",
+                "SKU": datos_orden["SKU"],
+                "Cantidad": datos_orden["Cantidad"],
+                "Origen/Destino": datos_orden["Cliente"],
+                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }])
+            st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+            
+            num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
+            guia_data = {
+                "Numero_Guia": num_guia,
+                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "Cliente": datos_orden["Cliente"],
+                "SKU": datos_orden["SKU"],
+                "Cantidad": datos_orden["Cantidad"],
+                "Transporte": transporte,
+                "Patente": patente,
+                "Motivo": motivo
+            }
+            st.session_state.guias_despacho.append(guia_data)
+            
+            st.success(f"¡Despacho realizado con éxito! Guía Generada: **{num_guia}**")
+            
+            st.markdown("---")
+            st.subheader(f"📄 GUÍA DE DESPACHO N° {num_guia}")
+            st.write(f"**Empresa:** ERP Marklogistic")
+            st.write(f"**Cliente:** {datos_orden['Cliente']}")
+            st.write(f"**Fecha:** {guia_data['Fecha']}")
+            st.write(f"**Transportista:** {transporte} | **Patente:** {patente}")
+            
+            df_detalle = pd.DataFrame([{
+                "SKU": datos_orden["SKU"],
+                "Cantidad Despachada": datos_orden["Cantidad"],
+                "Motivo": motivo
+            }])
+            st.table(df_detalle)
+
+# ---------------------------------------------------------
+# MÓDULO 5: INVENTARIO
+# ---------------------------------------------------------
+elif menu == "5. Inventario":
+    st.header("📊 Control de Inventario en Tiempo Real")
+    
+    col_k1, col_k2 = st.columns(2)
+    with col_k1:
+        st.metric("Total SKU Registrados", len(st.session_state.materiales))
+    with col_k2:
+        st.metric("Total Unidades en Stock", int(st.session_state.materiales["Stock_Actual"].sum()) if not st.session_state.materiales.empty else 0)
+    
+    st.subheader("Stock Actual por Material")
+    st.dataframe(st.session_state.materiales, use_container_width=True)
+
+# ---------------------------------------------------------
+# MÓDULO 6: TRAZABILIDAD
+# ---------------------------------------------------------
+elif menu == "6. Trazabilidad":
+    st.header("🔍 Trazabilidad y Historial de Movimientos")
+    
+    if st.session_state.movimientos.empty:
+        st.info("No hay registro de movimientos.")
+    else:
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            sku_filtro = st.selectbox("Filtrar por SKU", ["Todos"] + list(st.session_state.materiales["SKU"].unique()))
+        with col_f2:
+            tipo_filtro = st.selectbox("Filtrar por Tipo de Movimiento", ["Todos", "STOCK_INICIAL", "INGRESO", "DESPACHO"])
+        
+        df_traza = st.session_state.movimientos.copy()
+        
+        if sku_filtro != "Todos":
+            df_traza = df_traza[df_traza["SKU"] == sku_filtro]
+        if tipo_filtro != "Todos":
+            df_traza = df_traza[df_traza["Tipo"] == tipo_filtro]
+            
+        st.dataframe(df_traza.sort_values(by="Fecha", ascending=False), use_container_width=True)
