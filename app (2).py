@@ -87,6 +87,10 @@ if not st.session_state.autenticado:
 st.sidebar.title("📦 WMS Marklogistic")
 # ---------------------------------------------------------
 
+# Usando un enlace web directo de tu logo:
+st.sidebar.image("https://tu-sitio-web.com/tu-logo.png", width=200)
+
+st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
 
 # --- AGREGAR LOGO AQUÍ ---
 try:
