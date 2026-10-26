@@ -110,3 +110,4 @@ elif menu == "2. Ingreso de Materiales":
                 st.success(f"Se ingresaron {cant_ingreso} unidades del SKU {sku_ingreso}.")
 
 # ---------------------------------------------------------
+pip install streamlit pandas
