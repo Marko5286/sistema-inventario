@@ -337,166 +337,96 @@ if "guia_activa" in st.session_state:
 
   # Construir filas HTML dinámicas para cada producto capturado
   filas_html = ""
-  for item in g["items"]:
-    filas_html += f"""
-        <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">{item['sku']}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">{item['nombre']}</td>
-            <td style="padding: 8px; text-align: right; border-bottom: 1px solid #eee;"><b>{item['cantidad']}</b></td>
-        </tr>
-        """
+  # --- 1. DATOS GENERALES DEL DESPACHO ---
+col_c1, col_c2 = st.columns(2)
+with col_c1:
+    st.session_state.cliente_actual = st.text_input(
+        "Cliente / Destinatario",
+        value=st.session_state.cliente_actual,
+        placeholder="Ej: Comercial del Norte SpA"
+    )
+with col_c2:
+    motivo_traslado = st.selectbox(
+        "Motivo del Traslado",
+        ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"]
+    )
 
-  # Render del documento
-  st.markdown(
-      # Comprobante visual tipo documento formal
-  st.markdown(
-      f"""
-    <div style="border: 2px solid #ccc; padding: 25px; border-radius: 10px; background-color: white; color: black; font-family: sans-serif;">
-        <h2 style="text-align: center; color: #1f77b4; margin-bottom: 0;">MARKLOGISTIC ERP</h2>
-        <p style="text-align: center; color: #555; font-size: 13px; margin-top: 5px;">GUÍA DE TRANSPORTE Y DESPACHO DE BODEGA</p>
-        <hr style="border: 1px solid #ddd;">
-        
-        <table style="width: 100%; font-size: 14px; margin-bottom: 15px;">
-            <tr>
-                <td style="width: 50%;"><b>N° de Guía / Folio:</b> {g['folio']}</td>
-                <td><b>Fecha y Hora (Chile):</b> {g['fecha']}</td>
-            </tr>
-            <tr>
-                <td><b>Cliente:</b> {g['cliente']}</td>
-                <td><b>Motivo:</b> {g['motivo']}</td>
-            </tr>
-        </table>
-    </div>
-    """,
-      unsafe_allow_html=True,
-  )
-    <div style="border: 2px solid #ccc; padding: 25px; border-radius: 10px; background-color: white; color: black; font-family: sans-serif;">
-        <h2 style="text-align: center; color: #1f77b4; margin-bottom: 0;">MARKLOGISTIC ERP</h2>
-        <p style="text-align: center; color: #555; font-size: 13px; margin-top: 5px;">GUÍA DE TRANSPORTE Y DESPACHO DE BODEGA</p>
-        <hr style="border: 1px solid #ddd;">
-        
-        if df_productos.empty:
-            st.warning("No hay productos en el inventario para despachar.")
+st.divider()
+
+# --- 2. CAMPO PARA LA CAPTURADORA DE CÓDIGO DE BARRAS ---
+st.markdown("### Escanear Producto")
+st.caption("Haz clic en el cuadro de abajo y dispara la capturadora sobre el código de barra.")
+
+def procesar_escaneo():
+    codigo_leido = st.session_state.codigo_capturado.strip()
+    
+    if codigo_leido:
+        if codigo_leido in st.session_state.inventario:
+            prod = st.session_state.inventario[codigo_leido]
+            
+            if prod["stock"] > 0:
+                st.session_state.carrito_salida.append({
+                    "sku": codigo_leido,
+                    "nombre": prod["nombre"],
+                    "cantidad": 1
+                })
+                st.toast(f"Capturado: {prod['nombre']} ({codigo_leido})", icon="📦")
+            else:
+                st.error(f"El producto {codigo_leido} no tiene stock disponible.")
         else:
-            with st.form("form_guia"):
-                st.markdown("### 🏢 Datos de Envío y Destino")
-                col_d1, col_d2 = st.columns(2)
-                with col_d1:
-                    destinatario = st.text_input("Nombre del Cliente / Destinatario")
-                    rut_cliente = st.text_input("RUT / Identificación del Cliente")
-                    direccion = st.text_input("Dirección de Destino")
-                with col_d2:
-                    transportista = st.text_input("Nombre del Transportista / Conductor")
-                    patente = st.text_input("Patente / Placa del Vehículo")
-                    motivo_traslado = st.selectbox("Motivo del Traslado", ["Venta", "Traslado entre bodegas", "Devolución", "Prestamo"])
+            st.warning(f"El código {codigo_leido} no existe en la base de datos.")
+            
+        st.session_state.codigo_capturado = ""
 
-                st.markdown("### 📦 Materiales a Despachar")
+st.text_input(
+    "Lector de Código de Barras / QR",
+    key="codigo_capturado",
+    on_change=procesar_escaneo,
+    placeholder="Pistola lista para escanear..."
+)
+
+# --- 3. TABLA CON PRODUCTOS ESCANEADOS ---
+if st.session_state.carrito_salida:
+    st.markdown("#### Lista de Ítems a Despachar")
+    
+    for idx, item in enumerate(st.session_state.carrito_salida):
+        col_i1, col_i2, col_i3 = st.columns([2, 4, 2])
+        col_i1.write(f"SKU: {item['sku']}")
+        col_i2.write(f"Producto: {item['nombre']}")
+        col_i3.write(f"Cant: {item['cantidad']} ud.")
+        
+    st.divider()
+    
+    if st.button("Confirmar Salida y Generar Guía de Despacho"):
+        if not st.session_state.cliente_actual:
+            st.error("Ingresa el nombre del cliente antes de confirmar la salida.")
+        else:
+            for item in st.session_state.carrito_salida:
+                st.session_state.inventario[item["sku"]]["stock"] -= item["cantidad"]
                 
-                # Campos dinámicos sencillos para armar la lista de la guía
-                items_guia = []
-                for i in range(3): # Permite agregar hasta 3 productos en una misma guía de forma rápida
-                    c1, c2 = st.columns([3, 1])
-                    with c1:
-                        prod_sel = st.selectbox(f"Producto #{i+1}", ["-- Seleccionar --"] + list(df_productos["Código"] + " - " + df_productos["Nombre"]), key=f"p_{i}")
-                    with c2:
-                        cant_sel = st.number_input(f"Cantidad #{i+1}", min_value=0, step=1, key=f"c_{i}")
-                    
-                    if prod_sel != "-- Seleccionar --" and cant_sel > 0:
-                        codigo_p = prod_sel.split(" - ")[0]
-                        nombre_p = prod_sel.split(" - ")[1]
-                        items_guia.append({"Código": codigo_p, "Producto": nombre_p, "Cantidad": cant_sel})
+            zona_cl = pytz.timezone('America/Santiago')
+            fecha_guia_str = datetime.now(zona_cl).strftime("%d/%m/%Y %H:%M:%S")
+            folio_guia = f"GD-2026-{datetime.now().strftime('%H%M%S')}"
+            
+            st.session_state.guia_activa = {
+                "folio": folio_guia,
+                "fecha": fecha_guia_str,
+                "cliente": st.session_state.cliente_actual,
+                "motivo": motivo_traslado,
+                "items": list(st.session_state.carrito_salida)
+            }
+            
+            st.session_state.carrito_salida = []
+            st.success("¡Salida registrada y stock actualizado correctamente!")
+            st.rerun()
 
-                btn_generar = st.form_submit_button("Generar Documento de Guía")
-
-            if btn_generar:
-                if not destinatario or not direccion:
-                    st.error("Por favor completa al menos el Nombre del Cliente y la Dirección de Destino.")
-                elif len(items_guia) == 0:
-                    st.error("Debes seleccionar al menos un producto con cantidad mayor a 0 para la guía.")
-                else:
-                    st.success("¡Guía de Despacho generada con éxito!")
-                    st.divider()
-                    
-                    # --- DISEÑO VISUAL DE LA GUÍA LISTA PARA IMPRIMIR ---
-                    st.markdown(f"""
-                    <div style="border: 2px solid #ccc; padding: 20px; border-radius: 10px; background-color: white; color: black;">
-                        <h2 style="text-align: center; color: #333;">GUÍA DE TRANSPORTE Y DESPACHO</h2>
-                        <hr>
-                        <p><b>Fecha de Emisión:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
-                        <p><b>Motivo del Traslado:</b> {motivo_traslado}</p>
-                        <br>
-                        <h4>&#128205; Datos del Destinatario:</h4>
-                        <p><b>Cliente:</b> {destinatario} | <b>RUT/ID:</b> {rut_cliente}</p>
-                        <p><b>Dirección de Entrega:</b> {direccion}</p>
-                        <br>
-                        <h4>Datos del Transporte:</h4>
-                        <p><b>Transportista:</b> {transportista} | <b>Patente Vehículo:</b> {patente}</p>
-                        <br>
-                        <h4>&#128203; Detalle de Materiales:</h4>
-                    """, unsafe_allow_html=True)
-
-                    df_guia = pd.DataFrame(items_guia)
-                    st.dataframe(df_guia, use_container_width=True)
-
-                    st.markdown(f"""
-                        <br><br>
-                        <div style="display: flex; justify-content: space-between; margin-top: 50px;">
-                            <div style="border-top: 1px solid black; width: 200px; text-align: center;">Firma Emisor</div>
-                            <div style="border-top: 1px solid black; width: 200px; text-align: center;">Firma Conductor (Recibi Conforme)</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    st.info("💡 **Consejo:** Para imprimir esta guía en papel o guardarla como PDF, presiona las teclas `Ctrl + P` (o `Cmd + P` en Mac) en tu teclado y selecciona 'Guardar como PDF'.")
-
-    # ----------------------------------------------------
-    # 6. HISTORIAL DE MOVIMIENTOS
-    # ----------------------------------------------------
-    elif menu == "📜 Historial de Movimientos":
-        st.subheader("📜 Bitácora de Entradas y Salidas")
-        if not df_movimientos.empty:
-            st.dataframe(df_movimientos.sort_values(by="Fecha", ascending=False), use_container_width=True)
-            csv_mov = df_movimientos.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📥 Descargar Historial en CSV", 
-                data=csv_mov, 
-                file_name="historial_movimientos.csv", 
-                mime="text/csv"
-            )
-        else:
-            st.info("Aún no se han registrado entradas ni salidas.")
-        <table style="width: 100%; font-size: 14px; margin-bottom: 15px;">
-            <tr>
-                <td style="width: 50%;"><b>N&deg; de Guía / Folio:</b> {g['folio']}</td>
-                <td><b>Fecha y Hora (Chile):</b> {g['fecha']}</td>
-            </tr>
-            <tr>
-                <td><b>Cliente:</b> {g['cliente']}</td>
-                <td><b>Motivo:</b> {g['motivo']}</td>
-            </tr>
-        </table>
-        
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-            <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
-                <th style="padding: 8px; text-align: left;">SKU</th>
-                <th style="padding: 8px; text-align: left;">Descripción</th>
-                <th style="padding: 8px; text-align: right;">Cantidad</th>
-            </tr>
-            {filas_html}
-        </table>
-        
-        <p style="font-size: 11px; color: #777; text-align: center; margin-top: 25px;">
-            Comprobante oficial emitido por el sistema de gestión de bodegas Marklogistic.
-        </p>
-    </div>
-    # --- 5. MOSTRAR LA GUÍA DE DESPACHO EN PANTALLA ---
+# --- 4. MOSTRAR LA GUÍA DE DESPACHO EN PANTALLA ---
 if "guia_activa" in st.session_state:
     g = st.session_state.guia_activa
     
     st.divider()
     st.markdown("### Comprobante Generado")
     
-    # Construir filas HTML para los productos
     filas_html = ""
     for item in g["items"]:
         filas_html += (
@@ -507,7 +437,6 @@ if "guia_activa" in st.session_state:
             "</tr>"
         )
     
-    # HTML estructurado de forma segura sin comillas triples conflictivas
     documento_html = (
         "<div style='border: 2px solid #ccc; padding: 25px; border-radius: 10px; background-color: white; color: black; font-family: sans-serif;'>"
         "<h2 style='text-align: center; color: #1f77b4; margin-bottom: 0;'>MARKLOGISTIC ERP</h2>"
@@ -550,3 +479,4 @@ if "guia_activa" in st.session_state:
         if st.button("Nueva Lectura"):
             del st.session_state.guia_activa
             st.rerun()
+
