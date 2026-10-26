@@ -467,7 +467,7 @@ if "guia_activa" in st.session_state:
             st.info("Aún no se han registrado entradas ni salidas.")
         <table style="width: 100%; font-size: 14px; margin-bottom: 15px;">
             <tr>
-                <td style="width: 50%;"><b>N° de Guía / Folio:</b> {g['folio']}</td>
+                <td style="width: 50%;"><b>N&deg; de Guía / Folio:</b> {g['folio']}</td>
                 <td><b>Fecha y Hora (Chile):</b> {g['fecha']}</td>
             </tr>
             <tr>
