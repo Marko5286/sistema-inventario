@@ -89,7 +89,7 @@ st.sidebar.title("📦 WMS Marklogistic")
 # 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
 st.sidebar.title("📦 ERP Marklogistic")
-st.sidebar.image:
+
 # --- AGREGAR LOGO AQUÍ ---
 try:
     st.sidebar.image("logo.png", width=200) # Ajusta el ancho según prefieras
@@ -387,40 +387,20 @@ elif menu == "4. Despacho y Guía":
             </style>
         """, unsafe_allow_html=True)
 
-        html_guia = f"""
+       html_guia = f"""
         <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
-            <h2 style="text-align: center; margin: 0;">ERP MARKLOGISTIC S.A.</h2>
-            <p style="text-align: center; margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
+            <!-- LOGO Y ENCABEZADO -->
+            <div style="text-align: center;">
+                <img src="URL_DE_TU_LOGO_AQUI" alt="Logo Marklogistic" style="max-height: 60px; margin-bottom: 5px;">
+                <h2 style="margin: 0;">ERP MARKLOGISTIC S.A.</h2>
+                <p style="margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
+            </div>
             <hr style="border: 1px solid #000;">
             <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE DESPACHO</h3>
             <h3 style="text-align: right; margin: 0;">N° {guia['Numero_Guia']}</h3>
-            <p><b>Fecha de Emisión:</b> {guia['Fecha']}</p>
-            <p><b>Señor(es):</b> {guia['Cliente']}</p>
-            <p><b>Transportista:</b> {guia['Transporte']} | <b>Patente:</b> {guia['Patente']}</p>
-            <p><b>Motivo de Traslado:</b> {guia['Motivo']}</p>
-            <br>
-            <table style="width: 100%; border-collapse: collapse; border: 1px solid black;">
-                <thead>
-                    <tr style="background-color: #f2f2f2;">
-                        <th style="border: 1px solid black; padding: 8px;">SKU</th>
-                        <th style="border: 1px solid black; padding: 8px;">Cantidad</th>
-                        <th style="border: 1px solid black; padding: 8px;">Descripción / Detalle</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="border: 1px solid black; padding: 8px; text-align: center;">{guia['SKU']}</td>
-                        <td style="border: 1px solid black; padding: 8px; text-align: center;">{guia['Cantidad']}</td>
-                        <td style="border: 1px solid black; padding: 8px;">Despacho operativo según orden de picking</td>
-                    </tr>
-                </tbody>
-            </table>
-            <br><br><br>
-            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 14px;">
-                <div style="width: 40%;"><p>___________________________________<br><b>Firma Chofer / Transportista</b></p></div>
-                <div style="width: 40%;"><p>___________________________________<br><b>Firma Recinto / Cliente Conforme</b></p></div>
-            </div>
+            <!-- Resto de los datos de la guía... -->
         </div>
+        """
         """
         st.markdown(html_guia, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
