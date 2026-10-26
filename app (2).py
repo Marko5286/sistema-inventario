@@ -88,7 +88,7 @@ st.sidebar.title("📦 WMS Marklogistic")
 # ---------------------------------------------------------
 
 # Usando un enlace web directo de tu logo:
-st.sidebar.image("https://https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true/tu-logo.png", width=500)
+st.sidebar.image("https://https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true/tu-logo.png", width=2000)
 
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
 
@@ -99,7 +99,7 @@ except:
     pass # Si el archivo no existe aún, la app sigue funcionando sin error
 
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
-st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
+
 
 if st.sidebar.button("Cerrar Sesión"):
     st.session_state.autenticado = False
@@ -392,7 +392,7 @@ elif menu == "4. Despacho y Guía":
 
         html_guia = f"""
         <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
-            <h2 style="text-align: center; margin: 0;">ERP MARKLOGISTIC S.A.</h2>
+            <h2 style="text-align: center; margin: 0;">WMS MARKLOGISTIC </h2>
             <p style="text-align: center; margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
             <hr style="border: 1px solid #000;">
             <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE DESPACHO</h3>
