@@ -1,11 +1,52 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import os
 
-st.set_page_config(page_title="WMS Marklogistic", layout="wide")
+st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
-# 0. CONFIGURACIÓN DE USUARIO Y AUTENTICACIÓN
+# 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
+# ---------------------------------------------------------
+EXCEL_MATERIALES = "db_materiales.xlsx"
+EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
+EXCEL_PICKING = "db_picking.xlsx"
+EXCEL_GUIAS = "db_guias.xlsx"
+
+if "materiales" not in st.session_state:
+    if os.path.exists(EXCEL_MATERIALES):
+        st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
+    else:
+        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"])
+
+if "movimientos" not in st.session_state:
+    if os.path.exists(EXCEL_MOVIMIENTOS):
+        st.session_state.movimientos = pd.read_excel(EXCEL_MOVIMIENTOS)
+    else:
+        st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha"])
+
+if "ordenes_picking" not in st.session_state:
+    if os.path.exists(EXCEL_PICKING):
+        df_pick = pd.read_excel(EXCEL_PICKING)
+        st.session_state.ordenes_picking = df_pick.to_dict('records')
+    else:
+        st.session_state.ordenes_picking = []
+
+if "guias_despacho" not in st.session_state:
+    if os.path.exists(EXCEL_GUIAS):
+        df_guias = pd.read_excel(EXCEL_GUIAS)
+        st.session_state.guias_despacho = df_guias.to_dict('records')
+    else:
+        st.session_state.guias_despacho = []
+
+def guardar_datos():
+    st.session_state.materiales.to_excel(EXCEL_MATERIALES, index=False)
+    st.session_state.movimientos.to_excel(EXCEL_MOVIMIENTOS, index=False)
+    pd.DataFrame(st.session_state.ordenes_picking).to_excel(EXCEL_PICKING, index=False)
+    pd.DataFrame(st.session_state.guias_despacho).to_excel(EXCEL_GUIAS, index=False)
+
+# ---------------------------------------------------------
+# 0.1 AUTENTICACIÓN DE USUARIOS
 # ---------------------------------------------------------
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -21,7 +62,7 @@ def verificar_credenciales(usuario, clave):
     return False
 
 if not st.session_state.autenticado:
-    st.title("🔐 Acceso al WMS Marklogistic")
+    st.title("🔐 Acceso al ERP Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
     
     with st.form("form_login"):
@@ -40,24 +81,9 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ---------------------------------------------------------
-# 1. INICIALIZACIÓN DE BASE DE DATOS
-# ---------------------------------------------------------
-if "materiales" not in st.session_state:
-    st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"])
-
-if "movimientos" not in st.session_state:
-    st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha"])
-
-if "ordenes_picking" not in st.session_state:
-    st.session_state.ordenes_picking = []
-
-if "guias_despacho" not in st.session_state:
-    st.session_state.guias_despacho = []
-
-# ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN
 # ---------------------------------------------------------
-st.sidebar.title("📦 WMS Marklogistic")
+st.sidebar.title("📦 ERP Marklogistic")
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
 
 if st.sidebar.button("Cerrar Sesión"):
@@ -123,12 +149,13 @@ if menu == "1. Creación de Materiales":
                                 "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             }])
                             st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                            
+                        
+                        guardar_datos()
                         st.success(f"Material {sku} creado correctamente.")
 
     with tab_masivo:
         st.subheader("Carga Masiva desde Archivo")
-        st.write("Sube un archivo en formato **Excel (.xlsx)** o **CSV** que contenga las siguientes columnas exactas:")
+        st.write("Sube un archivo en formato **Excel (.xlsx)** o **CSV** con las columnas exactas:")
         st.code("SKU | Nombre | Unidad | Valor_Unitario | Stock_Actual")
         
         archivo_subido = st.file_uploader("Selecciona tu archivo de materiales", type=["csv", "xlsx"])
@@ -169,10 +196,11 @@ if menu == "1. Creación de Materiales":
                                     }])
                                     st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
                         
+                        guardar_datos()
                         st.success("¡Base de datos de materiales cargada y actualizada con éxito!")
                         st.rerun()
                 else:
-                    st.error(f"El archivo no tiene las columnas correctas. Deben llamarse exactamente: {columnas_requeridas}")
+                    st.error(f"El archivo no tiene las columnas correctas. Deben llamarse: {columnas_requeridas}")
             except Exception as e:
                 st.error(f"Ocurrió un error al procesar el archivo: {e}")
 
@@ -207,6 +235,8 @@ elif menu == "2. Ingreso de Materiales":
                     "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }])
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+                
+                guardar_datos()
                 st.success(f"Se ingresaron {cant_ingreso} unidades del SKU {sku_ingreso}.")
 
 # ---------------------------------------------------------
@@ -241,6 +271,7 @@ elif menu == "3. Picking de Materiales":
                         "Cantidad": cant_pick,
                         "Estado": "Pendiente Despacho"
                     })
+                    guardar_datos()
                     st.success(f"Orden {id_ord} registrada exitosamente.")
 
         st.subheader("Órdenes de Picking Actuales")
@@ -249,9 +280,6 @@ elif menu == "3. Picking de Materiales":
         else:
             st.write("No hay órdenes de picking registradas.")
 
-# ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
-# ---------------------------------------------------------
 # ---------------------------------------------------------
 # MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
 # ---------------------------------------------------------
@@ -305,24 +333,36 @@ elif menu == "4. Despacho y Guía":
             }
             st.session_state.guias_despacho.append(guia_data)
             
+            guardar_datos()
             st.success(f"¡Despacho realizado con éxito! Guía Generada: **{num_guia}**")
-            
-            # Guardamos la última guía generada en la sesión para poder imprimirla al instante
             st.session_state.ultima_guia = guia_data
 
-    # Sección para visualizar e imprimir guías emitidas
+    # Visualización e impresión limpia con Ctrl+P
     if "ultima_guia" in st.session_state:
         st.markdown("---")
         st.subheader(f"📄 DOCUMENTO: GUÍA DE DESPACHO N° {st.session_state.ultima_guia['Numero_Guia']}")
         
-        # Contenedor con diseño formal de Guía
         guia = st.session_state.ultima_guia
+        
+        st.markdown("""
+            <style>
+            @media print {
+                [data-testid="stSidebar"], header, .stButton {
+                    display: none !important;
+                }
+                body {
+                    background-color: white !important;
+                }
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
         html_guia = f"""
-        <div style="border: 2px solid #000; padding: 20px; font-family: Arial, sans-serif; background-color: white; color: black;">
+        <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
             <h2 style="text-align: center; margin: 0;">ERP MARKLOGISTIC S.A.</h2>
-            <p style="text-align: center; margin: 0; font-size: 14px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
+            <p style="text-align: center; margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
             <hr style="border: 1px solid #000;">
-            <h3 style="text-align: right; color: red; margin: 0;">GUÍA DE DESPACHO</h3>
+            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE DESPACHO</h3>
             <h3 style="text-align: right; margin: 0;">N° {guia['Numero_Guia']}</h3>
             <p><b>Fecha de Emisión:</b> {guia['Fecha']}</p>
             <p><b>Señor(es):</b> {guia['Cliente']}</p>
@@ -334,44 +374,28 @@ elif menu == "4. Despacho y Guía":
                     <tr style="background-color: #f2f2f2;">
                         <th style="border: 1px solid black; padding: 8px;">SKU</th>
                         <th style="border: 1px solid black; padding: 8px;">Cantidad</th>
-                        <th style="border: 1px solid black; padding: 8px;">Descripción / Motivo</th>
+                        <th style="border: 1px solid black; padding: 8px;">Descripción / Detalle</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td style="border: 1px solid black; padding: 8px; text-align: center;">{guia['SKU']}</td>
                         <td style="border: 1px solid black; padding: 8px; text-align: center;">{guia['Cantidad']}</td>
-                        <td style="border: 1px solid black; padding: 8px;">Despacho según orden de picking</td>
+                        <td style="border: 1px solid black; padding: 8px;">Despacho operativo según orden de picking</td>
                     </tr>
                 </tbody>
             </table>
             <br><br><br>
-            <div style="display: flex; justify-content: space-between; text-align: center;">
-                <div><p>___________________________<br>Firma Chofer</p></div>
-                <div><p>___________________________<br>Firma Recinto / Cliente</p></div>
+            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 14px;">
+                <div style="width: 40%;"><p>___________________________________<br><b>Firma Chofer / Transportista</b></p></div>
+                <div style="width: 40%;"><p>___________________________________<br><b>Firma Recinto / Cliente Conforme</b></p></div>
             </div>
         </div>
         """
         
-        # Renderizar la vista previa en HTML dentro de Streamlit
         st.markdown(html_guia, unsafe_allow_html=True)
-        
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Botón nativo de impresión del navegador
-        st.markdown(
-            """
-            <script>
-            function imprimirGuia() {
-                window.print();
-            }
-            </script>
-            <button onclick="window.print()" style="background-color: #ff4b4b; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">
-                🖨️ Imprimir / Guardar PDF
-            </button>
-            """,
-            unsafe_allow_html=True
-        )
+        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac). La interfaz se limpiará automáticamente para mostrar solo la Guía.")
 
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
@@ -411,3 +435,5 @@ elif menu == "6. Trazabilidad":
             df_traza = df_traza[df_traza["Tipo"] == tipo_filtro]
             
         st.dataframe(df_traza.sort_values(by="Fecha", ascending=False), use_container_width=True)
+            
+       
