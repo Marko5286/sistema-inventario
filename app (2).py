@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
+from io import BytesIO
 
 st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
@@ -81,7 +82,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ---------------------------------------------------------
-# 2. PANEL LATERAL / NAVEGACIÓN
+# 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
 st.sidebar.title("📦 ERP Marklogistic")
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
@@ -99,9 +100,27 @@ menu = st.sidebar.radio(
         "3. Picking de Materiales",
         "4. Despacho y Guía",
         "5. Inventario",
-        "6. Trazabilidad"
+        "6. Trazabilidad",
+        "7. Etiquetas"
     ]
 )
+
+# Botón de Copia de Seguridad en la barra lateral
+st.sidebar.markdown("---")
+st.sidebar.subheader("💾 Copia de Seguridad")
+if not st.session_state.materiales.empty:
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
+        st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
+    
+    excel_data = output.getvalue()
+    st.sidebar.download_button(
+        label="📥 Descargar Respaldo BD",
+        data=excel_data,
+        file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES (Manual y Carga Masiva)
@@ -337,7 +356,6 @@ elif menu == "4. Despacho y Guía":
             st.success(f"¡Despacho realizado con éxito! Guía Generada: **{num_guia}**")
             st.session_state.ultima_guia = guia_data
 
-    # Visualización e impresión limpia con Ctrl+P
     if "ultima_guia" in st.session_state:
         st.markdown("---")
         st.subheader(f"📄 DOCUMENTO: GUÍA DE DESPACHO N° {st.session_state.ultima_guia['Numero_Guia']}")
@@ -392,10 +410,9 @@ elif menu == "4. Despacho y Guía":
             </div>
         </div>
         """
-        
         st.markdown(html_guia, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
-        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac). La interfaz se limpiará automáticamente para mostrar solo la Guía.")
+        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
 
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
@@ -411,50 +428,7 @@ elif menu == "5. Inventario":
     
     st.subheader("Stock Actual y Valorización por Material")
     st.dataframe(st.session_state.materiales, use_container_width=True)
-# ---------------------------------------------------------
-# BOTÓN DE RESPALDO DE SEGURIDAD EN LA BARRA LATERAL
-# ---------------------------------------------------------
-st.sidebar.markdown("---")
-st.sidebar.subheader("💾 Copia de Seguridad")
 
-if not st.session_state.materiales.empty:
-    # Convertir el DataFrame a Excel en memoria para descarga directa
-    from io import BytesIO
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
-        st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
-    
-    excel_data = output.getvalue()
-    
-    st.sidebar.download_button(
-        label="📥 Descargar Respaldo de Base de Datos",
-        data=excel_data,
-        file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    # ---------------------------------------------------------
-# BOTÓN DE RESPALDO DE SEGURIDAD EN LA BARRA LATERAL
-# ---------------------------------------------------------
-st.sidebar.markdown("---")
-st.sidebar.subheader("💾 Copia de Seguridad")
-
-if not st.session_state.materiales.empty:
-    # Convertir el DataFrame a Excel en memoria para descarga directa
-    from io import BytesIO
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
-        st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
-    
-    excel_data = output.getvalue()
-    
-    st.sidebar.download_button(
-        label="📥 Descargar Respaldo de Base de Datos",
-        data=excel_data,
-        file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
 # ---------------------------------------------------------
 # MÓDULO 6: TRAZABILIDAD
 # ---------------------------------------------------------
@@ -478,5 +452,62 @@ elif menu == "6. Trazabilidad":
             df_traza = df_traza[df_traza["Tipo"] == tipo_filtro]
             
         st.dataframe(df_traza.sort_values(by="Fecha", ascending=False), use_container_width=True)
+
+# ---------------------------------------------------------
+# MÓDULO 7: ETIQUETAS DE MATERIALES
+# ---------------------------------------------------------
+elif menu == "7. Etiquetas":
+    st.header("🏷️ Generación e Impresión de Etiquetas de Bodega")
+    
+    if st.session_state.materiales.empty:
+        st.info("No hay materiales registrados para etiquetar.")
+    else:
+        sku_etiqueta = st.selectbox("Seleccionar Material para Etiquetar", st.session_state.materiales["SKU"])
+        mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
+        
+        cantidad_copias = st.number_input("Número de etiquetas a imprimir", min_value=1, value=1)
+        
+        if st.button("Generar Vista Previa de Etiqueta"):
+            st.markdown("---")
+            st.subheader("Vista Previa (Optimizado para Impresión)")
             
-       
+            st.markdown("""
+                <style>
+                @media print {
+                    [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput {
+                        display: none !important;
+                    }
+                    body {
+                        background-color: white !important;
+                    }
+                }
+                .etiqueta-box {
+                    border: 2px dashed #000;
+                    width: 320px;
+                    padding: 15px;
+                    font-family: Arial, sans-serif;
+                    background: white;
+                    color: black;
+                    margin-bottom: 20px;
+                    border-radius: 8px;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            
+            for i in range(cantidad_copias):
+                html_etiqueta = f"""
+                <div class="etiqueta-box">
+                    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">ERP MARKLOGISTIC</h4>
+                    <hr style="border: 1px solid #000; margin: 5px 0;">
+                    <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
+                    <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
+                    <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
+                    <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
+                    <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
+                        ||||| | |||| ||| || ||||
+                    </div>
+                </div>
+                """
+                st.markdown(html_etiqueta, unsafe_allow_html=True)
+            
+            st.info("💡 **Para imprimir:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
