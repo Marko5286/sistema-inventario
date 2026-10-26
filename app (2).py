@@ -11,7 +11,6 @@ if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
 def verificar_credenciales(usuario, clave):
-    # Puedes definir aquí tus usuarios y claves permitidas
     usuarios_permitidos = {
         "admin": "admin123",
         "bodega": "bodega2026",
@@ -21,7 +20,6 @@ def verificar_credenciales(usuario, clave):
         return True
     return False
 
-# Si no ha iniciado sesión, mostrar la pantalla de Login
 if not st.session_state.autenticado:
     st.title("🔐 Acceso al ERP Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
@@ -39,13 +37,13 @@ if not st.session_state.autenticado:
             else:
                 st.error("Usuario o contraseña incorrectos.")
     
-    st.stop() # Detiene la ejecución del resto de la app hasta que inicie sesión
+    st.stop()
 
 # ---------------------------------------------------------
-# 1. INICIALIZACIÓN DE BASE DE DATOS (Sesión Iniciada)
+# 1. INICIALIZACIÓN DE BASE DE DATOS (Incluyendo 'Valor_Unitario')
 # ---------------------------------------------------------
 if "materiales" not in st.session_state:
-    st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Stock_Actual"])
+    st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"])
 
 if "movimientos" not in st.session_state:
     st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha"])
@@ -80,7 +78,7 @@ menu = st.sidebar.radio(
 )
 
 # ---------------------------------------------------------
-# MÓDULO 1: CREACIÓN DE MATERIALES
+# MÓDULO 1: CREACIÓN DE MATERIALES (Con campo Valor Unitario)
 # ---------------------------------------------------------
 if menu == "1. Creación de Materiales":
     st.header("📋 Registro de Nuevos Materiales / Maestro de SKU")
@@ -88,19 +86,28 @@ if menu == "1. Creación de Materiales":
     with st.form("form_nuevo_material"):
         col1, col2 = st.columns(2)
         with col1:
-            sku = st.text_input("Código SKU / Material").strip().upper()
-            nombre = st.text_input("Nombre / Descripción del Material")
-        with col2:
+            sku = st.text_input("Código SKU / Material *").strip().upper()
+            nombre = st.text_input("Nombre / Descripción del Material *")
             unidad = st.selectbox("Unidad de Medida", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
+        with col2:
+            valor_unitario = st.number_input("Valor / Precio Unitario ($)", min_value=0.0, value=0.0, step=100.0)
             stock_inicial = st.number_input("Stock Inicial", min_value=0, value=0)
         
         submitted = st.form_submit_button("Guardar Material")
         if submitted:
-            if sku and nombre:
+            if not sku or not nombre:
+                st.error("⚠️ Los campos SKU y Nombre son obligatorios.")
+            else:
                 if sku in st.session_state.materiales["SKU"].values:
                     st.error(f"El SKU '{sku}' ya se encuentra registrado.")
                 else:
-                    nuevo_mat = pd.DataFrame([{"SKU": sku, "Nombre": nombre, "Unidad": unidad, "Stock_Actual": stock_inicial}])
+                    nuevo_mat = pd.DataFrame([{
+                        "SKU": sku, 
+                        "Nombre": nombre, 
+                        "Unidad": unidad, 
+                        "Valor_Unitario": valor_unitario,
+                        "Stock_Actual": stock_inicial
+                    }])
                     st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_mat], ignore_index=True)
                     
                     if stock_inicial > 0:
@@ -114,9 +121,7 @@ if menu == "1. Creación de Materiales":
                         }])
                         st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
                         
-                    st.success(f"Material {sku} creado correctamente.")
-            else:
-                st.warning("Completa los campos obligatorios (SKU y Nombre).")
+                    st.success(f"Material {sku} creado correctamente con valor unitario de ${valor_unitario:,.2f}.")
 
     st.subheader("Maestro de Materiales Registrados")
     st.dataframe(st.session_state.materiales, use_container_width=True)
@@ -272,7 +277,7 @@ elif menu == "5. Inventario":
     with col_k2:
         st.metric("Total Unidades en Stock", int(st.session_state.materiales["Stock_Actual"].sum()) if not st.session_state.materiales.empty else 0)
     
-    st.subheader("Stock Actual por Material")
+    st.subheader("Stock Actual y Valorización por Material")
     st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
@@ -298,3 +303,4 @@ elif menu == "6. Trazabilidad":
             df_traza = df_traza[df_traza["Tipo"] == tipo_filtro]
             
         st.dataframe(df_traza.sort_values(by="Fecha", ascending=False), use_container_width=True)
+
