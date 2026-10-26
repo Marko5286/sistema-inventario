@@ -404,7 +404,7 @@ if "guia_activa" in st.session_state:
                         <p><b>Fecha de Emisión:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
                         <p><b>Motivo del Traslado:</b> {motivo_traslado}</p>
                         <br>
-                        <h4>📍 Datos del Destinatario:</h4>
+                        <h4>&#128205; Datos del Destinatario:</h4>
                         <p><b>Cliente:</b> {destinatario} | <b>RUT/ID:</b> {rut_cliente}</p>
                         <p><b>Dirección de Entrega:</b> {direccion}</p>
                         <br>
