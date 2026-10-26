@@ -111,3 +111,4 @@ elif menu == "2. Ingreso de Materiales":
 
 # ---------------------------------------------------------
 pip install streamlit pandas
+streamlit run app.py
