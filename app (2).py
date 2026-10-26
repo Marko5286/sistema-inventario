@@ -21,7 +21,7 @@ def verificar_credenciales(usuario, clave):
     return False
 
 if not st.session_state.autenticado:
-    st.title("🔐 Acceso al ERP Marklogistic")
+    st.title("🔐 Acceso al WMS Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
     
     with st.form("form_login"):
@@ -57,7 +57,7 @@ if "guias_despacho" not in st.session_state:
 # ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN
 # ---------------------------------------------------------
-st.sidebar.title("📦 ERP Marklogistic")
+st.sidebar.title("📦 WMS Marklogistic")
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
 
 if st.sidebar.button("Cerrar Sesión"):
