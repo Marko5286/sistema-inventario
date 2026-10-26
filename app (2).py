@@ -46,7 +46,7 @@ else:
         st.session_state.autenticado = False
         st.rerun()
 
-    st.title("📦 Sistema de Control de Inventario: Entradas, Salidas y Stock Crítico")
+    st.title("📦 ERP Marklogistic")
 
     # Archivos CSV para guardar la información por separado
     FILE_PRODUCTOS = "productos.csv"
