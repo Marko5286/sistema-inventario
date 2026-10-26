@@ -85,6 +85,18 @@ if not st.session_state.autenticado:
 # 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS Marklogistic")
+# ---------------------------------------------------------
+# 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
+# ---------------------------------------------------------
+st.sidebar.title("📦 ERP Marklogistic")
+st.sidebar.image:
+# --- AGREGAR LOGO AQUÍ ---
+try:
+    st.sidebar.image("logo.png", width=200) # Ajusta el ancho según prefieras
+except:
+    pass # Si el archivo no existe aún, la app sigue funcionando sin error
+
+st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
 
 if st.sidebar.button("Cerrar Sesión"):
