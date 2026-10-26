@@ -38,7 +38,7 @@ def mostrar_login():
 if not st.session_state.autenticado:
     mostrar_login()
 else:
-    # --- SISTEMA PRINCIPAL DE INVENTARIO ---
+    # --- " ERP Marklogistic" ---
     
     # Botón y datos de usuario en la barra lateral
     st.sidebar.write(f"👤 Conectado como: **{st.session_state.usuario_actual}**")
