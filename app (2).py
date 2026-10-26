@@ -340,6 +340,9 @@ if "guia_activa" in st.session_state:
   # --- 1. DATOS GENERALES DEL DESPACHO ---
 col_c1, col_c2 = st.columns(2)
 with col_c1:
+    # Inicializar la variable si aún no existe en la sesión
+if 'cliente_actual' not in st.session_state:
+    st.session_state.cliente_actual = ""
     st.session_state.cliente_actual = st.text_input(
         "Cliente / Destinatario",
         value=st.session_state.cliente_actual,
