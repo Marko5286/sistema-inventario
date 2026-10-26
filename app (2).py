@@ -88,13 +88,13 @@ st.sidebar.title("📦 WMS Marklogistic")
 # ---------------------------------------------------------
 
 # Usando un enlace web directo de tu logo:
-st.sidebar.image("https://https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true/tu-logo.png", width=2000)
+st.sidebar.image("https://https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true/tu-logo.png", width=259)
 
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
 
 # --- AGREGAR LOGO AQUÍ ---
 try:
-    st.sidebar.image("logo.png", width=200) # Ajusta el ancho según prefieras
+    st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=290) # Ajusta el ancho según prefieras
 except:
     pass # Si el archivo no existe aún, la app sigue funcionando sin error
 
