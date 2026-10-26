@@ -88,7 +88,7 @@ st.sidebar.title("📦 WMS Marklogistic")
 # ---------------------------------------------------------
 
 # Usando un enlace web directo de tu logo:
-st.sidebar.image("https://https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true/tu-logo.png", width=200)
+st.sidebar.image("https://https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true/tu-logo.png", width=500)
 
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
 
