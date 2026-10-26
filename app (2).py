@@ -1,688 +1,112 @@
 import streamlit as st
 import pandas as pd
-import os
 from datetime import datetime
-import pytz
-import streamlit as st
 
-# 1. Configuración de la página
-st.set_page_config(page_title=" ERP Marklogistic", page_icon="📦", layout="wide")
+st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
-# 2. Inicializar el estado de autenticación en la sesión
-if "autenticado" not in st.session_state:
-    st.session_state.autenticado = False
+# ---------------------------------------------------------
+# 1. INICIALIZACIÓN DE BASE DE DATOS (En memoria con Session State)
+# ---------------------------------------------------------
+if "materiales" not in st.session_state:
+    st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Stock_Actual"])
 
-# 3. Función de la pantalla de Login
-def mostrar_login():
-    st.subheader("🔐 Iniciar Sesión - Control de Inventario")
+if "movimientos" not in st.session_state:
+    st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha"])
+
+if "ordenes_picking" not in st.session_state:
+    st.session_state.ordenes_picking = []
+
+if "guias_despacho" not in st.session_state:
+    st.session_state.guias_despacho = []
+
+# ---------------------------------------------------------
+# 2. PANEL LATERAL / NAVEGACIÓN
+# ---------------------------------------------------------
+st.sidebar.title("📦 ERP Marklogistic")
+menu = st.sidebar.radio(
+    "Módulos del Sistema",
+    [
+        "1. Creación de Materiales",
+        "2. Ingreso de Materiales",
+        "3. Picking de Materiales",
+        "4. Despacho y Guía",
+        "5. Inventario",
+        "6. Trazabilidad"
+    ]
+)
+
+# ---------------------------------------------------------
+# MÓDULO 1: CREACIÓN DE MATERIALES
+# ---------------------------------------------------------
+if menu == "1. Creación de Materiales":
+    st.header("📋 Registro de Nuevos Materiales / Maestro de SKU")
     
-    USUARIOS_VALIDOS = {
-        "admin": "12345",
-        "operador": "password123"
-    }
-
-    with st.form("form_login"):
-        usuario = st.text_input("Usuario")
-        password = st.text_input("Contraseña", type="password")
-        submit_login = st.form_submit_button("Ingresar")
-
-        if submit_login:
-            if usuario in USUARIOS_VALIDOS and USUARIOS_VALIDOS[usuario] == password:
-                st.session_state.autenticado = True
-                st.session_state.usuario_actual = usuario
-                st.success(f"¡Bienvenido, {usuario}!")
-                st.rerun()
-            else:
-                st.error("Usuario o contraseña incorrectos")
-
-# 4. Control de flujo
-if not st.session_state.autenticado:
-    mostrar_login()
-else:
-    # --- "ERP Marklogistic" ---
-    
-    st.sidebar.write(f"👤 Conectado como: **{st.session_state.usuario_actual}**")
-    if st.sidebar.button("Cerrar Sesión"):
-        st.session_state.autenticado = False
-        st.rerun()
-
-    st.title("📦 ERP Marklogistic")
-
-    # Archivos CSV
-    FILE_PRODUCTOS = "productos.csv"
-    FILE_MOVIMIENTOS = "movimientos.csv"
-
-    def cargar_productos():
-        if os.path.exists(FILE_PRODUCTOS):
-            return pd.read_csv(FILE_PRODUCTOS)
-        else:
-            return pd.DataFrame(columns=["Código", "Nombre", "Categoría", "Stock Actual", "Stock Mínimo (Crítico)", "Precio Unitario ($)"])
-
-    def guardar_productos(df):
-        df.to_csv(FILE_PRODUCTOS, index=False)
-
-    def cargar_movimientos():
-        if os.path.exists(FILE_MOVIMIENTOS):
-            return pd.read_csv(FILE_MOVIMIENTOS)
-        else:
-            return pd.DataFrame(columns=["Fecha", "Código", "Producto", "Tipo", "Cantidad", "Motivo"])
-
-    def guardar_movimientos(df):
-        df.to_csv(FILE_MOVIMIENTOS, index=False)
-
-    df_productos = cargar_productos()
-    df_movimientos = cargar_movimientos()
-
-    # Menú de navegación actualizado con la Guía de Despacho
-    menu = st.sidebar.selectbox("Menú de Navegación", [
-        "📊 Dashboard y Stock", 
-        "➕ Registrar Productos", 
-        "📥 Registrar Entrada", 
-        "📤 Registrar Salida", 
-        "📄 Generar Guía de Despacho",
-        "📜 Historial de Movimientos"
-    ])
-
-    # ----------------------------------------------------
-    # 1. DASHBOARD Y STOCK CRÍTICO
-    # ----------------------------------------------------
-    if menu == "📊 Dashboard y Stock":
-        st.subheader("📊 Estado General del Inventario")
-        if not df_productos.empty:
-            stock_critico = df_productos[df_productos["Stock Actual"] <= df_productos["Stock Mínimo (Crítico)"]]
-            if not stock_critico.empty:
-                st.warning("⚠️ **¡Atención! Hay productos con Stock Crítico o Agotado:**")
-                st.dataframe(stock_critico[["Código", "Nombre", "Stock Actual", "Stock Mínimo (Crítico)"]], use_container_width=True)
-            else:
-                st.success("✅ Todos los niveles de stock se encuentran en rangos seguros.")
-            
-            st.divider()
-            
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total Productos", len(df_productos))
-            col2.metric("Unidades Totales", int(df_productos["Stock Actual"].sum()))
-            valor_total = (df_productos["Stock Actual"] * df_productos["Precio Unitario ($)"]).sum()
-            col3.metric("Valor del Inventario", f"${valor_total:,.2f}")
-            
-            st.subheader("📋 Inventario Actualizado")
-            st.dataframe(df_productos, use_container_width=True)
-        else:
-            st.info("No hay productos registrados todavía.")
-
-    # ----------------------------------------------------
-    # 2. REGISTRAR NUEVOS PRODUCTOS
-    # ----------------------------------------------------
-    elif menu == "➕ Registrar Productos":
-        st.subheader("➕ Agregar Nuevo Producto al Sistema")
-        with st.form("form_nuevo_prod", clear_on_submit=True):
-            codigo = st.text_input("Código o SKU Único")
-            nombre = st.text_input("Nombre del Producto")
-            categoria = st.selectbox("Categoría", ["Electrónica", "Alimentos", "Ropa", "Hogar", "Herramientas", "Otros"])
-            stock_inicial = st.number_input("Stock Inicial", min_value=0, step=1)
-            stock_minimo = st.number_input("Stock Mínimo (Alerta de Stock Crítico)", min_value=0, step=1, value=5)
-            precio = st.number_input("Precio Unitario ($)", min_value=0.0, format="%.2f")
-            btn_crear = st.form_submit_button("Guardar Producto")
-
-            if btn_crear:
-                if codigo and nombre:
-                    if not df_productos.empty and codigo in df_productos["Código"].values:
-                        st.error("❌ El código de producto ya existe.")
-                    else:
-                        nuevo_prod = pd.DataFrame([{
-                            "Código": codigo, "Nombre": nombre, "Categoría": categoria, 
-                            "Stock Actual": stock_inicial, "Stock Mínimo (Crítico)": stock_minimo, 
-                            "Precio Unitario ($)": precio
-                        }])
-                        df_productos = pd.concat([df_productos, nuevo_prod], ignore_index=True)
-                        guardar_productos(df_productos)
-                        st.success(f"¡Producto '{nombre}' registrado con éxito!")
+    with st.form("form_nuevo_material"):
+        col1, col2 = st.columns(2)
+        with col1:
+            sku = st.text_input("Código SKU / Material").strip().upper()
+            nombre = st.text_input("Nombre / Descripción del Material")
+        with col2:
+            unidad = st.selectbox("Unidad de Medida", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
+            stock_inicial = st.number_input("Stock Inicial", min_value=0, value=0)
+        
+        submitted = st.form_submit_button("Guardar Material")
+        if submitted:
+            if sku and nombre:
+                if sku in st.session_state.materiales["SKU"].values:
+                    st.error(f"El SKU '{sku}' ya se encuentra registrado.")
                 else:
-                    st.error("Por favor completa al menos el Código y el Nombre.")
-
-    # ----------------------------------------------------
-    # 3. REGISTRAR ENTRADA
-    # ----------------------------------------------------
-    elif menu == "📥 Registrar Entrada":
-        st.subheader("📥 Registrar Ingreso de Mercadería")
-        if df_productos.empty:
-            st.warning("Primero debes registrar productos en el sistema.")
-        else:
-            with st.form("form_entrada", clear_on_submit=True):
-                codigo_sel = st.selectbox("Selecciona el Producto", df_productos["Código"] + " - " + df_productos["Nombre"])
-                cantidad_entrada = st.number_input("Cantidad a Ingresar", min_value=1, step=1)
-                motivo = st.text_input("Motivo de Entrada")
-                btn_entrada = st.form_submit_button("Confirmar Entrada")
-
-                if btn_entrada:
-                    codigo_limpio = codigo_sel.split(" - ")[0]
-                    idx = df_productos[df_productos["Código"] == codigo_limpio].index[0]
-                    df_productos.loc[idx, "Stock Actual"] += cantidad_entrada
-                    guardar_productos(df_productos)
+                    nuevo_mat = pd.DataFrame([{"SKU": sku, "Nombre": nombre, "Unidad": unidad, "Stock_Actual": stock_inicial}])
+                    st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_mat], ignore_index=True)
                     
-                    nuevo_mov = pd.DataFrame([{
-                        "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                        "Código": codigo_limpio, "Producto": df_productos.loc[idx, "Nombre"], 
-                        "Tipo": "ENTRADA", "Cantidad": cantidad_entrada, "Motivo": motivo if motivo else "Ingreso general"
-                    }])
-                    df_movimientos = pd.concat([df_movimientos, nuevo_mov], ignore_index=True)
-                    guardar_movimientos(df_movimientos)
-                    st.success(f"¡Se sumaron {cantidad_entrada} unidades!")
-
-    # ----------------------------------------------------
-    # 4. REGISTRAR SALIDA
-    # ----------------------------------------------------
-    elif menu == "📤 Registrar Salida":
-        st.subheader("📤 Registrar Salida o Venta de Mercadería")
-        if df_productos.empty:
-            st.warning("No hay productos registrados.")
-        else:
-            with st.form("form_salida", clear_on_submit=True):
-                codigo_sel = st.selectbox("Selecciona el Producto", df_productos["Código"] + " - " + df_productos["Nombre"])
-                cantidad_salida = st.number_input("Cantidad a Retirar", min_value=1, step=1)
-                motivo = st.text_input("Motivo de Salida (Ej: Venta, despacho)")
-                btn_salida = st.form_submit_button("Confirmar Salida")
-
-                if btn_salida:
-                    codigo_limpio = codigo_sel.split(" - ")[0]
-                    idx = df_productos[df_productos["Código"] == codigo_limpio].index[0]
-                    stock_actual = df_productos.loc[idx, "Stock Actual"]
-                    
-                    if cantidad_salida > stock_actual:
-                        st.error(f"❌ Stock insuficiente. Solo hay {stock_actual} disponibles.")
-                    else:
-                        df_productos.loc[idx, "Stock Actual"] -= cantidad_salida
-                        guardar_productos(df_productos)
-                        
-                        nuevo_mov = pd.DataFrame([{
-                            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                            "Código": codigo_limpio, "Producto": df_productos.loc[idx, "Nombre"], 
-                            "Tipo": "SALIDA", "Cantidad": cantidad_salida, "Motivo": motivo if motivo else "Salida general"
+                    if stock_inicial > 0:
+                        mov = pd.DataFrame([{
+                            "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                            "Tipo": "STOCK_INICIAL",
+                            "SKU": sku,
+                            "Cantidad": stock_inicial,
+                            "Origen/Destino": "Carga Inicial",
+                            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         }])
-                        df_movimientos = pd.concat([df_movimientos, nuevo_mov], ignore_index=True)
-                        guardar_movimientos(df_movimientos)
-                        st.success(f"¡Se retiraron {cantidad_salida} unidades!")
-
-    # ----------------------------------------------------
-    # 5. GENERAR GUÍA DE DESPACHO / TRANSPORTE NUEVA
-    # ----------------------------------------------------
-    elif menu == "📄 Generar Guía de Despacho":
-        st.subheader("📄 Generador de Guía de Transporte y Despacho")
-# --- CONFIGURACIÓN DE PÁGINA O MENÚ ---
-st.title("📦 ERP Marklogistic")
-st.subheader("📷 Salida de Material con Capturadora de Código de Barras")
-
-# Inicializar inventario de prueba en la sesión si no existe
-if "inventario" not in st.session_state:
-  st.session_state.inventario = {
-      "SKU-1001": {"nombre": "Caja Cartón Grande", "stock": 50},
-      "SKU-1002": {"nombre": "Pallet Madera Estándar", "stock": 20},
-      "SKU-1003": {"nombre": "Cinta Embalaje 45m", "stock": 100},
-  }
-
-# Inicializar datos del cliente y carrito de salida
-if "cliente_actual" not in st.session_state:
-  st.session_state.cliente_actual = ""
-if "carrito_salida" not in st.session_state:
-  st.session_state.carrito_salida = []
-
-# --- 1. DATOS GENERALES DEL DESPACHO ---
-col_c1, col_c2 = st.columns(2)
-with col_c1:
-  st.session_state.cliente_actual = st.text_input(
-      "Cliente / Destinatario",
-      value=st.session_state.cliente_actual,
-      placeholder="Ej: Comercial del Norte SpA",
-  )
-with col_c2:
-  motivo_traslado = st.selectbox(
-      "Motivo del Traslado",
-      ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"],
-  )
-
-st.divider()
-
-# --- 2. CAMPO PARA LA CAPTURADORA DE CÓDIGO DE BARRAS ---
-st.markdown("### 🎯 Escanear Producto")
-st.caption(
-    "Haz clic en el cuadro de abajo y dispara la capturadora sobre el código de"
-    " barra."
-)
-
-
-# Función que se ejecuta automáticamente cuando la capturadora presiona ENTER
-def procesar_escaneo():
-  codigo_leido = st.session_state.codigo_capturado.strip()
-
-  if codigo_leido:
-    # Verificar si el SKU existe en el inventario
-    if codigo_leido in st.session_state.inventario:
-      prod = st.session_state.inventario[codigo_leido]
-
-      if prod["stock"] > 0:
-        # Agregar al carrito temporal
-        st.session_state.carrito_salida.append({
-            "sku": codigo_leido,
-            "nombre": prod["nombre"],
-            "cantidad": 1,
-        })
-        st.toast(
-            f"✅ Capurado: {prod['nombre']} ({codigo_leido})", icon="📦"
-        )
-      else:
-        st.error(f"❌ El producto {codigo_leido} no tiene stock disponible.")
-    else:
-      st.warning(f"⚠️ El código {codigo_leido} no existe en la base de datos.")
-
-    # Limpiar el campo para la siguiente lectura automática
-    st.session_state.codigo_capturado = ""
-
-
-# Campo de texto donde la capturadora "escribe" el código
-st.text_input(
-    "Lector de Código de Barras / QR",
-    key="codigo_capturado",
-    on_change=procesar_escaneo,
-    placeholder="Pistola lista para escanear...",
-)
-
-# --- 3. TABLA CON PRODUCTOS ESCANNEADOS ---
-if st.session_state.carrito_salida:
-  st.markdown("#### Lista de Ítems a Despachar")
-
-  # Mostrar la lista de ítems capturados
-  for idx, item in enumerate(st.session_state.carrito_salida):
-    col_i1, col_i2, col_i3 = st.columns([2, 4, 2])
-    col_i1.write(f"**SKU:** {item['sku']}")
-    col_i2.write(f"**Producto:** {item['nombre']}")
-    col_i3.write(f"**Cant:** {item['cantidad']} ud.")
-
-  st.divider()
-
-  # --- 4. CONFIRMAR SALIDA Y GENERAR GUÍA ---
-  if st.button("🚀 Confirmar Salida y Generar Guía de Despacho"):
-    if not st.session_state.cliente_actual:
-      st.error(
-          "⚠️ Ingresa el nombre del cliente antes de confirmar la salida."
-      )
-    else:
-      # Descontar stock real
-      for item in st.session_state.carrito_salida:
-        st.session_state.inventario[item["sku"]]["stock"] -= item["cantidad"]
-
-      # Fecha y hora oficial de Chile
-      zona_cl = pytz.timezone("America/Santiago")
-      fecha_guia_str = datetime.now(zona_cl).strftime("%d/%m/%Y %H:%M:%S")
-      folio_guia = f"GD-2026-{datetime.now().strftime('%H%M%S')}"
-
-      # Guardar la guía generada
-      st.session_state.guia_activa = {
-          "folio": folio_guia,
-          "fecha": fecha_guia_str,
-          "cliente": st.session_state.cliente_actual,
-          "motivo": motivo_traslado,
-          "items": list(st.session_state.carrito_salida),
-      }
-
-      # Limpiar carrito
-      st.session_state.carrito_salida = []
-      st.success("¡Salida registrada y stock actualizado correctamente!")
-      st.rerun()
-
-# --- 5. MOSTRAR LA GUÍA DE DESPACHO EN PANTALLA ---
-if "guia_activa" in st.session_state:
-  g = st.session_state.guia_activa
-
-  st.divider()
-  st.markdown("### 📄 Guía de Despacho Generada")
-
-  # Construir filas HTML dinámicas para cada producto capturado
-  filas_html = ""
- # --- INICIALIZAR VARIABLES DE SESIÓN SI NO EXISTEN ---
-if 'cliente_actual' not in st.session_state:
-    st.session_state.cliente_actual = ""
-if 'carrito_salida' not in st.session_state:
-    st.session_state.carrito_salida = []
-if 'inventario' not in st.session_state:
-    st.session_state.inventario = {
-        "SKU-1001": {"nombre": "Caja Cartón Grande", "stock": 50},
-        "SKU-1002": {"nombre": "Pallet Madera Estándar", "stock": 20},
-        "SKU-1003": {"nombre": "Cinta Embalaje 45m", "stock": 100}
-    }
-
-# --- 1. DATOS GENERALES DEL DESPACHO ---
-col_c1, col_c2 = st.columns(2)
-with col_c1:
-    # --- 1. DATOS GENERALES DEL DESPACHO ---
-col_c1, col_c2 = st.columns(2)
-with col_c1:
-    # Se agrega el parámetro key para evitar conflictos de ID duplicado en Streamlit
-    cliente_ingresado = st.text_input(
-        "Cliente / Destinatario",
-        value=st.session_state.get('cliente_actual', ''),
-        placeholder="Ej: Comercial del Norte SpA",
-        key="input_cliente"
-    )
-    st.session_state.cliente_actual = cliente_ingresado
-
-with col_c2:
-    motivo_traslado = st.selectbox(
-        "Motivo del Traslado",
-        ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"],
-        key="select_motivo_traslado" # Clave única opcional por seguridad
-    )
-        "Cliente / Destinatario",
-        value=st.session_state.cliente_actual,
-        placeholder="Ej: Comercial del Norte SpA"
-    )
-with col_c2:
-    motivo_traslado = st.selectbox(
-        "Motivo del Traslado",
-        ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"]
-    )
-
-st.divider()
-
-# --- 2. CAMPO PARA LA CAPTURADORA DE CÓDIGO DE BARRAS ---
-st.markdown("### Escanear Producto")
-st.caption("Haz clic en el cuadro de abajo y dispara la capturadora sobre el código de barra.")
-
-def procesar_escaneo():
-    codigo_leido = st.session_state.codigo_capturado.strip()
-    
-    if codigo_leido:
-        if codigo_leido in st.session_state.inventario:
-            prod = st.session_state.inventario[codigo_leido]
-            
-            if prod["stock"] > 0:
-                st.session_state.carrito_salida.append({
-                    "sku": codigo_leido,
-                    "nombre": prod["nombre"],
-                    "cantidad": 1
-                })
-                st.toast(f"Capturado: {prod['nombre']} ({codigo_leido})", icon="📦")
+                        st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+                        
+                    st.success(f"Material {sku} creado correctamente.")
             else:
-                st.error(f"El producto {codigo_leido} no tiene stock disponible.")
-        else:
-            st.warning(f"El código {codigo_leido} no existe en la base de datos.")
-            
-        st.session_state.codigo_capturado = ""
+                st.warning("Completa los campos obligatorios (SKU y Nombre).")
 
-st.text_input(
-    "Lector de Código de Barras / QR",
-    key="codigo_capturado",
-    on_change=procesar_escaneo,
-    placeholder="Pistola lista para escanear..."
-)
+    st.subheader("Maestro de Materiales Registrados")
+    st.dataframe(st.session_state.materiales, use_container_width=True)
 
-# --- 3. TABLA CON PRODUCTOS ESCANEADOS ---
-if st.session_state.carrito_salida:
-    st.markdown("#### Lista de Ítems a Despachar")
+# ---------------------------------------------------------
+# MÓDULO 2: INGRESO DE MATERIALES
+# ---------------------------------------------------------
+elif menu == "2. Ingreso de Materiales":
+    st.header("📥 Recepción e Ingreso a Bodega")
     
-    for idx, item in enumerate(st.session_state.carrito_salida):
-        col_i1, col_i2, col_i3 = st.columns([2, 4, 2])
-        col_i1.write(f"SKU: {item['sku']}")
-        col_i2.write(f"Producto: {item['nombre']}")
-        col_i3.write(f"Cant: {item['cantidad']} ud.")
-        
-    st.divider()
-    
-    if st.button("Confirmar Salida y Generar Guía de Despacho"):
-        if not st.session_state.cliente_actual:
-            st.error("Ingresa el nombre del cliente antes de confirmar la salida.")
-        else:
-            for item in st.session_state.carrito_salida:
-                st.session_state.inventario[item["sku"]]["stock"] -= item["cantidad"]
-                
-            zona_cl = pytz.timezone('America/Santiago')
-            fecha_guia_str = datetime.now(zona_cl).strftime("%d/%m/%Y %H:%M:%S")
-            folio_guia = f"GD-2026-{datetime.now().strftime('%H%M%S')}"
-            
-            st.session_state.guia_activa = {
-                "folio": folio_guia,
-                "fecha": fecha_guia_str,
-                "cliente": st.session_state.cliente_actual,
-                "motivo": motivo_traslado,
-                "items": list(st.session_state.carrito_salida)
-            }
-            
-            st.session_state.carrito_salida = []
-            st.success("¡Salida registrada y stock actualizado correctamente!")
-            st.rerun()
-
-# --- 4. MOSTRAR LA GUÍA DE DESPACHO EN PANTALLA ---
-if "guia_activa" in st.session_state:
-    g = st.session_state.guia_activa
-    
-    st.divider()
-    st.markdown("### Comprobante Generado")
-    
-    filas_html = ""
-    for item in g["items"]:
-        filas_html += (
-            "<tr>"
-            f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['sku']}</td>"
-            f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['nombre']}</td>"
-            f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #eee;'><b>{item['cantidad']}</b></td>"
-            "</tr>"
-        )
-    
-    documento_html = (
-        "<div style='border: 2px solid #ccc; padding: 25px; border-radius: 10px; background-color: white; color: black; font-family: sans-serif;'>"
-        "<h2 style='text-align: center; color: #1f77b4; margin-bottom: 0;'>MARKLOGISTIC ERP</h2>"
-        "<p style='text-align: center; color: #555; font-size: 13px; margin-top: 5px;'>GUIA DE TRANSPORTE Y DESPACHO DE BODEGA</p>"
-        "<hr style='border: 1px solid #ddd;'>"
-        
-        "<table style='width: 100%; font-size: 14px; margin-bottom: 15px;'>"
-        "<tr>"
-        f"<td style='width: 50%;'><b>Numero de Guia / Folio:</b> {g['folio']}</td>"
-        f"<td><b>Fecha y Hora (Chile):</b> {g['fecha']}</td>"
-        "</tr>"
-        "<tr>"
-        f"<td><b>Cliente:</b> {g['cliente']}</td>"
-        f"<td><b>Motivo:</b> {g['motivo']}</td>"
-        "</tr>"
-        "</table>"
-        
-        "<table style='width: 100%; border-collapse: collapse; font-size: 14px;'>"
-        "<tr style='background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;'>"
-        "<th style='padding: 8px; text-align: left;'>SKU</th>"
-        "<th style='padding: 8px; text-align: left;'>Descripcion</th>"
-        "<th style='padding: 8px; text-align: right;'>Cantidad</th>"
-        "</tr>"
-        f"{filas_html}"
-        "</table>"
-        
-        "<p style='font-size: 11px; color: #777; text-align: center; margin-top: 25px;'>"
-        "Comprobante oficial emitido por el sistema de gestion de bodegas Marklogistic."
-        "</p>"
-        "</div>"
-    )
-    
-    st.markdown(documento_html, unsafe_allow_html=True)
-    
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        if st.button("Imprimir / PDF"):
-            st.info("Presiona Ctrl + P para guardar o imprimir.")
-    with col_b2:
-        if st.button("Nueva Lectura"):
-            del st.session_state.guia_activa
-            st.rerun()
-# --- INICIALIZAR VARIABLES DE SESIÓN SI NO EXISTEN ---
-if 'cliente_actual' not in st.session_state:
-    st.session_state.cliente_actual = ""
-if 'carrito_salida' not in st.session_state:
-    st.session_state.carrito_salida = []
-if 'inventario' not in st.session_state:
-    st.session_state.inventario = {
-        "SKU-1001": {"nombre": "Caja Cartón Grande", "stock": 50},
-        "SKU-1002": {"nombre": "Pallet Madera Estándar", "stock": 20},
-        "SKU-1003": {"nombre": "Cinta Embalaje 45m", "stock": 100}
-    }
-
-# --- 1. DATOS GENERALES DEL DESPACHO ---
-col_c1, col_c2 = st.columns(2)
-
-with col_c1:
-    cliente_ingresado = st.text_input(
-        "Cliente / Destinatario",
-        value=st.session_state.get('cliente_actual', ''),
-        placeholder="Ej: Comercial del Norte SpA",
-        key="input_cliente_erp"
-    )
-    st.session_state.cliente_actual = cliente_ingresado
-
-with col_c2:
-    motivo_traslado = st.selectbox(
-        "Motivo del Traslado",
-        ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"],
-        key="select_motivo_traslado"
-    )
-
-st.divider()
-
-# --- 2. SELECCIÓN MANUAL DE PRODUCTOS ---
-st.markdown("### Seleccionar Producto para la Salida")
-
-# Crear una lista de opciones legible basada en el inventario actual
-opciones_sku = {f"{sku} - {det['nombre']} (Disponibles: {det['stock']})": sku for sku, det in st.session_state.inventario.items()}
-
-col_p1, col_p2 = st.columns([3, 1])
-
-with col_p1:
-    producto_seleccionado_label = st.selectbox(
-        "Producto",
-        options=list(opciones_sku.keys()),
-        key="select_producto_manual"
-    )
-
-with col_p2:
-    cantidad_a_retirar = st.number_input(
-        "Cantidad",
-        min_value=1,
-        value=1,
-        key="num_cantidad_manual"
-    )
-
-# Botón para agregar al carrito
-if st.button("➕ Agregar al Carrito de Salida"):
-    sku_elegido = opciones_sku[producto_seleccionado_label]
-    prod_info = st.session_state.inventario[sku_elegido]
-    
-    if prod_info["stock"] >= cantidad_a_retirar:
-        # Verificar si ya está en el carrito para sumar la cantidad, o agregarlo nuevo
-        encontrado = False
-        for item in st.session_state.carrito_salida:
-            if item["sku"] == sku_elegido:
-                item["cantidad"] += cantidad_a_retirar
-                encontrado = True
-                break
-        
-        if not encontrado:
-            st.session_state.carrito_salida.append({
-                "sku": sku_elegido,
-                "nombre": prod_info["nombre"],
-                "cantidad": cantidad_a_retirar
-            })
-            
-        st.success(f"Agregado: {prod_info['nombre']} ({cantidad_a_retirar} un.)")
-        st.rerun()
+    if st.session_state.materiales.empty:
+        st.info("Primero debe crear materiales en el Módulo 1.")
     else:
-        st.error(f"Stock insuficiente. Solo quedan {prod_info['stock']} unidades disponibles.")
-
-# --- 3. TABLA CON PRODUCTOS EN EL CARRITO ---
-if st.session_state.carrito_salida:
-    st.divider()
-    st.markdown("#### Lista de Ítems a Despachar")
-    
-    for idx, item in enumerate(st.session_state.carrito_salida):
-        col_i1, col_i2, col_i3 = st.columns([2, 4, 2])
-        col_i1.write(f"SKU: {item['sku']}")
-        col_i2.write(f"Producto: {item['nombre']}")
-        col_i3.write(f"Cant: {item['cantidad']} ud.")
-        
-    st.divider()
-    
-    if st.button("🚀 Confirmar Salida y Generar Guía de Despacho"):
-        if not st.session_state.cliente_actual:
-            st.error("Ingresa el nombre del cliente antes de confirmar la salida.")
-        else:
-            # Descontar stock real
-            for item in st.session_state.carrito_salida:
-                st.session_state.inventario[item["sku"]]["stock"] -= item["cantidad"]
+        with st.form("form_ingreso"):
+            sku_ingreso = st.selectbox("Seleccionar Material (SKU)", st.session_state.materiales["SKU"])
+            cant_ingreso = st.number_input("Cantidad a Ingresar", min_value=1, value=1)
+            proveedor_origen = st.text_input("Proveedor / Procedencia", placeholder="Ej: Proveedor Central S.A.")
+            
+            btn_ingresar = st.form_submit_button("Registrar Ingreso")
+            if btn_ingresar:
+                # Actualizar Stock
+                idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_ingreso].tolist()[0]
+                st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_ingreso
                 
-            zona_cl = pytz.timezone('America/Santiago')
-            fecha_guia_str = datetime.now(zona_cl).strftime("%d/%m/%Y %H:%M:%S")
-            folio_guia = f"GD-2026-{datetime.now().strftime('%H%M%S')}"
-            
-            st.session_state.guia_activa = {
-                "folio": folio_guia,
-                "fecha": fecha_guia_str,
-                "cliente": st.session_state.cliente_actual,
-                "motivo": motivo_traslado,
-                "items": list(st.session_state.carrito_salida)
-            }
-            
-            st.session_state.carrito_salida = []
-            st.success("¡Salida registrada y stock actualizado correctamente!")
-            st.rerun()
+                # Registrar Movimiento
+                mov = pd.DataFrame([{
+                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                    "Tipo": "INGRESO",
+                    "SKU": sku_ingreso,
+                    "Cantidad": cant_ingreso,
+                    "Origen/Destino": proveedor_origen if proveedor_origen else "Recepción General",
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }])
+                st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+                st.success(f"Se ingresaron {cant_ingreso} unidades del SKU {sku_ingreso}.")
 
-# --- 4. MOSTRAR LA GUÍA DE DESPACHO EN PANTALLA ---
-if "guia_activa" in st.session_state:
-    g = st.session_state.guia_activa
-    
-    st.divider()
-    st.markdown("### Comprobante Generado")
-    
-    filas_html = ""
-    for item in g["items"]:
-        filas_html += (
-            "<tr>"
-            f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['sku']}</td>"
-            f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['nombre']}</td>"
-            f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #eee;'><b>{item['cantidad']}</b></td>"
-            "</tr>"
-        )
-    
-    documento_html = (
-        "<div style='border: 2px solid #ccc; padding: 25px; border-radius: 10px; background-color: white; color: black; font-family: sans-serif;'>"
-        "<h2 style='text-align: center; color: #1f77b4; margin-bottom: 0;'>MARKLOGISTIC ERP</h2>"
-        "<p style='text-align: center; color: #555; font-size: 13px; margin-top: 5px;'>GUIA DE TRANSPORTE Y DESPACHO DE BODEGA</p>"
-        "<hr style='border: 1px solid #ddd;'>"
-        
-        "<table style='width: 100%; font-size: 14px; margin-bottom: 15px;'>"
-        "<tr>"
-        f"<td style='width: 50%;'><b>Numero de Guia / Folio:</b> {g['folio']}</td>"
-        f"<td><b>Fecha y Hora (Chile):</b> {g['fecha']}</td>"
-        "</tr>"
-        "<tr>"
-        f"<td><b>Cliente:</b> {g['cliente']}</td>"
-        f"<td><b>Motivo:</b> {g['motivo']}</td>"
-        "</tr>"
-        "</table>"
-        
-        "<table style='width: 100%; border-collapse: collapse; font-size: 14px;'>"
-        "<tr style='background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;'>"
-        "<th style='padding: 8px; text-align: left;'>SKU</th>"
-        "<th style='padding: 8px; text-align: left;'>Descripcion</th>"
-        "<th style='padding: 8px; text-align: right;'>Cantidad</th>"
-        "</tr>"
-        f"{filas_html}"
-        "</table>"
-        
-        "<p style='font-size: 11px; color: #777; text-align: center; margin-top: 25px;'>"
-        "Comprobante oficial emitido por el sistema de gestion de bodegas Marklogistic."
-        "</p>"
-        "</div>"
-    )
-    
-    st.markdown(documento_html, unsafe_allow_html=True)
-    
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        if st.button("Imprimir / PDF"):
-            st.info("Presiona Ctrl + P para guardar o imprimir.")
-    with col_b2:
-        if st.button("Nueva Salida"):
-            del st.session_state.guia_activa
-            st.rerun()
+# ---------------------------------------------------------
