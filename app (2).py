@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 # 1. Configuración de la página
-st.set_page_config(page_title="Sistema de Inventario y Despacho", page_icon="📦", layout="wide")
+st.set_page_config(page_title=" ERP Marklogistic", page_icon="📦", layout="wide")
 
 # 2. Inicializar el estado de autenticación en la sesión
 if "autenticado" not in st.session_state:
@@ -37,7 +37,7 @@ def mostrar_login():
 if not st.session_state.autenticado:
     mostrar_login()
 else:
-    # --- SISTEMA PRINCIPAL DE INVENTARIO ---
+    # --- "ERP Marklogistic" ---
     
     st.sidebar.write(f"👤 Conectado como: **{st.session_state.usuario_actual}**")
     if st.sidebar.button("Cerrar Sesión"):
