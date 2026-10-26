@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="ERP Marklogistic", layout="wide")
+st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE USUARIO Y AUTENTICACIÓN
