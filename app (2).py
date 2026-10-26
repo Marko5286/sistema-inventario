@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 # 1. Configuración de la página (debe ser lo primero de Streamlit)
-st.set_page_config(page_title="Control de Inventario", page_icon="📦", layout="wide")
+st.set_page_config(page_title="ERP Marklogistic", page_icon="📦", layout="wide")
 
 # 2. Inicializar el estado de autenticación en la sesión
 if "autenticado" not in st.session_state:
