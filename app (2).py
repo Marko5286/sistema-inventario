@@ -86,9 +86,7 @@ if not st.session_state.autenticado:
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS Marklogistic")
 # ---------------------------------------------------------
-# 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
-# ---------------------------------------------------------
-st.sidebar.title("📦 ERP Marklogistic")
+
 
 # --- AGREGAR LOGO AQUÍ ---
 try:
