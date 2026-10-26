@@ -5,7 +5,44 @@ from datetime import datetime
 st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
-# 1. INICIALIZACIÓN DE BASE DE DATOS
+# 0. CONFIGURACIÓN DE USUARIO Y AUTENTICACIÓN
+# ---------------------------------------------------------
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+
+def verificar_credenciales(usuario, clave):
+    # Puedes definir aquí tus usuarios y claves permitidas
+    usuarios_permitidos = {
+        "admin": "admin123",
+        "bodega": "bodega2026",
+        "logistica": "marko2026"
+    }
+    if usuario in usuarios_permitidos and usuarios_permitidos[usuario] == clave:
+        return True
+    return False
+
+# Si no ha iniciado sesión, mostrar la pantalla de Login
+if not st.session_state.autenticado:
+    st.title("🔐 Acceso al ERP Marklogistic")
+    st.markdown("Por favor, introduce tus credenciales para continuar.")
+    
+    with st.form("form_login"):
+        user_input = st.text_input("Usuario")
+        pass_input = st.text_input("Contraseña", type="password")
+        btn_login = st.form_submit_button("Iniciar Sesión")
+        
+        if btn_login:
+            if verificar_credenciales(user_input, pass_input):
+                st.session_state.autenticado = True
+                st.session_state.usuario_actual = user_input
+                st.rerun()
+            else:
+                st.error("Usuario o contraseña incorrectos.")
+    
+    st.stop() # Detiene la ejecución del resto de la app hasta que inicie sesión
+
+# ---------------------------------------------------------
+# 1. INICIALIZACIÓN DE BASE DE DATOS (Sesión Iniciada)
 # ---------------------------------------------------------
 if "materiales" not in st.session_state:
     st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Stock_Actual"])
@@ -23,6 +60,13 @@ if "guias_despacho" not in st.session_state:
 # 2. PANEL LATERAL / NAVEGACIÓN
 # ---------------------------------------------------------
 st.sidebar.title("📦 ERP Marklogistic")
+st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
+
+if st.sidebar.button("Cerrar Sesión"):
+    st.session_state.autenticado = False
+    st.rerun()
+
+st.sidebar.markdown("---")
 menu = st.sidebar.radio(
     "Módulos del Sistema",
     [
@@ -235,7 +279,7 @@ elif menu == "5. Inventario":
 # MÓDULO 6: TRAZABILIDAD
 # ---------------------------------------------------------
 elif menu == "6. Trazabilidad":
-    st.header("🔍 Trazabilidad y Historial de Movimientos")
+    st.header("🔍 Trazabilidad e Historial de Movimientos")
     
     if st.session_state.movimientos.empty:
         st.info("No hay registro de movimientos.")
