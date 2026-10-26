@@ -98,9 +98,6 @@ try:
 except:
     pass # Si el archivo no existe aún, la app sigue funcionando sin error
 
-st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
-
-
 if st.sidebar.button("Cerrar Sesión"):
     st.session_state.autenticado = False
     st.rerun()
