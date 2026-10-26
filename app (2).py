@@ -252,6 +252,9 @@ elif menu == "3. Picking de Materiales":
 # ---------------------------------------------------------
 # MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
+# ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
     st.header("🚚 Despacho y Emisión de Guía de Despacho")
     
@@ -304,19 +307,71 @@ elif menu == "4. Despacho y Guía":
             
             st.success(f"¡Despacho realizado con éxito! Guía Generada: **{num_guia}**")
             
-            st.markdown("---")
-            st.subheader(f"📄 GUÍA DE DESPACHO N° {num_guia}")
-            st.write(f"**Empresa:** ERP Marklogistic")
-            st.write(f"**Cliente:** {datos_orden['Cliente']}")
-            st.write(f"**Fecha:** {guia_data['Fecha']}")
-            st.write(f"**Transportista:** {transporte} | **Patente:** {patente}")
-            
-            df_detalle = pd.DataFrame([{
-                "SKU": datos_orden["SKU"],
-                "Cantidad Despachada": datos_orden["Cantidad"],
-                "Motivo": motivo
-            }])
-            st.table(df_detalle)
+            # Guardamos la última guía generada en la sesión para poder imprimirla al instante
+            st.session_state.ultima_guia = guia_data
+
+    # Sección para visualizar e imprimir guías emitidas
+    if "ultima_guia" in st.session_state:
+        st.markdown("---")
+        st.subheader(f"📄 DOCUMENTO: GUÍA DE DESPACHO N° {st.session_state.ultima_guia['Numero_Guia']}")
+        
+        # Contenedor con diseño formal de Guía
+        guia = st.session_state.ultima_guia
+        html_guia = f"""
+        <div style="border: 2px solid #000; padding: 20px; font-family: Arial, sans-serif; background-color: white; color: black;">
+            <h2 style="text-align: center; margin: 0;">ERP MARKLOGISTIC S.A.</h2>
+            <p style="text-align: center; margin: 0; font-size: 14px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
+            <hr style="border: 1px solid #000;">
+            <h3 style="text-align: right; color: red; margin: 0;">GUÍA DE DESPACHO</h3>
+            <h3 style="text-align: right; margin: 0;">N° {guia['Numero_Guia']}</h3>
+            <p><b>Fecha de Emisión:</b> {guia['Fecha']}</p>
+            <p><b>Señor(es):</b> {guia['Cliente']}</p>
+            <p><b>Transportista:</b> {guia['Transporte']} | <b>Patente:</b> {guia['Patente']}</p>
+            <p><b>Motivo de Traslado:</b> {guia['Motivo']}</p>
+            <br>
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid black;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="border: 1px solid black; padding: 8px;">SKU</th>
+                        <th style="border: 1px solid black; padding: 8px;">Cantidad</th>
+                        <th style="border: 1px solid black; padding: 8px;">Descripción / Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="border: 1px solid black; padding: 8px; text-align: center;">{guia['SKU']}</td>
+                        <td style="border: 1px solid black; padding: 8px; text-align: center;">{guia['Cantidad']}</td>
+                        <td style="border: 1px solid black; padding: 8px;">Despacho según orden de picking</td>
+                    </tr>
+                </tbody>
+            </table>
+            <br><br><br>
+            <div style="display: flex; justify-content: space-between; text-align: center;">
+                <div><p>___________________________<br>Firma Chofer</p></div>
+                <div><p>___________________________<br>Firma Recinto / Cliente</p></div>
+            </div>
+        </div>
+        """
+        
+        # Renderizar la vista previa en HTML dentro de Streamlit
+        st.markdown(html_guia, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Botón nativo de impresión del navegador
+        st.markdown(
+            """
+            <script>
+            function imprimirGuia() {
+                window.print();
+            }
+            </script>
+            <button onclick="window.print()" style="background-color: #ff4b4b; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                🖨️ Imprimir / Guardar PDF
+            </button>
+            """,
+            unsafe_allow_html=True
+        )
 
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
