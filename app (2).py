@@ -489,82 +489,64 @@ if "guia_activa" in st.session_state:
             Comprobante oficial emitido por el sistema de gestión de bodegas Marklogistic.
         </p>
     </div>
-    """,
-      unsafe_allow_html=True,
-  )
-
-  col_b1, col_b2 = st.columns(2)
-  with col_b1:
-    if st.button("🖨️ Imprimir / PDF"):
-      st.info("Presiona **Ctrl + P** para guardar o imprimir.")
-  with col_b2:
-    if st.button("🔄 Nueva Lectura"):
-      # --- 5. MOSTRAR LA GUÍA DE DESPACHO EN PANTALLA ---
+    # --- 5. MOSTRAR LA GUÍA DE DESPACHO EN PANTALLA ---
 if "guia_activa" in st.session_state:
-  g = st.session_state.guia_activa
-
-  st.divider()
-  st.markdown("### Comprobante Generado")
-
-  # Construir filas HTML para los productos
-  filas_html = ""
-  for item in g["items"]:
-    filas_html += (
+    g = st.session_state.guia_activa
+    
+    st.divider()
+    st.markdown("### Comprobante Generado")
+    
+    # Construir filas HTML para los productos
+    filas_html = ""
+    for item in g["items"]:
+        filas_html += (
+            "<tr>"
+            f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['sku']}</td>"
+            f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['nombre']}</td>"
+            f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #eee;'><b>{item['cantidad']}</b></td>"
+            "</tr>"
+        )
+    
+    # HTML estructurado de forma segura sin comillas triples conflictivas
+    documento_html = (
+        "<div style='border: 2px solid #ccc; padding: 25px; border-radius: 10px; background-color: white; color: black; font-family: sans-serif;'>"
+        "<h2 style='text-align: center; color: #1f77b4; margin-bottom: 0;'>MARKLOGISTIC ERP</h2>"
+        "<p style='text-align: center; color: #555; font-size: 13px; margin-top: 5px;'>GUIA DE TRANSPORTE Y DESPACHO DE BODEGA</p>"
+        "<hr style='border: 1px solid #ddd;'>"
+        
+        "<table style='width: 100%; font-size: 14px; margin-bottom: 15px;'>"
         "<tr>"
-        f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['sku']}</td>"
-        f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['nombre']}</td>"
-        "<td style='padding: 8px; text-align: right; border-bottom: 1px solid"
-        f" #eee;'><b>{item['cantidad']}</b></td>"
+        f"<td style='width: 50%;'><b>Numero de Guia / Folio:</b> {g['folio']}</td>"
+        f"<td><b>Fecha y Hora (Chile):</b> {g['fecha']}</td>"
         "</tr>"
+        "<tr>"
+        f"<td><b>Cliente:</b> {g['cliente']}</td>"
+        f"<td><b>Motivo:</b> {g['motivo']}</td>"
+        "</tr>"
+        "</table>"
+        
+        "<table style='width: 100%; border-collapse: collapse; font-size: 14px;'>"
+        "<tr style='background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;'>"
+        "<th style='padding: 8px; text-align: left;'>SKU</th>"
+        "<th style='padding: 8px; text-align: left;'>Descripcion</th>"
+        "<th style='padding: 8px; text-align: right;'>Cantidad</th>"
+        "</tr>"
+        f"{filas_html}"
+        "</table>"
+        
+        "<p style='font-size: 11px; color: #777; text-align: center; margin-top: 25px;'>"
+        "Comprobante oficial emitido por el sistema de gestion de bodegas Marklogistic."
+        "</p>"
+        "</div>"
     )
-
-  # HTML estructurado usando comillas simples internas para evitar conflictos
-  documento_html = (
-      "<div style='border: 2px solid #ccc; padding: 25px; border-radius: 10px;"
-      " background-color: white; color: black; font-family: sans-serif;'>"
-      "<h2 style='text-align: center; color: #1f77b4; margin-bottom:"
-      " 0;'>MARKLOGISTIC ERP</h2>"
-      "<p style='text-align: center; color: #555; font-size: 13px; margin-top:"
-      " 5px;'>GUIA DE TRANSPORTE Y DESPACHO DE BODEGA</p>"
-      "<hr style='border: 1px solid #ddd;'>"
-      "<table style='width: 100%; font-size: 14px; margin-bottom: 15px;'>"
-      "<tr>"
-      "<td style='width: 50%;'><b>Numero de Guia / Folio:</b>"
-      f" {g['folio']}</td>"
-      f"<td><b>Fecha y Hora (Chile):</b> {g['fecha']}</td>"
-      "</tr>"
-      "<tr>"
-      f"<td><b>Cliente:</b> {g['cliente']}</td>"
-      f"<td><b>Motivo:</b> {g['motivo']}</td>"
-      "</tr>"
-      "</table>"
-      "<table style='width: 100%; border-collapse: collapse; font-size:"
-      " 14px;'>"
-      "<tr style='background-color: #f8f9fa; border-bottom: 2px solid"
-      " #dee2e6;'>"
-      "<th style='padding: 8px; text-align: left;'>SKU</th>"
-      "<th style='padding: 8px; text-align: left;'>Descripcion</th>"
-      "<th style='padding: 8px; text-align: right;'>Cantidad</th>"
-      "</tr>"
-      f"{filas_html}"
-      "</table>"
-      "<p style='font-size: 11px; color: #777; text-align: center; margin-top:"
-      " 25px;'>"
-      "Comprobante oficial emitido por el sistema de gestion de bodegas"
-      " Marklogistic."
-      "</p>"
-      "</div>"
-  )
-
-  st.markdown(documento_html, unsafe_allow_html=True)
-
-  col_b1, col_b2 = st.columns(2)
-  with col_b1:
-    if st.button("Imprimir / PDF"):
-      st.info("Presiona Ctrl + P para guardar o imprimir.")
-  with col_b2:
-    if st.button("Nueva Lectura"):
-      del st.session_state.guia_activa
-      st.rerun()
-      
-      st.rerun()
+    
+    st.markdown(documento_html, unsafe_allow_html=True)
+    
+    col_b1, col_b2 = st.columns(2)
+    with col_b1:
+        if st.button("Imprimir / PDF"):
+            st.info("Presiona Ctrl + P para guardar o imprimir.")
+    with col_b2:
+        if st.button("Nueva Lectura"):
+            del st.session_state.guia_activa
+            st.rerun()
