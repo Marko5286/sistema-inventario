@@ -352,7 +352,24 @@ if 'inventario' not in st.session_state:
 # --- 1. DATOS GENERALES DEL DESPACHO ---
 col_c1, col_c2 = st.columns(2)
 with col_c1:
-    st.session_state.cliente_actual = st.text_input(
+    # --- 1. DATOS GENERALES DEL DESPACHO ---
+col_c1, col_c2 = st.columns(2)
+with col_c1:
+    # Se agrega el parámetro key para evitar conflictos de ID duplicado en Streamlit
+    cliente_ingresado = st.text_input(
+        "Cliente / Destinatario",
+        value=st.session_state.get('cliente_actual', ''),
+        placeholder="Ej: Comercial del Norte SpA",
+        key="input_cliente"
+    )
+    st.session_state.cliente_actual = cliente_ingresado
+
+with col_c2:
+    motivo_traslado = st.selectbox(
+        "Motivo del Traslado",
+        ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"],
+        key="select_motivo_traslado" # Clave única opcional por seguridad
+    )
         "Cliente / Destinatario",
         value=st.session_state.cliente_actual,
         placeholder="Ej: Comercial del Norte SpA"
