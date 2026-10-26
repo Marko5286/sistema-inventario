@@ -87,7 +87,7 @@ if not st.session_state.autenticado:
 st.sidebar.title("📦 WMS Marklogistic")
 
 try:
-    st.sidebar.image("https://i.imgur.com/tu_logo_ejemplo.png", width=200)
+    st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=200)
 except:
     pass
 
@@ -109,7 +109,7 @@ menu = st.sidebar.radio(
         "6. Trazabilidad",
         "7. Etiquetas",
         "8. Eliminar Transacciones",
-        "9. Asistente IA"
+        
     ]
 )
 
