@@ -508,3 +508,181 @@ if "guia_activa" in st.session_state:
         if st.button("Nueva Lectura"):
             del st.session_state.guia_activa
             st.rerun()
+# --- INICIALIZAR VARIABLES DE SESIÓN SI NO EXISTEN ---
+if 'cliente_actual' not in st.session_state:
+    st.session_state.cliente_actual = ""
+if 'carrito_salida' not in st.session_state:
+    st.session_state.carrito_salida = []
+if 'inventario' not in st.session_state:
+    st.session_state.inventario = {
+        "SKU-1001": {"nombre": "Caja Cartón Grande", "stock": 50},
+        "SKU-1002": {"nombre": "Pallet Madera Estándar", "stock": 20},
+        "SKU-1003": {"nombre": "Cinta Embalaje 45m", "stock": 100}
+    }
+
+# --- 1. DATOS GENERALES DEL DESPACHO ---
+col_c1, col_c2 = st.columns(2)
+
+with col_c1:
+    cliente_ingresado = st.text_input(
+        "Cliente / Destinatario",
+        value=st.session_state.get('cliente_actual', ''),
+        placeholder="Ej: Comercial del Norte SpA",
+        key="input_cliente_erp"
+    )
+    st.session_state.cliente_actual = cliente_ingresado
+
+with col_c2:
+    motivo_traslado = st.selectbox(
+        "Motivo del Traslado",
+        ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"],
+        key="select_motivo_traslado"
+    )
+
+st.divider()
+
+# --- 2. SELECCIÓN MANUAL DE PRODUCTOS ---
+st.markdown("### Seleccionar Producto para la Salida")
+
+# Crear una lista de opciones legible basada en el inventario actual
+opciones_sku = {f"{sku} - {det['nombre']} (Disponibles: {det['stock']})": sku for sku, det in st.session_state.inventario.items()}
+
+col_p1, col_p2 = st.columns([3, 1])
+
+with col_p1:
+    producto_seleccionado_label = st.selectbox(
+        "Producto",
+        options=list(opciones_sku.keys()),
+        key="select_producto_manual"
+    )
+
+with col_p2:
+    cantidad_a_retirar = st.number_input(
+        "Cantidad",
+        min_value=1,
+        value=1,
+        key="num_cantidad_manual"
+    )
+
+# Botón para agregar al carrito
+if st.button("➕ Agregar al Carrito de Salida"):
+    sku_elegido = opciones_sku[producto_seleccionado_label]
+    prod_info = st.session_state.inventario[sku_elegido]
+    
+    if prod_info["stock"] >= cantidad_a_retirar:
+        # Verificar si ya está en el carrito para sumar la cantidad, o agregarlo nuevo
+        encontrado = False
+        for item in st.session_state.carrito_salida:
+            if item["sku"] == sku_elegido:
+                item["cantidad"] += cantidad_a_retirar
+                encontrado = True
+                break
+        
+        if not encontrado:
+            st.session_state.carrito_salida.append({
+                "sku": sku_elegido,
+                "nombre": prod_info["nombre"],
+                "cantidad": cantidad_a_retirar
+            })
+            
+        st.success(f"Agregado: {prod_info['nombre']} ({cantidad_a_retirar} un.)")
+        st.rerun()
+    else:
+        st.error(f"Stock insuficiente. Solo quedan {prod_info['stock']} unidades disponibles.")
+
+# --- 3. TABLA CON PRODUCTOS EN EL CARRITO ---
+if st.session_state.carrito_salida:
+    st.divider()
+    st.markdown("#### Lista de Ítems a Despachar")
+    
+    for idx, item in enumerate(st.session_state.carrito_salida):
+        col_i1, col_i2, col_i3 = st.columns([2, 4, 2])
+        col_i1.write(f"SKU: {item['sku']}")
+        col_i2.write(f"Producto: {item['nombre']}")
+        col_i3.write(f"Cant: {item['cantidad']} ud.")
+        
+    st.divider()
+    
+    if st.button("🚀 Confirmar Salida y Generar Guía de Despacho"):
+        if not st.session_state.cliente_actual:
+            st.error("Ingresa el nombre del cliente antes de confirmar la salida.")
+        else:
+            # Descontar stock real
+            for item in st.session_state.carrito_salida:
+                st.session_state.inventario[item["sku"]]["stock"] -= item["cantidad"]
+                
+            zona_cl = pytz.timezone('America/Santiago')
+            fecha_guia_str = datetime.now(zona_cl).strftime("%d/%m/%Y %H:%M:%S")
+            folio_guia = f"GD-2026-{datetime.now().strftime('%H%M%S')}"
+            
+            st.session_state.guia_activa = {
+                "folio": folio_guia,
+                "fecha": fecha_guia_str,
+                "cliente": st.session_state.cliente_actual,
+                "motivo": motivo_traslado,
+                "items": list(st.session_state.carrito_salida)
+            }
+            
+            st.session_state.carrito_salida = []
+            st.success("¡Salida registrada y stock actualizado correctamente!")
+            st.rerun()
+
+# --- 4. MOSTRAR LA GUÍA DE DESPACHO EN PANTALLA ---
+if "guia_activa" in st.session_state:
+    g = st.session_state.guia_activa
+    
+    st.divider()
+    st.markdown("### Comprobante Generado")
+    
+    filas_html = ""
+    for item in g["items"]:
+        filas_html += (
+            "<tr>"
+            f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['sku']}</td>"
+            f"<td style='padding: 8px; border-bottom: 1px solid #eee;'>{item['nombre']}</td>"
+            f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #eee;'><b>{item['cantidad']}</b></td>"
+            "</tr>"
+        )
+    
+    documento_html = (
+        "<div style='border: 2px solid #ccc; padding: 25px; border-radius: 10px; background-color: white; color: black; font-family: sans-serif;'>"
+        "<h2 style='text-align: center; color: #1f77b4; margin-bottom: 0;'>MARKLOGISTIC ERP</h2>"
+        "<p style='text-align: center; color: #555; font-size: 13px; margin-top: 5px;'>GUIA DE TRANSPORTE Y DESPACHO DE BODEGA</p>"
+        "<hr style='border: 1px solid #ddd;'>"
+        
+        "<table style='width: 100%; font-size: 14px; margin-bottom: 15px;'>"
+        "<tr>"
+        f"<td style='width: 50%;'><b>Numero de Guia / Folio:</b> {g['folio']}</td>"
+        f"<td><b>Fecha y Hora (Chile):</b> {g['fecha']}</td>"
+        "</tr>"
+        "<tr>"
+        f"<td><b>Cliente:</b> {g['cliente']}</td>"
+        f"<td><b>Motivo:</b> {g['motivo']}</td>"
+        "</tr>"
+        "</table>"
+        
+        "<table style='width: 100%; border-collapse: collapse; font-size: 14px;'>"
+        "<tr style='background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;'>"
+        "<th style='padding: 8px; text-align: left;'>SKU</th>"
+        "<th style='padding: 8px; text-align: left;'>Descripcion</th>"
+        "<th style='padding: 8px; text-align: right;'>Cantidad</th>"
+        "</tr>"
+        f"{filas_html}"
+        "</table>"
+        
+        "<p style='font-size: 11px; color: #777; text-align: center; margin-top: 25px;'>"
+        "Comprobante oficial emitido por el sistema de gestion de bodegas Marklogistic."
+        "</p>"
+        "</div>"
+    )
+    
+    st.markdown(documento_html, unsafe_allow_html=True)
+    
+    col_b1, col_b2 = st.columns(2)
+    with col_b1:
+        if st.button("Imprimir / PDF"):
+            st.info("Presiona Ctrl + P para guardar o imprimir.")
+    with col_b2:
+        if st.button("Nueva Salida"):
+            del st.session_state.guia_activa
+            st.rerun()
