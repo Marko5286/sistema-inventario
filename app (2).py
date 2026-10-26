@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 from io import BytesIO
 
-st.set_page_config(page_title="ERP Marklogistic", layout="wide")
+st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
@@ -63,7 +63,7 @@ def verificar_credenciales(usuario, clave):
     return False
 
 if not st.session_state.autenticado:
-    st.title("🔐 Acceso al ERP Marklogistic")
+    st.title("🔐 Acceso al WMS Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
     
     with st.form("form_login"):
@@ -84,7 +84,7 @@ if not st.session_state.autenticado:
 # ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
-st.sidebar.title("📦 ERP Marklogistic")
+st.sidebar.title("📦 WMS Marklogistic")
 
 try:
     st.sidebar.image("https://i.imgur.com/tu_logo_ejemplo.png", width=200)
