@@ -4,53 +4,45 @@ from datetime import datetime
 import os
 from io import BytesIO
 
-st.set_page_config(page_title="WMS Marklogistic", layout="wide")
+st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
-# ---------------------------------------------------------
-# 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
-# ---------------------------------------------------------
+# Configuración de archivos iniciales
 EXCEL_MATERIALES = "db_materiales.xlsx"
 EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
 EXCEL_PICKING = "db_picking.xlsx"
 EXCEL_GUIAS = "db_guias.xlsx"
 
-if "guias_traslado" not in st.session_state:
-    if os.path.exists("db_guias.xlsx"):
-        df_guias = pd.read_excel("db_guias.xlsx")
-        st.session_state.guias_traslado = df_guias.to_dict('records')
-    else:
-        st.session_state.guias_traslado = []
+# Inicialización segura de session_state para evitar pantallas negras
 if "materiales" not in st.session_state:
     if os.path.exists(EXCEL_MATERIALES):
-        st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
+        try:
+            st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
+        except:
+            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"])
     else:
         st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"])
 
 if "movimientos" not in st.session_state:
     if os.path.exists(EXCEL_MOVIMIENTOS):
-        st.session_state.movimientos = pd.read_excel(EXCEL_MOVIMIENTOS)
+        try:
+            st.session_state.movimientos = pd.read_excel(EXCEL_MOVIMIENTOS)
+        except:
+            st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha"])
     else:
         st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha"])
 
 if "ordenes_picking" not in st.session_state:
-    if os.path.exists(EXCEL_PICKING):
-        df_pick = pd.read_excel(EXCEL_PICKING)
-        st.session_state.ordenes_picking = df_pick.to_dict('records')
-    else:
-        st.session_state.ordenes_picking = []
+    st.session_state.ordenes_picking = []
 
 if "guias_despacho" not in st.session_state:
-    if os.path.exists(EXCEL_GUIAS):
-        df_guias = pd.read_excel(EXCEL_GUIAS)
-        st.session_state.guias_despacho = df_guias.to_dict('records')
-    else:
-        st.session_state.guias_despacho = []
+    st.session_state.guias_despacho = []
 
 def guardar_datos():
-    st.session_state.materiales.to_excel(EXCEL_MATERIALES, index=False)
-    st.session_state.movimientos.to_excel(EXCEL_MOVIMIENTOS, index=False)
-    pd.DataFrame(st.session_state.ordenes_picking).to_excel(EXCEL_PICKING, index=False)
-    pd.DataFrame(st.session_state.guias_despacho).to_excel(EXCEL_GUIAS, index=False)
+    try:
+        st.session_state.materiales.to_excel(EXCEL_MATERIALES, index=False)
+        st.session_state.movimientos.to_excel(EXCEL_MOVIMIENTOS, index=False)
+    except Exception as e:
+        st.error(f"Error al guardar respaldos: {e}")
 
 # ---------------------------------------------------------
 # 0.1 AUTENTICACIÓN DE USUARIOS
