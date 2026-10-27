@@ -585,4 +585,3 @@ elif menu == "9. Asistente IA":
             st.error(f"Error IA: {e}")
     else:
         st.warning("Configura tu GEMINI_API_KEY en los secretos.")
-        
