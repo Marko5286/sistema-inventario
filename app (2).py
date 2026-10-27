@@ -469,17 +469,67 @@ elif menu == "6. Trazabilidad":
     if not st.session_state.movimientos.empty:
         st.dataframe(st.session_state.movimientos.sort_values(by="Fecha", ascending=False), use_container_width=True)
 
+ | **Stock:** {mat_info['Stock_Actual']}")
 # ---------------------------------------------------------
-# MÓDULO 7: ETIQUETAS
+# MÓDULO 7: ETIQUETAS DE MATERIALES
 # ---------------------------------------------------------
 elif menu == "7. Etiquetas":
-    st.header("🏷️ Generación de Etiquetas")
-    if not st.session_state.materiales.empty:
-        sku_etiqueta = st.selectbox("Material", st.session_state.materiales["SKU"])
+    st.header("🏷️ Generación e Impresión de Etiquetas de Bodega")
+    
+    if st.session_state.materiales.empty:
+        st.info("No hay materiales registrados para etiquetar.")
+    else:
+        col_e1, col_e2 = st.columns(2)
+        with col_e1:
+            sku_etiqueta = st.selectbox("Seleccionar Material para Etiquetar", st.session_state.materiales["SKU"])
+        with col_e2:
+            cantidad_copias = st.number_input("Número de etiquetas a imprimir", min_value=1, value=1)
+            
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
-        if st.button("Generar Vista Previa"):
-            st.write(f"**SKU:** {mat_info['SKU']} | **Nombre:** {mat_info['Nombre']} | **Stock:** {mat_info['Stock_Actual']}")
-
+        
+        st.markdown("---")
+        st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
+        
+        st.markdown("""
+            <style>
+            @media print {
+                [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput {
+                    display: none !important;
+                }
+                body {
+                    background-color: white !important;
+                }
+            }
+            .etiqueta-box {
+                border: 2px dashed #000;
+                width: 320px;
+                padding: 15px;
+                font-family: Arial, sans-serif;
+                background: white;
+                color: black;
+                margin-bottom: 20px;
+                border-radius: 8px;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        for i in range(cantidad_copias):
+            html_etiqueta = f"""
+            <div class="etiqueta-box">
+                <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">ERP MARKLOGISTIC</h4>
+                <hr style="border: 1px solid #000; margin: 5px 0;">
+                <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
+                <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
+                    ||||| | |||| ||| || ||||
+                </div>
+            </div>
+            """
+            st.markdown(html_etiqueta, unsafe_allow_html=True)
+        
+        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
 # ---------------------------------------------------------
 # MÓDULO 8: ELIMINAR TRANSACCIONES
 # ---------------------------------------------------------
