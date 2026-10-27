@@ -308,10 +308,10 @@ elif menu == "3. Picking de Materiales":
             st.write("No hay órdenes de picking registradas.")
 
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
+# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Despacho")
+    st.header("🚚 Despacho y Emisión de Guía de Traslado")
     
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
     
@@ -347,7 +347,7 @@ elif menu == "4. Despacho y Guía":
             }])
             st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
             
-            num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
+            num_guia = f"GD-{len(st.session_state.guias_traslado)+1:04d}"
             guia_data = {
                 "Numero_Guia": num_guia,
                 "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -358,7 +358,7 @@ elif menu == "4. Despacho y Guía":
                 "Patente": patente,
                 "Motivo": motivo
             }
-            st.session_state.guias_despacho.append(guia_data)
+            st.session_state.guias_traslado.append(guia_data)
             
             guardar_datos()
             st.success(f"¡Despacho realizado con éxito! Guía Generada: **{num_guia}**")
@@ -391,7 +391,7 @@ elif menu == "4. Despacho y Guía":
                 <p style="margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
             </div>
             <hr style="border: 1px solid #000;">
-            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE DESPACHO</h3>
+            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE TRASLADO</h3>
             <h3 style="text-align: right; margin: 0;">N° {guia['Numero_Guia']}</h3>
             <p><b>Fecha de Emisión:</b> {guia['Fecha']}</p>
             <p><b>Señor(es):</b> {guia['Cliente']}</p>
