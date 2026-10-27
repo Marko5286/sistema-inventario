@@ -210,7 +210,7 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("📧 Envío Automático de Reportes")
 correo_remitente = st.sidebar.text_input("marco.inostroza63.mi@gmail.com")
 pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="password")
-correo_destino = st.sidebar.text_input("marco.inostroza63.mi@gmail.com")
+correo_destino = st.sidebar.text_input("Correo Destino (Gerencia)", value="marco.inostroza63.mi@gmail.com")
 
 if st.sidebar.button("Enviar Respaldo por Email"):
     if not correo_remitente or not pass_remitente or not correo_destino:
