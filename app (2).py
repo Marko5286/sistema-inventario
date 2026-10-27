@@ -312,12 +312,11 @@ elif menu == "3. Picking de Materiales":
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
         else:
             st.write("No hay órdenes de picking registradas.")
-
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
+# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Traslado")
+    st.header("🚚 Despacho y Emisión de Guía de Despacho")
     
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
     
@@ -331,14 +330,12 @@ elif menu == "4. Despacho y Guía":
         datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
         
         col_d1, col_d2 = st.columns(2)
-        col_d1, col_d2 = st.columns(2)
         with col_d1:
             transporte = st.text_input("Empresa de Transporte / Chofer")
             patente = st.text_input("Patente Vehículo / Placa")
             nombre_conductor = st.text_input("Nombre Conductor")
         with col_d2:
-            rut_cliente = st.text_input("R.U.T. del Cliente / Destinatario", placeholder="Ej: 12.345.678-9") # <--- Agregado aquí
-            motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
+            rut_cliente = st.text_input("R.U.T. del Cliente / Destinatario", placeholder="Ej: 12.345.678-9")
             motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
         
         if st.button("Confirmar Despacho y Generar Guía"):
@@ -357,18 +354,20 @@ elif menu == "4. Despacho y Guía":
             }])
             st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
             
-            num_guia = f"GD-{len(st.session_state.guias_traslado)+1:04d}"
+            num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
             guia_data = {
                 "Numero_Guia": num_guia,
                 "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "Cliente": datos_orden["Cliente"],
+                "Rut": rut_cliente,
                 "SKU": datos_orden["SKU"],
                 "Cantidad": datos_orden["Cantidad"],
                 "Transporte": transporte,
+                "Conductor": nombre_conductor,
                 "Patente": patente,
                 "Motivo": motivo
             }
-            st.session_state.guias_traslado.append(guia_data)
+            st.session_state.guias_despacho.append(guia_data)
             
             guardar_datos()
             st.success(f"¡Despacho realizado con éxito! Guía Generada: **{num_guia}**")
@@ -376,7 +375,7 @@ elif menu == "4. Despacho y Guía":
 
     if "ultima_guia" in st.session_state:
         st.markdown("---")
-        st.subheader(f"📄 DOCUMENTO: GUÍA DE TRASLADO N° {st.session_state.ultima_guia['Numero_Guia']}")
+        st.subheader(f"📄 DOCUMENTO: GUÍA DE DESPACHO N° {st.session_state.ultima_guia['Numero_Guia']}")
         
         guia = st.session_state.ultima_guia
         
@@ -397,15 +396,15 @@ elif menu == "4. Despacho y Guía":
         <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
             <div style="text-align: center;">
                 <img src="https://i.imgur.com/tu_logo_ejemplo.png" style="max-height: 80px; margin-bottom: 5px;">
-                <h2 style="margin: 0;">WMS MARKLOGISTIC S.A.</h2>
+                <h2 style="margin: 0;">ERP MARKLOGISTIC S.A.</h2>
                 <p style="margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
             </div>
             <hr style="border: 1px solid #000;">
-            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE TRASLADO</h3>
+            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE DESPACHO</h3>
             <h3 style="text-align: right; margin: 0;">N° {guia['Numero_Guia']}</h3>
             <p><b>Fecha de Emisión:</b> {guia['Fecha']}</p>
-            <p><b>Señor(es):</b> {guia['Cliente']}</p>
-            <p><b>Transportista:</b> {guia['Transporte']} | <b>Patente:</b> {guia['Patente']}</p>
+            <p><b>Señor(es):</b> {guia['Cliente']} &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <b>R.U.T.:</b> {guia.get('Rut', 'N/A')}</p>
+            <p><b>Transportista:</b> {guia['Transporte']} ({guia.get('Conductor', '')}) | <b>Patente:</b> {guia['Patente']}</p>
             <p><b>Motivo de Traslado:</b> {guia['Motivo']}</p>
             <br>
             <table style="width: 100%; border-collapse: collapse; border: 1px solid black;">
