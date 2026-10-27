@@ -3,8 +3,12 @@ import pandas as pd
 from datetime import datetime
 import os
 from io import BytesIO
+import smtplib
+from email.message import EmailMessage
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
-st.set_page_config(page_title="WMS Marklogistic", layout="wide")
+st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
@@ -78,7 +82,7 @@ def verificar_credenciales(usuario, clave):
     return False
 
 if not st.session_state.autenticado:
-    st.title("🔐 Acceso al WMS Marklogistic")
+    st.title("🔐 Acceso al ERP Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
     
     with st.form("form_login"):
@@ -97,12 +101,85 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ---------------------------------------------------------
+# FUNCIONES DE AUTOMATIZACIÓN (PDF & CORREO)
+# ---------------------------------------------------------
+def generar_pdf_guia(guia):
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, 750, "ERP MARKLOGISTIC S.A.")
+    c.setFont("Helvetica", 10)
+    c.drawString(50, 735, "R.U.T.: 76.543.210-K | Giro: Logística y Distribución")
+    
+    c.setFont("Helvetica-Bold", 14)
+    c.drawRightString(550, 750, "GUÍA DE DESPACHO")
+    c.setFont("Helvetica-Bold", 12)
+    c.drawRightString(550, 735, f"N° {guia['Numero_Guia']}")
+    
+    c.line(50, 720, 550, 720)
+    
+    c.setFont("Helvetica", 11)
+    c.drawString(50, 690, f"Fecha de Emisión: {guia['Fecha']}")
+    c.drawString(50, 670, f"Señor(es): {guia['Cliente']}")
+    c.drawString(350, 670, f"R.U.T.: {guia.get('Rut', 'N/A')}")
+    
+    c.drawString(50, 650, f"Transportista: {guia['Transporte']} ({guia.get('Conductor', '')})")
+    c.drawString(350, 650, f"Patente: {guia['Patente']}")
+    c.drawString(50, 630, f"Motivo de Traslado: {guia['Motivo']}")
+    
+    c.line(50, 610, 550, 610)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(60, 595, "SKU")
+    c.drawString(150, 595, "CANTIDAD")
+    c.drawString(250, 595, "DESCRIPCIÓN / DETALLE")
+    c.line(50, 585, 550, 585)
+    
+    c.setFont("Helvetica", 10)
+    c.drawString(60, 565, str(guia['SKU']))
+    c.drawString(150, 565, str(guia['Cantidad']))
+    c.drawString(250, 565, "Despacho operativo según orden de picking")
+    
+    c.line(50, 150, 220, 150)
+    c.drawString(70, 135, "Firma Chofer / Transportista")
+    
+    c.line(380, 150, 550, 150)
+    c.drawString(400, 135, "Firma Recinto / Cliente")
+    
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_bytes):
+    msg = EmailMessage()
+    msg['Subject'] = f"📊 Respaldo Automático ERP Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
+    msg['From'] = remitente
+    msg['To'] = destinatario
+    msg.set_content("Adjunto encontrarás el reporte y respaldo automático con los movimientos y stock actual de la bodega.")
+    
+    msg.add_attachment(
+        archivo_excel_bytes,
+        maintype='application',
+        subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        filename=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+    )
+    
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(remitente, password_app)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Error al enviar correo: {e}")
+        return False
+
+# ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
-st.sidebar.title("📦 WMS Marklogistic")
+st.sidebar.title("📦 ERP Marklogistic")
 
 try:
-    st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=200)
+    st.sidebar.image("https://i.imgur.com/tu_logo_ejemplo.png", width=200)
 except:
     pass
 
@@ -124,13 +201,35 @@ menu = st.sidebar.radio(
         "6. Trazabilidad",
         "7. Etiquetas",
         "8. Eliminar Transacciones",
-        
+        "9. Asistente IA"
     ]
 )
 
-# Botón de Copia de Seguridad en la barra lateral
+# Automatización de Correo en la barra lateral
 st.sidebar.markdown("---")
-st.sidebar.subheader("💾 Copia de Seguridad")
+st.sidebar.subheader("📧 Envío Automático de Reportes")
+correo_remitente = st.sidebar.text_input("Tu Correo (Gmail)")
+pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="password")
+correo_destino = st.sidebar.text_input("Correo Destino (Gerencia)")
+
+if st.sidebar.button("Enviar Respaldo por Email"):
+    if not correo_remitente or not pass_remitente or not correo_destino:
+        st.sidebar.error("Completa todos los campos de correo.")
+    else:
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
+            st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
+        excel_bytes = output.getvalue()
+        
+        if enviar_correo_respaldo(correo_remitente, pass_remitente, correo_destino, excel_bytes):
+            st.sidebar.success("¡Correo de respaldo enviado con éxito!")
+        else:
+            st.sidebar.error("Error al enviar. Revisa tus credenciales.")
+
+# Botón de Copia de Seguridad Local
+st.sidebar.markdown("---")
+st.sidebar.subheader("💾 Descarga Manual Respaldo")
 if not st.session_state.materiales.empty:
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -146,7 +245,7 @@ if not st.session_state.materiales.empty:
     )
 
 # ---------------------------------------------------------
-# MÓDULO 1: CREACIÓN DE MATERIALES (Manual y Carga Masiva)
+# MÓDULO 1: CREACIÓN DE MATERIALES
 # ---------------------------------------------------------
 if menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
@@ -197,9 +296,7 @@ if menu == "1. Creación de Materiales":
 
     with tab_masivo:
         st.subheader("Carga Masiva desde Archivo")
-        st.write("Sube un archivo en formato **Excel (.xlsx)** o **CSV** con las columnas exactas:")
         st.code("SKU | Nombre | Unidad | Valor_Unitario | Stock_Actual")
-        
         archivo_subido = st.file_uploader("Selecciona tu archivo de materiales", type=["csv", "xlsx"])
         
         if archivo_subido is not None:
@@ -213,62 +310,29 @@ if menu == "1. Creación de Materiales":
                 columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"]
                 
                 if all(col in df_carga.columns for col in columnas_requeridas):
-                    st.write("Vista previa de los datos a cargar:")
                     st.dataframe(df_carga.head(), use_container_width=True)
-                    
                     if st.button("Confirmar e Importar Materiales"):
                         importados = 0
                         for _, row in df_carga.iterrows():
                             sku_val = str(row["SKU"]).strip().upper()
-                            if not sku_val or pd.isna(row["SKU"]):
-                                continue
-                                
-                            nombre_val = str(row["Nombre"])
-                            unidad_val = str(row["Unidad"])
-                            
-                            try:
-                                valor_val = float(row["Valor_Unitario"])
-                            except:
-                                valor_val = 0.0
-                                
-                            try:
-                                stock_val = int(row["Stock_Actual"])
-                            except:
-                                stock_val = 0
+                            if not sku_val or pd.isna(row["SKU"]): continue
                             
                             if sku_val in st.session_state.materiales["SKU"].values:
                                 idx_existente = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_val].tolist()[0]
-                                st.session_state.materiales.loc[idx_existente, "Stock_Actual"] += stock_val
+                                st.session_state.materiales.loc[idx_existente, "Stock_Actual"] += int(row["Stock_Actual"])
                             else:
                                 nuevo_row = pd.DataFrame([{
-                                    "SKU": sku_val,
-                                    "Nombre": nombre_val,
-                                    "Unidad": unidad_val,
-                                    "Valor_Unitario": valor_val,
-                                    "Stock_Actual": stock_val
+                                    "SKU": sku_val, "Nombre": str(row["Nombre"]), "Unidad": str(row["Unidad"]),
+                                    "Valor_Unitario": float(row["Valor_Unitario"]), "Stock_Actual": int(row["Stock_Actual"])
                                 }])
                                 st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_row], ignore_index=True)
                             
-                            if stock_val > 0:
-                                mov = pd.DataFrame([{
-                                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                                    "Tipo": "STOCK_INICIAL",
-                                    "SKU": sku_val,
-                                    "Cantidad": stock_val,
-                                    "Origen/Destino": "Carga Masiva Excel",
-                                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                }])
-                                st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                            
                             importados += 1
-                        
                         guardar_datos()
-                        st.success(f"¡Se procesaron e importaron {importados} materiales correctamente!")
+                        st.success(f"¡Se importaron {importados} materiales!")
                         st.rerun()
-                else:
-                    st.error(f"El archivo no tiene las columnas correctas. Deben llamarse: {columnas_requeridas}")
             except Exception as e:
-                st.error(f"Ocurrió un error al procesar el archivo: {e}")
+                st.error(f"Error: {e}")
 
     st.subheader("Maestro de Materiales Registrados")
     st.dataframe(st.session_state.materiales, use_container_width=True)
@@ -278,377 +342,189 @@ if menu == "1. Creación de Materiales":
 # ---------------------------------------------------------
 elif menu == "2. Ingreso de Materiales":
     st.header("📥 Recepción e Ingreso a Bodega")
-    
     if st.session_state.materiales.empty:
-        st.info("Primero debe crear materiales en el Módulo 1.")
+        st.info("Primero debe crear materiales.")
     else:
         with st.form("form_ingreso"):
             sku_ingreso = st.selectbox("Seleccionar Material (SKU)", st.session_state.materiales["SKU"])
             cant_ingreso = st.number_input("Cantidad a Ingresar", min_value=1, value=1)
-            proveedor_origen = st.text_input("Proveedor / Procedencia", placeholder="Ej: Proveedor Central S.A.")
+            proveedor_origen = st.text_input("Proveedor / Procedencia")
             
-            btn_ingresar = st.form_submit_button("Registrar Ingreso")
-            if btn_ingresar:
+            if st.form_submit_button("Registrar Ingreso"):
                 idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_ingreso].tolist()[0]
                 st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_ingreso
                 
                 mov = pd.DataFrame([{
                     "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                    "Tipo": "INGRESO",
-                    "SKU": sku_ingreso,
-                    "Cantidad": cant_ingreso,
-                    "Origen/Destino": proveedor_origen if proveedor_origen else "Recepción General",
+                    "Tipo": "INGRESO", "SKU": sku_ingreso, "Cantidad": cant_ingreso,
+                    "Origen/Destino": proveedor_origen or "Recepción General",
                     "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }])
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                
                 guardar_datos()
-                st.success(f"Se ingresaron {cant_ingreso} unidades del SKU {sku_ingreso}.")
+                st.success(f"Ingresadas {cant_ingreso} unidades del SKU {sku_ingreso}.")
 
 # ---------------------------------------------------------
 # MÓDULO 3: PICKING DE MATERIALES
 # ---------------------------------------------------------
 elif menu == "3. Picking de Materiales":
     st.header("🛒 Generación y Preparación de Pedidos (Picking)")
-    
-    if st.session_state.materiales.empty:
-        st.info("No hay materiales registrados.")
-    else:
-        st.subheader("Crear Nueva Orden de Picking")
+    if not st.session_state.materiales.empty:
         with st.form("form_picking"):
             cliente = st.text_input("Cliente / Destino")
             sku_pick = st.selectbox("Material a Extraer", st.session_state.materiales["SKU"])
             cant_pick = st.number_input("Cantidad a Preparar", min_value=1, value=1)
             
-            btn_crear_pick = st.form_submit_button("Crear Orden de Picking")
-            if btn_crear_pick:
-                stock_disponible = st.session_state.materiales.loc[
-                    st.session_state.materiales["SKU"] == sku_pick, "Stock_Actual"
-                ].values[0]
-                
+            if st.form_submit_button("Crear Orden de Picking"):
+                stock_disponible = st.session_state.materiales.loc[st.session_state.materiales["SKU"] == sku_pick, "Stock_Actual"].values[0]
                 if cant_pick > stock_disponible:
-                    st.error(f"Stock insuficiente. Stock disponible: {stock_disponible}")
+                    st.error(f"Stock insuficiente. Disponible: {stock_disponible}")
                 else:
                     id_ord = f"PICK-{len(st.session_state.ordenes_picking)+1:04d}"
                     st.session_state.ordenes_picking.append({
-                        "ID_Picking": id_ord,
-                        "Cliente": cliente,
-                        "SKU": sku_pick,
-                        "Cantidad": cant_pick,
-                        "Estado": "Pendiente Despacho"
+                        "ID_Picking": id_ord, "Cliente": cliente, "SKU": sku_pick, "Cantidad": cant_pick, "Estado": "Pendiente Despacho"
                     })
                     guardar_datos()
-                    st.success(f"Orden {id_ord} registrada exitosamente.")
-
-        st.subheader("Órdenes de Picking Actuales")
+                    st.success(f"Orden {id_ord} registrada.")
         if st.session_state.ordenes_picking:
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
-        else:
-            st.write("No hay órdenes de picking registradas.")
 
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
+# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO (CON PDF AUTOMÁTICO)
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Traslado")
+    st.header("🚚 Despacho y Emisión de Guía de Despacho")
     
-    if not st.session_state.ordenes_picking:
-        st.info("ℹ️ No hay órdenes de picking creadas. Ve al Módulo 3 para generar una orden.")
+    pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
+    if not pendientes:
+        st.info("No hay órdenes de picking pendientes.")
     else:
-        pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
+        df_pendientes = pd.DataFrame(pendientes)
+        orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
+        datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
         
-        if not pendientes:
-            st.warning("⚠️ No hay órdenes pendientes por despachar.")
-        else:
-            df_pendientes = pd.DataFrame(pendientes)
-            st.write("Seleccione la orden que desea despachar:")
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            transporte = st.text_input("Empresa de Transporte")
+            patente = st.text_input("Patente Vehículo")
+            nombre_conductor = st.text_input("Nombre Conductor")
+            rut_conductor = st.text_input("R.U.T. Conductor")
+        with col_d2:
+            rut_cliente = st.text_input("R.U.T. del Cliente")
+            motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
+        
+        if st.button("Confirmar Despacho y Generar Guía"):
+            idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
+            st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
+            datos_orden["Estado"] = "Despachado"
             
-            orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
-            datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
+            mov = pd.DataFrame([{
+                "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                "Tipo": "DESPACHO", "SKU": datos_orden["SKU"], "Cantidad": datos_orden["Cantidad"],
+                "Origen/Destino": datos_orden["Cliente"], "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }])
+            st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
             
-            col_d1, col_d2 = st.columns(2)
-            with col_d1:
-                transporte = st.text_input("Empresa de Transporte / Chofer")
-                patente = st.text_input("Patente Vehículo / Placa")
-                nombre_conductor = st.text_input("Nombre Conductor")
-                rut_conductor = st.text_input("R.U.T. Conductor")
-            with col_d2:
-                rut_cliente = st.text_input("R.U.T. del Cliente / Destinatario", placeholder="Ej: 12.345.678-9")
-                motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
-            
-            if st.button("Confirmar Despacho y Generar Guía"):
-                idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
-                st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
-                
-                datos_orden["Estado"] = "Despachado"
-                
-                mov = pd.DataFrame([{
-                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                    "Tipo": "DESPACHO",
-                    "SKU": datos_orden["SKU"],
-                    "Cantidad": datos_orden["Cantidad"],
-                    "Origen/Destino": datos_orden["Cliente"],
-                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }])
-                st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                
-                num_guia = f"GD-{len(st.session_state.guias_Traslado)+1:04d}"
-                guia_data = {
-                    "Numero_Guia": num_guia,
-                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "Cliente": datos_orden["Cliente"],
-                    "Rut": rut_cliente,
-                    "SKU": datos_orden["SKU"],
-                    "Cantidad": datos_orden["Cantidad"],
-                    "Transporte": transporte,
-                    "Conductor": nombre_conductor,
-                    "Rut_Conductor": rut_conductor,
-                    "Patente": patente,
-                    "Motivo": motivo
-                }
-                st.session_state.guias_despacho.append(guia_data)
-                
-                guardar_datos()
-                st.success(f"¡Despacho realizado con éxito! Guía Generada: **{num_guia}**")
-                st.session_state.ultima_guia = guia_data
+            num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
+            guia_data = {
+                "Numero_Guia": num_guia, "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "Cliente": datos_orden["Cliente"], "Rut": rut_cliente, "SKU": datos_orden["SKU"],
+                "Cantidad": datos_orden["Cantidad"], "Transporte": transporte, "Conductor": nombre_conductor,
+                "Rut_Conductor": rut_conductor, "Patente": patente, "Motivo": motivo
+            }
+            st.session_state.guias_despacho.append(guia_data)
+            guardar_datos()
+            st.success(f"¡Despacho realizado! Guía N° **{num_guia}**")
+            st.session_state.ultima_guia = guia_data
 
     if "ultima_guia" in st.session_state:
         st.markdown("---")
-        st.subheader(f"📄 DOCUMENTO: GUÍA DE DESPACHO N° {st.session_state.ultima_guia['Numero_Guia']}")
-        
         guia = st.session_state.ultima_guia
+        st.subheader(f"📄 Descarga Directa: Guía N° {guia['Numero_Guia']}")
         
-        st.markdown("""
-            <style>
-            @media print {
-                [data-testid="stSidebar"], header, .stButton {
-                    display: none !important;
-                }
-                body {
-                    background-color: white !important;
-                }
-            }
-            </style>
-        """, unsafe_allow_html=True)
-
-        html_guia = f"""
-        <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
-            <div style="text-align: center;">
-                <img src="https://i.imgur.com/tu_logo_ejemplo.png" style="max-height: 80px; margin-bottom: 5px;">
-                <h2 style="margin: 0;">WMS MARKLOGISTIC S.A.</h2>
-                <p style="margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
-            </div>
-            <hr style="border: 1px solid #000;">
-            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE DESPACHO</h3>
-            <h3 style="text-align: right; margin: 0;">N° {guia['Numero_Guia']}</h3>
-            <p><b>Fecha de Emisión:</b> {guia['Fecha']}</p>
-            <p><b>Señor(es):</b> {guia['Cliente']} &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <b>R.U.T.:</b> {guia.get('Rut', 'N/A')}</p>
-            <p><b>Transportista:</b> {guia['Transporte']} ({guia.get('Conductor', '')} - RUT: {guia.get('Rut_Conductor', 'N/A')}) | <b>Patente:</b> {guia['Patente']}</p>
-            <p><b>Motivo de Traslado:</b> {guia['Motivo']}</p>
-            <br>
-            <table style="width: 100%; border-collapse: collapse; border: 1px solid black;">
-                <thead>
-                    <tr style="background-color: #f2f2f2;">
-                        <th style="border: 1px solid black; padding: 8px;">SKU</th>
-                        <th style="border: 1px solid black; padding: 8px;">Cantidad</th>
-                        <th style="border: 1px solid black; padding: 8px;">Descripción / Detalle</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="border: 1px solid black; padding: 8px; text-align: center;">{guia['SKU']}</td>
-                        <td style="border: 1px solid black; padding: 8px; text-align: center;">{guia['Cantidad']}</td>
-                        <td style="border: 1px solid black; padding: 8px;">Despacho operativo según orden de picking</td>
-                    </tr>
-                </tbody>
-            </table>
-            <br><br><br>
-            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 14px;">
-                <div style="width: 40%;"><p>___________________________________<br><b>Firma Chofer / Transportista</b></p></div>
-                <div style="width: 40%;"><p>___________________________________<br><b>Firma Recinto / Cliente Conforme</b></p></div>
-            </div>
-        </div>
-        """
-        st.markdown(html_guia, unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
+        # Botón para descargar el PDF automático generado por ReportLab
+        pdf_buffer = generar_pdf_guia(guia)
+        st.download_button(
+            label="📥 Descargar Guía Oficial en PDF",
+            data=pdf_buffer,
+            file_name=f"Guia_{guia['Numero_Guia']}.pdf",
+            mime="application/pdf"
+        )
 
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
 elif menu == "5. Inventario":
     st.header("📊 Control de Inventario en Tiempo Real")
-    
     col_k1, col_k2 = st.columns(2)
-    with col_k1:
-        st.metric("Total SKU Registrados", len(st.session_state.materiales))
-    with col_k2:
-        st.metric("Total Unidades en Stock", int(st.session_state.materiales["Stock_Actual"].sum()) if not st.session_state.materiales.empty else 0)
-    
-    st.subheader("Stock Actual y Valorización por Material")
+    with col_k1: st.metric("Total SKU Registrados", len(st.session_state.materiales))
+    with col_k2: st.metric("Total Unidades", int(st.session_state.materiales["Stock_Actual"].sum()) if not st.session_state.materiales.empty else 0)
     st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
 # MÓDULO 6: TRAZABILIDAD
 # ---------------------------------------------------------
 elif menu == "6. Trazabilidad":
-    st.header("🔍 Trazabilidad e Historial de Movimientos")
-    
-    if st.session_state.movimientos.empty:
-        st.info("No hay registro de movimientos.")
-    else:
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            sku_filtro = st.selectbox("Filtrar por SKU", ["Todos"] + list(st.session_state.materiales["SKU"].unique()))
-        with col_f2:
-            tipo_filtro = st.selectbox("Filtrar por Tipo de Movimiento", ["Todos", "STOCK_INICIAL", "INGRESO", "DESPACHO"])
-        
-        df_traza = st.session_state.movimientos.copy()
-        
-        if sku_filtro != "Todos":
-            df_traza = df_traza[df_traza["SKU"] == sku_filtro]
-        if tipo_filtro != "Todos":
-            df_traza = df_traza[df_traza["Tipo"] == tipo_filtro]
-            
-        st.dataframe(df_traza.sort_values(by="Fecha", ascending=False), use_container_width=True)
+    st.header("🔍 Historial de Movimientos")
+    if not st.session_state.movimientos.empty:
+        st.dataframe(st.session_state.movimientos.sort_values(by="Fecha", ascending=False), use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 7: ETIQUETAS DE MATERIALES
+# MÓDULO 7: ETIQUETAS
 # ---------------------------------------------------------
 elif menu == "7. Etiquetas":
-    st.header("🏷️ Generación e Impresión de Etiquetas de Bodega")
-    
-    if st.session_state.materiales.empty:
-        st.info("No hay materiales registrados para etiquetar.")
-    else:
-        sku_etiqueta = st.selectbox("Seleccionar Material para Etiquetar", st.session_state.materiales["SKU"])
+    st.header("🏷️ Generación de Etiquetas")
+    if not st.session_state.materiales.empty:
+        sku_etiqueta = st.selectbox("Material", st.session_state.materiales["SKU"])
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
-        
-        cantidad_copias = st.number_input("Número de etiquetas a imprimir", min_value=1, value=1)
-        
-        if st.button("Generar Vista Previa de Etiqueta"):
-            st.markdown("---")
-            st.subheader("Vista Previa (Optimizado para Impresión)")
-            
-            st.markdown("""
-                <style>
-                @media print {
-                    [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput {
-                        display: none !important;
-                    }
-                    body {
-                        background-color: white !important;
-                    }
-                }
-                .etiqueta-box {
-                    border: 2px dashed #000;
-                    width: 320px;
-                    padding: 15px;
-                    font-family: Arial, sans-serif;
-                    background: white;
-                    color: black;
-                    margin-bottom: 20px;
-                    border-radius: 8px;
-                }
-                </style>
-            """, unsafe_allow_html=True)
-            
-            for i in range(cantidad_copias):
-                html_etiqueta = f"""
-                <div class="etiqueta-box">
-                    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
-                    <hr style="border: 1px solid #000; margin: 5px 0;">
-                    <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
-                    <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
-                    <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
-                    <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
-                    <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
-                        ||||| | |||| ||| || ||||
-                    </div>
-                </div>
-                """
-                st.markdown(html_etiqueta, unsafe_allow_html=True)
-            
-            st.info("💡 **Para imprimir:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
+        if st.button("Generar Vista Previa"):
+            st.write(f"**SKU:** {mat_info['SKU']} | **Nombre:** {mat_info['Nombre']} | **Stock:** {mat_info['Stock_Actual']}")
 
 # ---------------------------------------------------------
 # MÓDULO 8: ELIMINAR TRANSACCIONES
 # ---------------------------------------------------------
 elif menu == "8. Eliminar Transacciones":
-    st.header("🗑️ Gestión y Anulación de Transacciones (Ingresos / Despachos)")
-    
-    if st.session_state.movimientos.empty:
-        st.info("No hay transacciones registradas para eliminar.")
-    else:
-        st.write("Selecciona el movimiento que deseas eliminar o anular. **Nota:** Si eliminas un Ingreso o Despacho, el stock del material se ajustará automáticamente.")
-        
+    st.header("🗑️ Gestión y Anulación de Transacciones")
+    if not st.session_state.movimientos.empty:
         st.dataframe(st.session_state.movimientos, use_container_width=True)
-        
-        id_a_eliminar = st.selectbox("Seleccionar ID de Movimiento a Eliminar", st.session_state.movimientos["ID_Mov"])
-        
-        if st.button("🗑️ Eliminar Transacción Seleccionada", type="primary"):
-            mov_reg = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] == id_a_eliminar].iloc[0]
-            tipo_mov = mov_reg["Tipo"]
+        id_eliminar = st.selectbox("ID de Movimiento a Eliminar", st.session_state.movimientos["ID_Mov"])
+        if st.button("Eliminar Transacción"):
+            mov_reg = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] == id_eliminar].iloc[0]
             sku_mov = mov_reg["SKU"]
             cant_mov = mov_reg["Cantidad"]
+            tipo_mov = mov_reg["Tipo"]
             
             if sku_mov in st.session_state.materiales["SKU"].values:
                 idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_mov].tolist()[0]
-                
                 if tipo_mov in ["INGRESO", "STOCK_INICIAL"]:
                     st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cant_mov
                 elif tipo_mov == "DESPACHO":
                     st.session_state.materiales.loc[idx_mat, "Stock_Actual"] += cant_mov
             
-            st.session_state.movimientos = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] != id_a_eliminar].reset_index(drop=True)
-            
+            st.session_state.movimientos = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] != id_eliminar].reset_index(drop=True)
             guardar_datos()
-            st.success(f"✅ Transacción {id_a_eliminar} eliminada y stock actualizado correctamente.")
+            st.success("Transacción eliminada y stock revertido con éxito.")
             st.rerun()
 
 # ---------------------------------------------------------
-# MÓDULO 9: ASISTENTE DE INTELIGENCIA ARTIFICIAL (GEMINI)
+# MÓDULO 9: ASISTENTE IA
 # ---------------------------------------------------------
 elif menu == "9. Asistente IA":
-    st.header("🤖 Asistente Inteligente de Bodega y Logística")
-    st.write("Pregúntale al asistente sobre el stock, productos o el estado actual de tu ERP en lenguaje natural.")
-
+    st.header("🤖 Asistente Inteligente")
     if "GEMINI_API_KEY" in st.secrets:
         try:
             from google import genai
             client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-
-            pregunta_usuario = st.text_input("¿Qué deseas consultar al sistema?", placeholder="Ej: ¿Qué productos tienen menos stock actual?")
-
-            if st.button("Consultar a la IA") and pregunta_usuario:
-                with st.spinner("Analizando la base de datos del ERP..."):
-                    resumen_stock = st.session_state.materiales.to_string() if not st.session_state.materiales.empty else "No hay materiales."
-                    resumen_movimientos = st.session_state.movimientos.tail(10).to_string() if not st.session_state.movimientos.empty else "No hay movimientos."
-
-                    prompt_sistema = f"""
-                    Eres un asistente logístico experto para el ERP Marklogistic. 
-                    Tienes acceso a los siguientes datos actuales de la bodega:
-                    
-                    --- MATERIALES Y STOCK ---
-                    {resumen_stock}
-                    
-                    --- ÚLTIMOS MOVIMIENTOS ---
-                    {resumen_movimientos}
-                    
-                    Responde de forma clara, profesional y directa a la siguiente pregunta del usuario basándote exclusivamente en estos datos:
-                    {pregunta_usuario}
-                    """
-
-                    response = client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=prompt_sistema,
-                    )
-
-                    st.markdown("### 💡 Respuesta del Asistente:")
-                    st.success(response.text)
-
+            pregunta = st.text_input("Consulta al ERP (Ej: ¿Qué productos tienen bajo stock?)")
+            if st.button("Consultar IA") and pregunta:
+                resumen = st.session_state.materiales.to_string()
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=f"Eres un experto en logística. Datos de bodega:\n{resumen}\nResponde a: {pregunta}"
+                )
+                st.success(response.text)
         except Exception as e:
-            st.error(f"Error al conectar con la Inteligencia Artificial: {e}")
+            st.error(f"Error IA: {e}")
     else:
-        st.warning("⚠️ Para usar este módulo, debes configurar tu `GEMINI_API_KEY` en los secretos de Streamlit Cloud.")
+        st.warning("Configura tu GEMINI_API_KEY en los secretos.")
         
