@@ -366,7 +366,7 @@ elif menu == "4. Despacho y Guía":
 
     if "ultima_guia" in st.session_state:
         st.markdown("---")
-        st.subheader(f"📄 DOCUMENTO: GUÍA DE DESPACHO N° {st.session_state.ultima_guia['Numero_Guia']}")
+        st.subheader(f"📄 DOCUMENTO: GUÍA DE TRASLADO N° {st.session_state.ultima_guia['Numero_Guia']}")
         
         guia = st.session_state.ultima_guia
         
