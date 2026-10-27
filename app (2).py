@@ -14,6 +14,12 @@ EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
 EXCEL_PICKING = "db_picking.xlsx"
 EXCEL_GUIAS = "db_guias.xlsx"
 
+if "guias_traslado" not in st.session_state:
+    if os.path.exists("db_guias.xlsx"):
+        df_guias = pd.read_excel("db_guias.xlsx")
+        st.session_state.guias_traslado = df_guias.to_dict('records')
+    else:
+        st.session_state.guias_traslado = []
 if "materiales" not in st.session_state:
     if os.path.exists(EXCEL_MATERIALES):
         st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
