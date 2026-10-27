@@ -518,7 +518,7 @@ elif menu == "7. Etiquetas":
             for i in range(cantidad_copias):
                 html_etiqueta = f"""
                 <div class="etiqueta-box">
-                    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">ERP MARKLOGISTIC</h4>
+                    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
                     <hr style="border: 1px solid #000; margin: 5px 0;">
                     <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
                     <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
