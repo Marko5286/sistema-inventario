@@ -435,7 +435,7 @@ elif menu == "4. Despacho y Guía":
         <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
             <div style="text-align: center;">
                 <img src="https://i.imgur.com/tu_logo_ejemplo.png" style="max-height: 80px; margin-bottom: 5px;">
-                <h2 style="margin: 0;">ERP MARKLOGISTIC S.A.</h2>
+                <h2 style="margin: 0;">WMS MARKLOGISTIC S.A.</h2>
                 <p style="margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
             </div>
             <hr style="border: 1px solid #000;">
@@ -556,7 +556,7 @@ elif menu == "7. Etiquetas":
             for i in range(cantidad_copias):
                 html_etiqueta = f"""
                 <div class="etiqueta-box">
-                    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">ERP MARKLOGISTIC</h4>
+                    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
                     <hr style="border: 1px solid #000; margin: 5px 0;">
                     <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
                     <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
