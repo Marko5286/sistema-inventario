@@ -151,7 +151,7 @@ def generar_pdf_guia(guia):
     return buffer
 def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_bytes):
     msg = EmailMessage()
-    msg['Subject'] = f"📊 Respaldo Automático ERP Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
+    msg['Subject'] = f"📊 Respaldo Automático WMS Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
     msg['From'] = remitente
     msg['To'] = destinatario
     msg.set_content("Adjunto encontrarás el reporte y respaldo automático con los movimientos y stock actual de la bodega.")
@@ -218,7 +218,7 @@ menu = st.sidebar.radio(
 st.sidebar.markdown("---")
 st.sidebar.subheader("📧 Envío Automático de Reportes")
 correo_remitente = st.sidebar.text_input("marco.inostroza63.mi@gmail.com")
-pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="password")
+pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="Omar1986.")
 correo_destino = st.sidebar.text_input("Correo Destino (Gerencia)", value="marco.inostroza63.mi@gmail.com")
 
 if st.sidebar.button("Enviar Respaldo por Email"):
