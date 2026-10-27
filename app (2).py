@@ -313,10 +313,10 @@ elif menu == "3. Picking de Materiales":
         else:
             st.write("No hay órdenes de picking registradas.")
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
+# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Despacho")
+    st.header("🚚 Despacho y Emisión de Guía de Traslado")
     
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
     
@@ -334,6 +334,7 @@ elif menu == "4. Despacho y Guía":
             transporte = st.text_input("Empresa de Transporte / Chofer")
             patente = st.text_input("Patente Vehículo / Placa")
             nombre_conductor = st.text_input("Nombre Conductor")
+            Rut_conductor = st.text_imput("R.U.T")
         with col_d2:
             rut_cliente = st.text_input("R.U.T. del Cliente / Destinatario", placeholder="Ej: 12.345.678-9")
             motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
