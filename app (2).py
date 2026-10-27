@@ -149,9 +149,8 @@ def generar_pdf_guia(guia):
     c.save()
     buffer.seek(0)
     return buffer
-
 def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_bytes):
-    msg = marco.inostroza63.mi@gmail.com()
+    msg = EmailMessage()
     msg['Subject'] = f"📊 Respaldo Automático ERP Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
     msg['From'] = remitente
     msg['To'] = destinatario
@@ -163,6 +162,16 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
         subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         filename=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
     )
+    
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(remitente, password_app)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Error al enviar correo: {e}")
+        return False
+
     
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
