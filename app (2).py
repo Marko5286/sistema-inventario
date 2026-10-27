@@ -6,13 +6,14 @@ from io import BytesIO
 
 st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
-# Archivos de respaldo
+# ---------------------------------------------------------
+# 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
+# ---------------------------------------------------------
 EXCEL_MATERIALES = "db_materiales.xlsx"
 EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
 EXCEL_PICKING = "db_picking.xlsx"
 EXCEL_GUIAS = "db_guias.xlsx"
 
-# Inicialización segura de variables para evitar pantallas negras
 if "materiales" not in st.session_state:
     if os.path.exists(EXCEL_MATERIALES):
         try:
@@ -32,62 +33,33 @@ if "movimientos" not in st.session_state:
         st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha"])
 
 if "ordenes_picking" not in st.session_state:
-    st.session_state.ordenes_picking = []
+    if os.path.exists(EXCEL_PICKING):
+        try:
+            df_pick = pd.read_excel(EXCEL_PICKING)
+            st.session_state.ordenes_picking = df_pick.to_dict('records')
+        except:
+            st.session_state.ordenes_picking = []
+    else:
+        st.session_state.ordenes_picking = []
 
 if "guias_despacho" not in st.session_state:
-    st.session_state.guias_despacho = []
+    if os.path.exists(EXCEL_GUIAS):
+        try:
+            df_guias = pd.read_excel(EXCEL_GUIAS)
+            st.session_state.guias_despacho = df_guias.to_dict('records')
+        except:
+            st.session_state.guias_despacho = []
+    else:
+        st.session_state.guias_despacho = []
 
 def guardar_datos():
     try:
         st.session_state.materiales.to_excel(EXCEL_MATERIALES, index=False)
         st.session_state.movimientos.to_excel(EXCEL_MOVIMIENTOS, index=False)
+        pd.DataFrame(st.session_state.ordenes_picking).to_excel(EXCEL_PICKING, index=False)
+        pd.DataFrame(st.session_state.guias_despacho).to_excel(EXCEL_GUIAS, index=False)
     except Exception as e:
-        st.error(f"Error al guardar: {e}")
-
-# Autenticación básica
-if "autenticado" not in st.session_state:
-    st.session_state.autenticado = False
-
-if not st.session_state.autenticado:
-    st.title("🔐 Acceso al ERP Marklogistic")
-    with st.form("form_login"):
-        user = st.text_input("Usuario")
-        password = st.text_input("Contraseña", type="password")
-        if st.form_submit_button("Entrar"):
-            if user == "admin" and password == "admin123":
-                st.session_state.autenticado = True
-                st.session_state.usuario_actual = user
-                st.rerun()
-            else:
-                st.error("Credenciales incorrectas (Prueba admin / admin123)")
-    st.stop()
-
-# Si está autenticado, muestra el menú lateral
-st.sidebar.title("📦 ERP Marklogistic")
-st.sidebar.write(f"Conectado: {st.session_state.get('usuario_actual', '')}")
-if st.sidebar.button("Cerrar Sesión"):
-    st.session_state.autenticado = False
-    st.rerun()
-
-menu = st.sidebar.radio("Navegación", ["Inventario", "Creación de Materiales"])
-
-if menu == "Inventario":
-    st.header("📊 Inventario Actual")
-    st.dataframe(st.session_state.materiales, use_container_width=True)
-
-elif menu == "Creación de Materiales":
-    st.header("➕ Crear Material")
-    with st.form("nuevo_mat"):
-        sku = st.text_input("SKU").strip().upper()
-        nombre = st.text_input("Nombre")
-        stock = st.number_input("Stock Inicial", min_value=0, value=0)
-        if st.form_submit_button("Guardar"):
-            if sku and nombre:
-                nuevo = pd.DataFrame([{"SKU": sku, "Nombre": nombre, "Unidad": "Unidades", "Valor_Unitario": 0.0, "Stock_Actual": stock}])
-                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
-                guardar_datos()
-                st.success("Material guardado con éxito!")
-                st.rerun()
+        st.error(f"Error al guardar datos: {e}")
 
 # ---------------------------------------------------------
 # 0.1 AUTENTICACIÓN DE USUARIOS
@@ -106,7 +78,7 @@ def verificar_credenciales(usuario, clave):
     return False
 
 if not st.session_state.autenticado:
-    st.title("🔐 Acceso al WMS Marklogistic")
+    st.title("🔐 Acceso al ERP Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
     
     with st.form("form_login"):
@@ -127,10 +99,10 @@ if not st.session_state.autenticado:
 # ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
-st.sidebar.title("📦 WMS Marklogistic")
+st.sidebar.title("📦 ERP Marklogistic")
 
 try:
-    st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=200)
+    st.sidebar.image("https://i.imgur.com/tu_logo_ejemplo.png", width=200)
 except:
     pass
 
@@ -152,7 +124,7 @@ menu = st.sidebar.radio(
         "6. Trazabilidad",
         "7. Etiquetas",
         "8. Eliminar Transacciones",
-        
+        "9. Asistente IA"
     ]
 )
 
@@ -176,10 +148,9 @@ if not st.session_state.materiales.empty:
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES (Manual y Carga Masiva)
 # ---------------------------------------------------------
-elif menu == "1. Creación de Materiales":
+if menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
     
-    # Declaración correcta de las pestañas
     tab_manual, tab_masivo = st.tabs(["➕ Registro Manual", "📂 Carga Masiva (Excel / CSV)"])
     
     with tab_manual:
@@ -301,6 +272,7 @@ elif menu == "1. Creación de Materiales":
 
     st.subheader("Maestro de Materiales Registrados")
     st.dataframe(st.session_state.materiales, use_container_width=True)
+
 # ---------------------------------------------------------
 # MÓDULO 2: INGRESO DE MATERIALES
 # ---------------------------------------------------------
@@ -373,71 +345,76 @@ elif menu == "3. Picking de Materiales":
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
         else:
             st.write("No hay órdenes de picking registradas.")
+
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
+# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Traslado")
+    st.header("🚚 Despacho y Emisión de Guía de Despacho")
     
-    pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
-    
-    if not pendientes:
-        st.info("No hay órdenes de picking pendientes por despachar.")
+    if not st.session_state.ordenes_picking:
+        st.info("ℹ️ No hay órdenes de picking creadas. Ve al Módulo 3 para generar una orden.")
     else:
-        df_pendientes = pd.DataFrame(pendientes)
-        st.write("Seleccione la orden que desea despachar:")
+        pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
         
-        orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
-        datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
-        
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            transporte = st.text_input("Empresa de Transporte / Chofer")
-            patente = st.text_input("Patente Vehículo / Placa")
-            nombre_conductor = st.text_input("Nombre Conductor")
-            rut_conductor = st.text_input("R.U.T. Conductor")
-        with col_d2:
-            rut_cliente = st.text_input("R.U.T. del Cliente / Destinatario", placeholder="Ej: 12.345.678-9")
-            motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
-        
-        if st.button("Confirmar Despacho y Generar Guía"):
-            idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
-            st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
+        if not pendientes:
+            st.warning("⚠️ No hay órdenes pendientes por despachar.")
+        else:
+            df_pendientes = pd.DataFrame(pendientes)
+            st.write("Seleccione la orden que desea despachar:")
             
-            datos_orden["Estado"] = "Despachado"
+            orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
+            datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
             
-            mov = pd.DataFrame([{
-                "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                "Tipo": "DESPACHO",
-                "SKU": datos_orden["SKU"],
-                "Cantidad": datos_orden["Cantidad"],
-                "Origen/Destino": datos_orden["Cliente"],
-                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }])
-            st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                transporte = st.text_input("Empresa de Transporte / Chofer")
+                patente = st.text_input("Patente Vehículo / Placa")
+                nombre_conductor = st.text_input("Nombre Conductor")
+                rut_conductor = st.text_input("R.U.T. Conductor")
+            with col_d2:
+                rut_cliente = st.text_input("R.U.T. del Cliente / Destinatario", placeholder="Ej: 12.345.678-9")
+                motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
             
-            num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
-            guia_data = {
-                "Numero_Guia": num_guia,
-                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "Cliente": datos_orden["Cliente"],
-                "Rut": rut_cliente,
-                "SKU": datos_orden["SKU"],
-                "Cantidad": datos_orden["Cantidad"],
-                "Transporte": transporte,
-                "Conductor": nombre_conductor,
-                "Patente": patente,
-                "Motivo": motivo
-            }
-            st.session_state.guias_despacho.append(guia_data)
-            
-            guardar_datos()
-            st.success(f"¡Despacho realizado con éxito! Guía Generada: **{num_guia}**")
-            st.session_state.ultima_guia = guia_data
+            if st.button("Confirmar Despacho y Generar Guía"):
+                idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
+                st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
+                
+                datos_orden["Estado"] = "Despachado"
+                
+                mov = pd.DataFrame([{
+                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                    "Tipo": "DESPACHO",
+                    "SKU": datos_orden["SKU"],
+                    "Cantidad": datos_orden["Cantidad"],
+                    "Origen/Destino": datos_orden["Cliente"],
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }])
+                st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+                
+                num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
+                guia_data = {
+                    "Numero_Guia": num_guia,
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "Cliente": datos_orden["Cliente"],
+                    "Rut": rut_cliente,
+                    "SKU": datos_orden["SKU"],
+                    "Cantidad": datos_orden["Cantidad"],
+                    "Transporte": transporte,
+                    "Conductor": nombre_conductor,
+                    "Rut_Conductor": rut_conductor,
+                    "Patente": patente,
+                    "Motivo": motivo
+                }
+                st.session_state.guias_despacho.append(guia_data)
+                
+                guardar_datos()
+                st.success(f"¡Despacho realizado con éxito! Guía Generada: **{num_guia}**")
+                st.session_state.ultima_guia = guia_data
 
     if "ultima_guia" in st.session_state:
         st.markdown("---")
-        st.subheader(f"📄 DOCUMENTO: GUÍA DE TRASLADO N° {st.session_state.ultima_guia['Numero_Guia']}")
+        st.subheader(f"📄 DOCUMENTO: GUÍA DE DESPACHO N° {st.session_state.ultima_guia['Numero_Guia']}")
         
         guia = st.session_state.ultima_guia
         
@@ -458,15 +435,15 @@ elif menu == "4. Despacho y Guía":
         <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
             <div style="text-align: center;">
                 <img src="https://i.imgur.com/tu_logo_ejemplo.png" style="max-height: 80px; margin-bottom: 5px;">
-                <h2 style="margin: 0;">WMS MARKLOGISTIC S.A.</h2>
+                <h2 style="margin: 0;">ERP MARKLOGISTIC S.A.</h2>
                 <p style="margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
             </div>
             <hr style="border: 1px solid #000;">
-            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE TRASLADO</h3>
+            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE DESPACHO</h3>
             <h3 style="text-align: right; margin: 0;">N° {guia['Numero_Guia']}</h3>
             <p><b>Fecha de Emisión:</b> {guia['Fecha']}</p>
             <p><b>Señor(es):</b> {guia['Cliente']} &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <b>R.U.T.:</b> {guia.get('Rut', 'N/A')}</p>
-            <p><b>Transportista:</b> {guia['Transporte']} ({guia.get('Conductor', '')}) | <b>Patente:</b> {guia['Patente']}</p>
+            <p><b>Transportista:</b> {guia['Transporte']} ({guia.get('Conductor', '')} - RUT: {guia.get('Rut_Conductor', 'N/A')}) | <b>Patente:</b> {guia['Patente']}</p>
             <p><b>Motivo de Traslado:</b> {guia['Motivo']}</p>
             <br>
             <table style="width: 100%; border-collapse: collapse; border: 1px solid black;">
@@ -579,7 +556,7 @@ elif menu == "7. Etiquetas":
             for i in range(cantidad_copias):
                 html_etiqueta = f"""
                 <div class="etiqueta-box">
-                    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
+                    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">ERP MARKLOGISTIC</h4>
                     <hr style="border: 1px solid #000; margin: 5px 0;">
                     <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
                     <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
@@ -595,7 +572,7 @@ elif menu == "7. Etiquetas":
             st.info("💡 **Para imprimir:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
 
 # ---------------------------------------------------------
-# MÓDULO 8: ELIMINAR TRANSACCIONES (NUEVO)
+# MÓDULO 8: ELIMINAR TRANSACCIONES
 # ---------------------------------------------------------
 elif menu == "8. Eliminar Transacciones":
     st.header("🗑️ Gestión y Anulación de Transacciones (Ingresos / Despachos)")
@@ -605,33 +582,26 @@ elif menu == "8. Eliminar Transacciones":
     else:
         st.write("Selecciona el movimiento que deseas eliminar o anular. **Nota:** Si eliminas un Ingreso o Despacho, el stock del material se ajustará automáticamente.")
         
-        # Mostrar tabla de movimientos con opción de selección
         st.dataframe(st.session_state.movimientos, use_container_width=True)
         
         id_a_eliminar = st.selectbox("Seleccionar ID de Movimiento a Eliminar", st.session_state.movimientos["ID_Mov"])
         
         if st.button("🗑️ Eliminar Transacción Seleccionada", type="primary"):
-            # Obtener datos del movimiento antes de borrarlo
             mov_reg = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] == id_a_eliminar].iloc[0]
             tipo_mov = mov_reg["Tipo"]
             sku_mov = mov_reg["SKU"]
             cant_mov = mov_reg["Cantidad"]
             
-            # Revertir stock según el tipo de movimiento
             if sku_mov in st.session_state.materiales["SKU"].values:
                 idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_mov].tolist()[0]
                 
                 if tipo_mov in ["INGRESO", "STOCK_INICIAL"]:
-                    # Si se borra un ingreso, se resta del stock actual
                     st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cant_mov
                 elif tipo_mov == "DESPACHO":
-                    # Si se borra un despacho, se devuelve al stock actual
                     st.session_state.materiales.loc[idx_mat, "Stock_Actual"] += cant_mov
             
-            # Eliminar el movimiento del DataFrame
             st.session_state.movimientos = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] != id_a_eliminar].reset_index(drop=True)
             
-            # Guardar cambios
             guardar_datos()
             st.success(f"✅ Transacción {id_a_eliminar} eliminada y stock actualizado correctamente.")
             st.rerun()
@@ -656,7 +626,7 @@ elif menu == "9. Asistente IA":
                     resumen_movimientos = st.session_state.movimientos.tail(10).to_string() if not st.session_state.movimientos.empty else "No hay movimientos."
 
                     prompt_sistema = f"""
-                    Eres un asistente logístico experto para el WMS Marklogistic. 
+                    Eres un asistente logístico experto para el ERP Marklogistic. 
                     Tienes acceso a los siguientes datos actuales de la bodega:
                     
                     --- MATERIALES Y STOCK ---
@@ -681,3 +651,4 @@ elif menu == "9. Asistente IA":
             st.error(f"Error al conectar con la Inteligencia Artificial: {e}")
     else:
         st.warning("⚠️ Para usar este módulo, debes configurar tu `GEMINI_API_KEY` en los secretos de Streamlit Cloud.")
+        
