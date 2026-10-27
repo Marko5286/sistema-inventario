@@ -113,7 +113,7 @@ def generar_pdf_guia(guia):
     c.drawString(50, 735, "R.U.T.: 76.543.210-K | Giro: Logística y Distribución")
     
     c.setFont("Helvetica-Bold", 14)
-    c.drawRightString(550, 750, "GUÍA DE DESPACHO")
+    c.drawRightString(550, 750, "GUÍA DE TRASLADO ")
     c.setFont("Helvetica-Bold", 12)
     c.drawRightString(550, 735, f"N° {guia['Numero_Guia']}")
     
@@ -150,7 +150,7 @@ def generar_pdf_guia(guia):
     buffer.seek(0)
     return buffer
 def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_bytes):
-    msg = EmailMessage()
+    msg = marco.inostroza63.mi@gmail.com()
     msg['Subject'] = f"📊 Respaldo Automático WMS Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
     msg['From'] = remitente
     msg['To'] = destinatario
