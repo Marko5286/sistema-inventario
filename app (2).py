@@ -6,13 +6,13 @@ from io import BytesIO
 
 st.set_page_config(page_title="ERP Marklogistic", layout="wide")
 
-# Configuración de archivos iniciales
+# Archivos de respaldo
 EXCEL_MATERIALES = "db_materiales.xlsx"
 EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
 EXCEL_PICKING = "db_picking.xlsx"
 EXCEL_GUIAS = "db_guias.xlsx"
 
-# Inicialización segura de session_state para evitar pantallas negras
+# Inicialización segura de variables para evitar pantallas negras
 if "materiales" not in st.session_state:
     if os.path.exists(EXCEL_MATERIALES):
         try:
@@ -42,7 +42,52 @@ def guardar_datos():
         st.session_state.materiales.to_excel(EXCEL_MATERIALES, index=False)
         st.session_state.movimientos.to_excel(EXCEL_MOVIMIENTOS, index=False)
     except Exception as e:
-        st.error(f"Error al guardar respaldos: {e}")
+        st.error(f"Error al guardar: {e}")
+
+# Autenticación básica
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+
+if not st.session_state.autenticado:
+    st.title("🔐 Acceso al ERP Marklogistic")
+    with st.form("form_login"):
+        user = st.text_input("Usuario")
+        password = st.text_input("Contraseña", type="password")
+        if st.form_submit_button("Entrar"):
+            if user == "admin" and password == "admin123":
+                st.session_state.autenticado = True
+                st.session_state.usuario_actual = user
+                st.rerun()
+            else:
+                st.error("Credenciales incorrectas (Prueba admin / admin123)")
+    st.stop()
+
+# Si está autenticado, muestra el menú lateral
+st.sidebar.title("📦 ERP Marklogistic")
+st.sidebar.write(f"Conectado: {st.session_state.get('usuario_actual', '')}")
+if st.sidebar.button("Cerrar Sesión"):
+    st.session_state.autenticado = False
+    st.rerun()
+
+menu = st.sidebar.radio("Navegación", ["Inventario", "Creación de Materiales"])
+
+if menu == "Inventario":
+    st.header("📊 Inventario Actual")
+    st.dataframe(st.session_state.materiales, use_container_width=True)
+
+elif menu == "Creación de Materiales":
+    st.header("➕ Crear Material")
+    with st.form("nuevo_mat"):
+        sku = st.text_input("SKU").strip().upper()
+        nombre = st.text_input("Nombre")
+        stock = st.number_input("Stock Inicial", min_value=0, value=0)
+        if st.form_submit_button("Guardar"):
+            if sku and nombre:
+                nuevo = pd.DataFrame([{"SKU": sku, "Nombre": nombre, "Unidad": "Unidades", "Valor_Unitario": 0.0, "Stock_Actual": stock}])
+                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
+                guardar_datos()
+                st.success("Material guardado con éxito!")
+                st.rerun()
 
 # ---------------------------------------------------------
 # 0.1 AUTENTICACIÓN DE USUARIOS
