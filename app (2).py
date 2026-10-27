@@ -331,12 +331,14 @@ elif menu == "4. Despacho y Guía":
         datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
         
         col_d1, col_d2 = st.columns(2)
+        col_d1, col_d2 = st.columns(2)
         with col_d1:
-            transporte = st.text_input("Empresa de Transporte")
-            Nommbre_conductor = st.text_input("Nombre Conductor")
-            Rut = st.text_input("Rut")
+            transporte = st.text_input("Empresa de Transporte / Chofer")
             patente = st.text_input("Patente Vehículo / Placa")
+            nombre_conductor = st.text_input("Nombre Conductor")
         with col_d2:
+            rut_cliente = st.text_input("R.U.T. del Cliente / Destinatario", placeholder="Ej: 12.345.678-9") # <--- Agregado aquí
+            motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
             motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
         
         if st.button("Confirmar Despacho y Generar Guía"):
