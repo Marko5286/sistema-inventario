@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 from io import BytesIO
 
-st.set_page_config(page_title="ERP Marklogistic", layout="wide")
+st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
@@ -78,7 +78,7 @@ def verificar_credenciales(usuario, clave):
     return False
 
 if not st.session_state.autenticado:
-    st.title("🔐 Acceso al ERP Marklogistic")
+    st.title("🔐 Acceso al WMS Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
     
     with st.form("form_login"):
@@ -99,10 +99,10 @@ if not st.session_state.autenticado:
 # ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
-st.sidebar.title("📦 ERP Marklogistic")
+st.sidebar.title("📦 WMS Marklogistic")
 
 try:
-    st.sidebar.image("https://i.imgur.com/tu_logo_ejemplo.png", width=200)
+    st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=200)
 except:
     pass
 
@@ -124,7 +124,7 @@ menu = st.sidebar.radio(
         "6. Trazabilidad",
         "7. Etiquetas",
         "8. Eliminar Transacciones",
-        "9. Asistente IA"
+        
     ]
 )
 
@@ -347,10 +347,10 @@ elif menu == "3. Picking de Materiales":
             st.write("No hay órdenes de picking registradas.")
 
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO
+# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Despacho")
+    st.header("🚚 Despacho y Emisión de Guía de Traslado")
     
     if not st.session_state.ordenes_picking:
         st.info("ℹ️ No hay órdenes de picking creadas. Ve al Módulo 3 para generar una orden.")
@@ -392,7 +392,7 @@ elif menu == "4. Despacho y Guía":
                 }])
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
                 
-                num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
+                num_guia = f"GD-{len(st.session_state.guias_Traslado)+1:04d}"
                 guia_data = {
                     "Numero_Guia": num_guia,
                     "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
