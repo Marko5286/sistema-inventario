@@ -530,6 +530,7 @@ elif menu == "7. Etiquetas":
             st.markdown(html_etiqueta, unsafe_allow_html=True)
         
         st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
+
 # ---------------------------------------------------------
 # MÓDULO 8: ELIMINAR TRANSACCIONES
 # ---------------------------------------------------------
