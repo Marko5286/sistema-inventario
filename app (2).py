@@ -564,4 +564,24 @@ elif menu == "8. Eliminar Transacciones":
             st.success("Transacción eliminada y stock revertido con éxito.")
             st.rerun()
 
-rror IA: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}
+# ---------------------------------------------------------
+# MÓDULO 9: ASISTENTE IA
+# ---------------------------------------------------------
+elif menu == "9. Asistente IA":
+    st.header("🤖 Asistente Inteligente")
+    if "GEMINI_API_KEY" in st.secrets:
+        try:
+            from google import genai
+            client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+            pregunta = st.text_input("Consulta al ERP (Ej: ¿Qué productos tienen bajo stock?)")
+            if st.button("Consultar IA") and pregunta:
+                resumen = st.session_state.materiales.to_string()
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=f"Eres un experto en logística. Datos de bodega:\n{resumen}\nResponde a: {pregunta}"
+                )
+                st.success(response.text)
+        except Exception as e:
+            st.error(f"Error IA: {e}")
+    else:
+        st.warning("Configura tu GEMINI_API_KEY en los secretos.")
