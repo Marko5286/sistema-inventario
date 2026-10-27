@@ -595,7 +595,7 @@ elif menu == "9. Asistente IA":
                     resumen_movimientos = st.session_state.movimientos.tail(10).to_string() if not st.session_state.movimientos.empty else "No hay movimientos."
 
                     prompt_sistema = f"""
-                    Eres un asistente logístico experto para el ERP Marklogistic. 
+                    Eres un asistente logístico experto para el WMS Marklogistic. 
                     Tienes acceso a los siguientes datos actuales de la bodega:
                     
                     --- MATERIALES Y STOCK ---
