@@ -209,7 +209,7 @@ menu = st.sidebar.radio(
 st.sidebar.markdown("---")
 st.sidebar.subheader("📧 Envío Automático de Reportes")
 correo_remitente = st.sidebar.text_input("marco.inostroza63.mi@gmail.com")
-pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="Dani5286")
+pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="password")
 correo_destino = st.sidebar.text_input("marco.inostroza63.mi@gmail.com")
 
 if st.sidebar.button("Enviar Respaldo por Email"):
