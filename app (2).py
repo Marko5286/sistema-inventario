@@ -8,7 +8,7 @@ from email.message import EmailMessage
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
-st.set_page_config(page_title="ERP Marklogistic", layout="wide")
+st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
@@ -82,7 +82,7 @@ def verificar_credenciales(usuario, clave):
     return False
 
 if not st.session_state.autenticado:
-    st.title("🔐 Acceso al ERP Marklogistic")
+    st.title("🔐 Acceso al WMS Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
     
     with st.form("form_login"):
@@ -108,7 +108,7 @@ def generar_pdf_guia(guia):
     c = canvas.Canvas(buffer, pagesize=letter)
     
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, 750, "ERP MARKLOGISTIC S.A.")
+    c.drawString(50, 750, "WMS MARKLOGISTIC S.A.")
     c.setFont("Helvetica", 10)
     c.drawString(50, 735, "R.U.T.: 76.543.210-K | Giro: Logística y Distribución")
     
@@ -152,7 +152,7 @@ def generar_pdf_guia(guia):
 
 def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_bytes):
     msg = EmailMessage()
-    msg['Subject'] = f"📊 Respaldo Automático ERP Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
+    msg['Subject'] = f"📊 Respaldo Automático WMS Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
     msg['From'] = remitente
     msg['To'] = destinatario
     msg.set_content("Adjunto encontrarás el reporte y respaldo automático con los movimientos y stock actual de la bodega.")
@@ -176,10 +176,10 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
 # ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
-st.sidebar.title("📦 ERP Marklogistic")
+st.sidebar.title("📦 WMS Marklogistic")
 
 try:
-    st.sidebar.image("https://i.imgur.com/tu_logo_ejemplo.png", width=200)
+    st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=200)
 except:
     pass
 
@@ -208,9 +208,9 @@ menu = st.sidebar.radio(
 # Automatización de Correo en la barra lateral
 st.sidebar.markdown("---")
 st.sidebar.subheader("📧 Envío Automático de Reportes")
-correo_remitente = st.sidebar.text_input("Tu Correo (Gmail)")
+correo_remitente = st.sidebar.text_input("marco.inostroza63.mi@gmail.com")
 pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="password")
-correo_destino = st.sidebar.text_input("Correo Destino (Gerencia)")
+correo_destino = st.sidebar.text_input("marco.inostroza63,mi@gmail.com")
 
 if st.sidebar.button("Enviar Respaldo por Email"):
     if not correo_remitente or not pass_remitente or not correo_destino:
@@ -390,10 +390,10 @@ elif menu == "3. Picking de Materiales":
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE DESPACHO (CON PDF AUTOMÁTICO)
+# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO (CON PDF AUTOMÁTICO)
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Despacho")
+    st.header("🚚 Despacho y Emisión de Guía de Traslado")
     
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
     if not pendientes:
