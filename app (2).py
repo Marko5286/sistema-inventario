@@ -376,7 +376,7 @@ elif menu == "4. Despacho y Guía":
 
     if "ultima_guia" in st.session_state:
         st.markdown("---")
-        st.subheader(f"📄 DOCUMENTO: GUÍA DE DESPACHO N° {st.session_state.ultima_guia['Numero_Guia']}")
+        st.subheader(f"📄 DOCUMENTO: GUÍA DE TRASLADO N° {st.session_state.ultima_guia['Numero_Guia']}")
         
         guia = st.session_state.ultima_guia
         
@@ -397,11 +397,11 @@ elif menu == "4. Despacho y Guía":
         <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
             <div style="text-align: center;">
                 <img src="https://i.imgur.com/tu_logo_ejemplo.png" style="max-height: 80px; margin-bottom: 5px;">
-                <h2 style="margin: 0;">ERP MARKLOGISTIC S.A.</h2>
+                <h2 style="margin: 0;">WMS MARKLOGISTIC S.A.</h2>
                 <p style="margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
             </div>
             <hr style="border: 1px solid #000;">
-            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE DESPACHO</h3>
+            <h3 style="text-align: right; color: #cc0000; margin: 0;">GUÍA DE TRASLADO</h3>
             <h3 style="text-align: right; margin: 0;">N° {guia['Numero_Guia']}</h3>
             <p><b>Fecha de Emisión:</b> {guia['Fecha']}</p>
             <p><b>Señor(es):</b> {guia['Cliente']} &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <b>R.U.T.:</b> {guia.get('Rut', 'N/A')}</p>
