@@ -315,7 +315,7 @@ elif menu == "3. Picking de Materiales":
 # ---------------------------------------------------------
 # MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
 # ---------------------------------------------------------
-elif menu == "4. Despacho y Guía":
+elif menu == "4. Despacho y Guía de traslado":
     st.header("🚚 Despacho y Emisión de Guía de Traslado")
     
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
