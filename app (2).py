@@ -334,7 +334,7 @@ elif menu == "4. Despacho y Guía":
             transporte = st.text_input("Empresa de Transporte / Chofer")
             patente = st.text_input("Patente Vehículo / Placa")
             nombre_conductor = st.text_input("Nombre Conductor")
-            Rut_conductor = st.text_imput("R.U.T")
+            Rut_conductor = st.text_imput("R.U.T Conductor")
         with col_d2:
             rut_cliente = st.text_input("R.U.T. del Cliente / Destinatario", placeholder="Ej: 12.345.678-9")
             motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
