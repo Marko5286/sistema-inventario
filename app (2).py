@@ -326,7 +326,7 @@ elif menu == "4. Despacho y Guía":
         
         col_d1, col_d2 = st.columns(2)
         with col_d1:
-            transporte = st.text_input("Empresa de Transporte / Chofer")
+            transporte = st.text_input("Empresa de Transporte / Chofer / Rut")
             patente = st.text_input("Patente Vehículo / Placa")
         with col_d2:
             motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
@@ -387,7 +387,7 @@ elif menu == "4. Despacho y Guía":
         <div style="border: 2px solid #000; padding: 25px; font-family: Arial, sans-serif; background-color: white; color: black; border-radius: 5px;">
             <div style="text-align: center;">
                 <img src="https://i.imgur.com/tu_logo_ejemplo.png" style="max-height: 80px; margin-bottom: 5px;">
-                <h2 style="margin: 0;">ERP MARKLOGISTIC S.A.</h2>
+                <h2 style="margin: 0;">WMS MARKLOGISTIC S.A.</h2>
                 <p style="margin: 0; font-size: 13px;">R.U.T.: 76.543.210-K | Giro: Logística y Distribución</p>
             </div>
             <hr style="border: 1px solid #000;">
