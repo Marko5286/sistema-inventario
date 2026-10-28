@@ -209,7 +209,7 @@ menu = st.sidebar.radio(
         "6. Trazabilidad",
         "7. Etiquetas",
         "8. Eliminar Transacciones",
-        "9. Asistente IA"
+        "9. Asistente IA",
         "10. Fotografías de Respaldo"
     ]
 )
