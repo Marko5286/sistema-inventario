@@ -210,7 +210,7 @@ menu = st.sidebar.radio(
         "7. Etiquetas",
         "8. Eliminar Transacciones",
         "9. Asistente IA",
-        "10. Fotografías de Respaldo"
+        "10. Respaldo Fotografico"
     ]
 )
 
@@ -586,9 +586,9 @@ elif menu == "9. Asistente IA":
     else:
         st.warning("Configura tu GEMINI_API_KEY en los secretos.")
 # ---------------------------------------------------------
-# MÓDULO 10: FOTOGRAFÍAS DE RESPALDO
+# MÓDULO 10: RESPALDO FOTOGRAFICO
 # ---------------------------------------------------------
-elif menu == "10. Fotografías de Respaldo":
+elif menu == "10. Respado Fotografico":
     st.header("📸 Respaldo Fotográfico de Bodega")
     st.write("Sube fotografías de productos, recepción de mercadería o evidencias de inventario.")
 
