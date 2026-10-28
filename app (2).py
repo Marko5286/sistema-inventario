@@ -214,7 +214,8 @@ menu = st.sidebar.radio(
         "10. Fotografías de Respaldo",
         "11. Alertas de Stock",
         "12. Kardex de Movimientos",
-        "13. Generadores QR/Barras"
+        "13. Generadores QR/Barras",
+        "14. Dashboard de Estadísticas"
     ]
 )
 
@@ -840,3 +841,63 @@ elif menu == "13. Generadores QR/Barras":
                     st.error(f"Error al generar el código de barras: {e}")
             else:
                 st.warning("Por favor, ingresa un código válido.")
+
+# ---------------------------------------------------------
+# MÓDULO 14: PANEL DE ESTADÍSTICAS (DASHBOARD)
+# ---------------------------------------------------------
+elif menu == "14. Dashboard de Estadísticas":
+    st.header("📊 Panel de Control y Estadísticas")
+    st.write("Resumen visual del estado de tu inventario y operaciones de bodega.")
+
+    import pandas as pd
+
+    # Verificamos si existe inventario para graficar
+    if 'df_inventario' in locals() and not df_inventario.empty:
+        
+        # Métricas principales (KPIs superiores)
+        total_productos = len(df_inventario)
+        
+        # Intentar calcular stock total y valorización si existen las columnas
+        col_stock = 'Stock Actual' if 'Stock Actual' in df_inventario.columns else df_inventario.columns[1]
+        col_precio = 'Precio' if 'Precio' in df_inventario.columns else None
+        
+        stock_total = df_inventario[col_stock].sum() if col_stock else 0
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(label="📦 Total de Productos", value=total_productos)
+        with col2:
+            st.metric(label="📊 Unidades en Stock", value=int(stock_total))
+        with col3:
+            if col_precio:
+                valor_inventario = (df_inventario[col_stock] * df_inventario[col_precio]).sum()
+                st.metric(label="💰 Valor Total Inventario", value=f"${valor_inventario:,.0f}")
+            else:
+                st.metric(label="💰 Estado de Bodega", value="Activo")
+
+        st.markdown("---")
+
+        # Gráficos rápidos con las herramientas nativas de Streamlit
+        st.subheader("📈 Distribución de Stock por Producto")
+        if 'Producto' in df_inventario.columns and col_stock:
+            # Crear un gráfico de barras interactivo nativo
+            df_chart = df_inventario.set_index('Producto')[col_stock]
+            st.bar_chart(df_chart)
+        else:
+            st.info("No se encontraron las columnas necesarias para graficar el inventario.")
+
+    else:
+        st.warning("⚠️ No hay datos de inventario registrados todavía para mostrar en el Dashboard.")
+
+    # Sección de estadísticas del Kardex (si existe)
+    ARCHIVO_KARDEX = "kardex_movimientos.csv"
+    if os.path.exists(ARCHIVO_KARDEX):
+        st.markdown("---")
+        st.subheader("📋 Resumen de Movimientos Recientes (Kardex)")
+        df_kardex_dash = pd.read_csv(ARCHIVO_KARDEX)
+        
+        if not df_kardex_dash.empty:
+            conteo_movs = df_kardex_dash['Tipo Movimiento'].value_counts()
+            st.bar_chart(conteo_movs)
+        else:
+            st.info("El Kardex está vacío, registra entradas o salidas para ver estadísticas de movimiento.")
