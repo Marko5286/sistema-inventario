@@ -596,8 +596,9 @@ elif menu == "10. Asistente IA":
             pregunta = st.text_input("Consulta al ERP (Ej: ¿Qué productos tienen bajo stock?)")
             if st.button("Consultar IA") and pregunta:
                 resumen = st.session_state.materiales.to_string()
+                # 💡 Modelo actualizado compatible con la API actual
                 response = client.models.generate_content(
-                    model='gemini-1.5-pro',
+                    model='gemini-2.5-flash',
                     contents=f"Eres un experto en logística. Datos de bodega:\n{resumen}\nResponde a: {pregunta}"
                 )
                 st.success(response.text)
