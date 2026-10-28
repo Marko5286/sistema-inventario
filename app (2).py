@@ -212,7 +212,8 @@ menu = st.sidebar.radio(
         "8. Eliminar Transacciones",
         "9. Asistente IA",
         "10. Fotografías de Respaldo",
-        "11. Alertas de Stock"
+        "11. Alertas de Stock",
+        "12. Kardex de Movimientos"
     ]
 )
 
@@ -665,3 +666,95 @@ elif menu == "11. Alertas de Stock":
             
     except Exception as e:
         st.error(f"Ocurrió un error al procesar las alertas: {e}")
+
+# ---------------------------------------------------------
+# MÓDULO 12: KARDEX DE MOVIMIENTOS (ENTRADAS Y SALIDAS)
+# ---------------------------------------------------------
+elif menu == "12. Kardex de Movimientos":
+    st.header("📋 Kardex de Movimientos de Bodega")
+    st.write("Registra y audita las entradas y salidas de productos con fecha, hora y usuario.")
+
+    import pandas as pd
+    from datetime import datetime
+
+    # Archivo CSV local para guardar el historial de movimientos
+    ARCHIVO_KARDEX = "kardex_movimientos.csv"
+
+    # Cargar el kardex existente o crear uno nuevo si no existe
+    if os.path.exists(ARCHIVO_KARDEX):
+        df_kardex = pd.read_csv(ARCHIVO_KARDEX)
+    else:
+        df_kardex = pd.DataFrame(columns=[
+            "Fecha/Hora", "Tipo Movimiento", "Producto", "Cantidad", "Responsable", "Observación"
+        ])
+
+    # Formulario para registrar un nuevo movimiento
+    with st.form("form_kardex"):
+        st.subheader("➕ Registrar Nuevo Movimiento")
+        
+        tipo_mov = st.selectbox("Tipo de Movimiento", ["Entrada (Compra/Recepción)", "Salida (Venta/Merma/Despacho)"])
+        
+        # Obtener lista de productos disponibles (si 'df_inventario' existe)
+        lista_productos = []
+        if 'df_inventario' in locals() and not df_inventario.empty and 'Producto' in df_inventario.columns:
+            lista_productos = df_inventario['Producto'].tolist()
+        
+        if lista_productos:
+            producto_sel = st.selectbox("Seleccionar Producto", lista_productos)
+        else:
+            producto_sel = st.text_input("Nombre del Producto")
+
+        cantidad = st.number_input("Cantidad", min_value=1, step=1, value=1)
+        responsable = st.text_input("Responsable / Bodeguero")
+        observacion = st.text_area("Observación o Motivo (opcional)")
+
+        btn_registrar = st.form_submit_button("Registrar Movimiento")
+
+        if btn_registrar:
+            if producto_sel and responsable:
+                # Obtener fecha y hora actual exacta
+                fecha_hora_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                # Crear la nueva fila de movimiento
+                nuevo_registro = pd.DataFrame([{
+                    "Fecha/Hora": fecha_hora_actual,
+                    "Tipo Movimiento": tipo_mov,
+                    "Producto": producto_sel,
+                    "Cantidad": cantidad,
+                    "Responsable": responsable,
+                    "Observación": observacion
+                }])
+
+                # Concatenar y guardar
+                df_kardex = pd.concat([df_kardex, nuevo_registro], ignore_index=True)
+                df_kardex.to_csv(ARCHIVO_KARDEX, index=False)
+
+                st.success(f"¡Movimiento de '{tipo_mov}' registrado con éxito a las {fecha_hora_actual}!")
+                st.rerun()
+            else:
+                st.error("Por favor, completa al menos el producto y el responsable.")
+
+    st.markdown("---")
+    st.subheader("📊 Historial de Movimientos")
+
+    if not df_kardex.empty:
+        # Filtro rápido por tipo de movimiento
+        filtro_tipo = st.selectbox("Filtrar por tipo", ["Todos", "Entrada (Compra/Recepción)", "Salida (Venta/Merma/Despacho)"], key="filtro_kardex")
+        
+        if filtro_tipo != "Todos":
+            df_mostrar = df_kardex[df_kardex["Tipo Movimiento"] == filtro_tipo]
+        else:
+            df_mostrar = df_kardex
+
+        st.dataframe(df_mostrar, use_container_width=True)
+
+        # Botón para descargar el kardex completo
+        csv_kardex = df_kardex.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Descargar Kardex Completo (CSV)",
+            data=csv_kardex,
+            file_name="kardex_bodega.csv",
+            mime="text/csv",
+        )
+    else:
+        st.info("Aún no hay movimientos registrados en el Kardex.")
