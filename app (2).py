@@ -168,29 +168,17 @@ def enviar_correo_respaldo(remitente, password, destinatario, excel_bytes):
         part = MIMEBase('application', 'octet-stream')
         part.set_payload(excel_bytes)
         encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f'attachment; filename="respaldo_inventario.xlsx"')
+        part.add_header('Content-Disposition', 'attachment; filename="respaldo_inventario.xlsx"')
         msg.attach(part)
 
-        # Conexión al servidor SMTP de Gmail
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
+        # Conexión segura usando SSL (Puerto 465, más estable en la nube)
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(remitente, password)
-        text = msg.as_string()
-        server.sendmail(remitente, destinatario, text)
+        server.sendmail(remitente, destinatario, msg.as_string())
         server.quit()
         return True
     except Exception as e:
         st.error(f"Error detallado: {e}")
-        return False
-
-    
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(remitente, password_app)
-            smtp.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"Error al enviar correo: {e}")
         return False
 
 # ---------------------------------------------------------
