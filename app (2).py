@@ -69,9 +69,6 @@ def guardar_datos():
         pd.DataFrame(st.session_state.guias_despacho).to_excel(EXCEL_GUIAS, index=False)
     except Exception as e:
         st.error(f"Error al guardar datos: {e}")
-import sqlite3
-import bcrypt
-import streamlit as st
 
 # --------------------------------------------------------- #
 # 0.1 BASE DE DATOS Y GESTIÓN DE USUARIOS (SQLite + Bcrypt) #
@@ -290,7 +287,7 @@ menu = st.sidebar.radio(
         "13. Generadores QR/Barras",
         "14. Dashboard de Estadísticas",
         "15. Proveedores y Clientes",
-        "16. Módulo de Administración de Usuarios"
+        "16. Gestion de Usuarios"
     ]
 )
 
@@ -1058,6 +1055,39 @@ elif menu == "15. Proveedores y Clientes":
             st.info("Aún no hay contactos registrados en el sistema.")
 # Módulo de Administración de Usuarios (Agrégalo como opción en tu menú lateral)
 if menu == "16. Gestión de Usuarios":
+    st.header("👤 Administración y Registro de Usuarios")
+
+    if st.session_state.get("rol_usuario") != "Administrador":
+        st.warning("⚠️ No tienes permisos de administrador para acceder a este módulo.")
+    else:
+        with st.form("form_registro_usuario"):
+            st.subheader("➕ Crear Nuevo Usuario")
+            nuevo_user = st.text_input("Nuevo Usuario").strip()
+            nuevo_pass = st.text_input("Contraseña", type="password")
+            nuevo_rol = st.selectbox("Rol del Usuario", ["Bodeguero", "Logística", "Administrador"])
+            btn_crear = st.form_submit_button("Registrar Usuario")
+
+            if btn_crear:
+                if not nuevo_user or not nuevo_pass:
+                    st.error("Completa todos los campos obligatorios.")
+                else:
+                    exito, mensaje = registrar_nuevo_usuario(nuevo_user, nuevo_pass, nuevo_rol)
+                    if exito:
+                        st.success(mensaje)
+                    else:
+                        st.error(mensaje)
+
+        st.markdown("---")
+        st.subheader("📋 Usuarios Registrados")
+        conn = obtener_conexion()
+        df_users = pd.read_sql_query("SELECT id, usuario, rol FROM usuarios", conn)
+        conn.close()
+        st.dataframe(df_users, use_container_width=True)
+
+# --------------------------------------------------------- #
+# MÓDULO 16: GESTIÓN DE USUARIOS                           #
+# --------------------------------------------------------- #
+elif menu == "16. Gestión de Usuarios":
     st.header("👤 Administración y Registro de Usuarios")
 
     if st.session_state.get("rol_usuario") != "Administrador":
