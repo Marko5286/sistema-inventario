@@ -177,11 +177,13 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "3. Picking de Materiales",
     "4. Despacho y Guía",
     "5. Inventario",
-    "6. Trazabilidad",
-    "7. Etiquetas",
-    "8. Eliminar Transacciones",
-    "9. Asistente IA",
-    "10. Escáner de SKU"
+    "6. Dashboard Gerencial"
+    "7. Trazabilidad",
+    "8. Etiquetas",
+    "9. Eliminar Transacciones",
+    "10. Asistente IA",
+    "11. Escáner de SKU"
+    
 ])
 
 st.sidebar.markdown("---")
@@ -402,6 +404,81 @@ elif menu == "5. Inventario":
     st.markdown("---")
     st.dataframe(st.session_state.materiales, use_container_width=True)
 
+# ---------------------------------------------------------
+# MÓDULO: DASHBOARD GERENCIAL (Plotly)
+# ---------------------------------------------------------
+elif menu == "6. Dashboard Gerencial":
+    st.header("📈 Dashboard Gerencial y Analítica de Bodega")
+    
+    if st.session_state.materiales.empty:
+        st.info("No hay suficientes datos de materiales para generar el dashboard.")
+    else:
+        import plotly.express as px
+        
+        # 1. Métricas Principales Superiores (KPIs)
+        total_skus = len(st.session_state.materiales)
+        stock_total = int(st.session_state.materiales["Stock_Actual"].sum())
+        
+        # Calcular valorización total del inventario (Stock * Valor Unitario)
+        val_inventario = (st.session_state.materiales["Stock_Actual"] * st.session_state.materiales["Valor_Unitario"]).sum()
+        
+        col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+        col_kpi1.metric("📦 Total de SKUs", total_skus)
+        col_kpi2.metric("📊 Unidades en Stock", f"{stock_total:,.0f}")
+        col_kpi3.metric("💰 Valorización Total Inventario", f"${val_inventario:,.0f}")
+        
+        st.markdown("---")
+        
+        # 2. Gráficos Interactivos con Plotly
+        col_g1, col_g2 = st.columns(2)
+        
+        with col_g1:
+            st.subheader("Top Productos con Mayor Stock")
+            # Ordenar materiales por mayor stock actual
+            df_top_stock = st.session_state.materiales.sort_values(by="Stock_Actual", ascending=False).head(10)
+            fig_stock = px.bar(
+                df_top_stock, 
+                x="SKU", 
+                y="Stock_Actual", 
+                text="Stock_Actual",
+                color="Stock_Actual",
+                color_continuous_scale="Blues",
+                title="Top 10 SKUs con Mayor Cantidad en Bodega"
+            )
+            fig_stock.update_layout(xaxis_title="SKU", yaxis_title="Cantidad Actual")
+            st.plotly_chart(fig_stock, use_container_width=True)
+            
+        with col_g2:
+            st.subheader("Valorización por Producto")
+            df_val = st.session_state.materiales.copy()
+            df_val["Valor_Total"] = df_val["Stock_Actual"] * df_val["Valor_Unitario"]
+            df_top_val = df_val.sort_values(by="Valor_Total", ascending=False).head(10)
+            
+            fig_val = px.pie(
+                df_top_val, 
+                names="SKU", 
+                values="Valor_Total", 
+                title="Distribución del Valor en Inventario (Top SKU)",
+                hole=0.4
+            )
+            st.plotly_chart(fig_val, use_container_width=True)
+            
+        # 3. Gráfico de Movimientos (Ingresos vs Despachos) si existen
+        st.markdown("---")
+        st.subheader("🔄 Actividad Operativa (Historial de Movimientos)")
+        if not st.session_state.movimientos.empty:
+            df_mov = st.session_state.movimientos.copy()
+            # Agrupar por tipo y fecha o contar movimientos
+            fig_mov = px.histogram(
+                df_mov, 
+                x="Tipo", 
+                color="Tipo",
+                title="Conteo de Transacciones por Tipo (Ingresos vs Despachos)",
+                text_auto=True
+            )
+            st.plotly_chart(fig_mov, use_container_width=True)
+        else:
+            st.info("Aún no hay movimientos registrados para mostrar en el gráfico de actividad.")
 # ---------------------------------------------------------
 # MÓDULO 6: TRAZABILIDAD
 # ---------------------------------------------------------
