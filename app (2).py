@@ -210,7 +210,7 @@ menu = st.sidebar.radio(
         "7. Etiquetas",
         "8. Eliminar Transacciones",
         "9. Asistente IA",
-        "10. Respaldo Fotografico"
+        "10. Fotografias de Respaldo"
     ]
 )
 
