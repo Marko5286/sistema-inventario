@@ -372,7 +372,7 @@ with st.form("form_nuevo_material"):
                         st.success(f"¡Se importaron {importados} materiales!")
                         st.rerun()
             except Exception as e:
-                st.error(f"Error: {e}")
+            st.error(f"Error: {e}")
 
     st.subheader("Maestro de Materiales Registrados")
     st.dataframe(st.session_state.materiales, use_container_width=True)
@@ -396,13 +396,16 @@ elif menu == "2. Ingreso de Materiales":
                 
                 mov = pd.DataFrame([{
                     "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                    "Tipo": "INGRESO", "SKU": sku_ingreso, "Cantidad": cant_ingreso,
+                    "Tipo": "INGRESO",
+                    "SKU": sku_ingreso,
+                    "Cantidad": cant_ingreso,
                     "Origen/Destino": proveedor_origen or "Recepción General",
                     "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }])
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
                 guardar_datos()
                 st.success(f"Ingresadas {cant_ingreso} unidades del SKU {sku_ingreso}.")
+
 
 # ---------------------------------------------------------
 # MÓDULO 3: PICKING DE MATERIALES
