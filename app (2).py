@@ -149,27 +149,34 @@ def generar_pdf_guia(guia):
     c.save()
     buffer.seek(0)
     return buffer
-def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_bytes):
-    msg = marco.inostroza63.mi@gmail.com()
-    msg['Subject'] = f"📊 Respaldo Automático WMS Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
-    msg['From'] = remitente
-    msg['To'] = destinatario
-    msg.set_content("Adjunto encontrarás el reporte y respaldo automático con los movimientos y stock actual de la bodega.")
-    
-    msg.add_attachment(
-        archivo_excel_bytes,
-        maintype='application',
-        subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        filename=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
-    )
-    
+def enviar_correo_respaldo(remitente, password, destinatario, excel_bytes):
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(remitente, password_app)
-            smtp.send_message(msg)
+        msg = MIMEMultipart()
+        msg['From'] = remitente
+        msg['To'] = destinatario
+        msg['Subject'] = "Respaldo de Inventario - ERP"
+
+        # Cuerpo del mensaje
+        body = "Adjunto encontrarás el archivo Excel con el respaldo actualizado del inventario de la bodega."
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Adjuntar archivo Excel
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(excel_bytes)
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f'attachment; filename="respaldo_inventario.xlsx"')
+        msg.attach(part)
+
+        # Conexión al servidor SMTP de Gmail
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(remitente, password)
+        text = msg.as_string()
+        server.sendmail(remitente, destinatario, text)
+        server.quit()
         return True
     except Exception as e:
-        print(f"Error al enviar correo: {e}")
+        st.error(f"Error detallado: {e}")
         return False
 
     
