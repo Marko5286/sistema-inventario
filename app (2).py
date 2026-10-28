@@ -784,7 +784,6 @@ elif menu == "14. Registro Fotográfico":
     st.header("📸 Registro Fotográfico y Datos Adjuntos")
     st.markdown("Captura, visualiza y adjunta evidencias fotográficas vinculadas a la operación de la bodega.")
     
-    # Inicializar base de datos de fotos en session_state si no existe
     if "registro_fotos" not in st.session_state:
         st.session_state.registro_fotos = []
 
@@ -797,24 +796,28 @@ elif menu == "14. Registro Fotográfico":
                 "Producto Dañado / Mermas", 
                 "Evidencia de Despacho", 
                 "Control de Calidad", 
-                "Documentación / Factura",
+                "Documentación / Factura", 
                 "Otro"
             ])
         with c_f2:
             referencia_doc = st.text_input("N° de Documento / Guía / Lote (Opcional)")
             observacion = st.text_area("Comentarios u Observaciones Adicionales")
             
-        # Opción 1: Capturar con la cámara web
-        foto_capturada = st.camera_input("Tomar Fotografía con la Cámara Web")
+        # 💡 Interruptor: La cámara permanece apagada por defecto
+        usar_camara = st.checkbox("🟢 Activar la cámara web para tomar foto")
         
-        # Opción 2: Opcional para adjuntar archivo existente desde el computador
+        foto_capturada = None
+        if usar_camara:
+            foto_capturada = st.camera_input("Capturar Evidencia")
+        
+        # Opción alternativa para subir archivo directo sin usar cámara
         archivo_adjunto = st.file_uploader("O adjuntar imagen desde archivo (PNG, JPG)", type=["png", "jpg", "jpeg"])
         
         if st.form_submit_button("Guardar Evidencia con Datos Adjuntos"):
             imagen_final = foto_capturada if foto_capturada is not None else archivo_adjunto
             
             if imagen_final is None:
-                st.error("⚠️ Debes capturar una foto con la cámara o adjuntar un archivo de imagen antes de guardar.")
+                st.error("⚠️ Debes capturar una foto con la cámara (activándola primero) o adjuntar un archivo de imagen.")
             else:
                 nueva_foto = {
                     "ID_Foto": f"FOTO-{len(st.session_state.registro_fotos)+1:04d}",
@@ -829,32 +832,3 @@ elif menu == "14. Registro Fotográfico":
                 st.session_state.registro_fotos.append(nueva_foto)
                 st.success("¡Evidencia fotográfica y datos adjuntos registrados con éxito!")
                 st.rerun()
-
-    if st.session_state.registro_fotos:
-        st.markdown("---")
-        st.subheader("🖼️ Galería de Evidencias y Adjuntos")
-        
-        # Mostrar el listado de evidencias fotográficas registradas
-        for item in reversed(st.session_state.registro_fotos):
-            with st.container():
-                col_img, col_info = st.columns([1, 2])
-                with col_img:
-                    st.image(item["Imagen"], caption=f"ID: {item['ID_Foto']}", use_column_width=True)
-                with col_info:
-                    st.write(f"📅 **Fecha:** {item['Fecha']}")
-                    st.write(f"👤 **Registrado por:** {item['Usuario']}")
-                    st.write(f"📦 **SKU / Ítem:** {item['SKU']}")
-                    st.write(f"🏷️ **Tipo:** {item['Tipo']}")
-                    st.write(f"📄 **Referencia:** {item['Referencia']}")
-                    st.write(f"💬 **Notas:** {item['Comentarios']}")
-                    
-                    # Botón para descargar de forma individual la foto adjunta
-                    btn_bytes = item["Imagen"].getvalue()
-                    st.download_button(
-                        label=f"📥 Descargar Archivo {item['ID_Foto']}",
-                        data=btn_bytes,
-                        file_name=f"{item['ID_Foto']}_{item['SKU']}.jpg",
-                        mime="image/jpeg",
-                        key=f"dl_{item['ID_Foto']}"
-                    )
-                st.markdown("---")
