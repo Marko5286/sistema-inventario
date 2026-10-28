@@ -461,20 +461,7 @@ elif menu == "6. Trazabilidad":
 # ---------------------------------------------------------
 elif menu == "7. Etiquetas":
     st.header("🏷️ Generación e Impresión de Etiquetas de Bodega")
-    # Dentro del bucle de generación de etiquetas HTML en el Módulo 7:
-html_etiqueta = f"""
-<div class="etiqueta-box">
-    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
-    <hr style="border: 1px solid #000; margin: 5px 0;">
-    <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
-    <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
-    <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
-    <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
-    <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
-        ||||| | |||| ||| || ||||
-    </div>
-</div>
-"""
+
     if st.session_state.materiales.empty:
         st.info("No hay materiales registrados para etiquetar.")
     else:
@@ -483,35 +470,34 @@ html_etiqueta = f"""
             sku_etiqueta = st.selectbox("Seleccionar Material para Etiquetar", st.session_state.materiales["SKU"])
         with col_e2:
             cantidad_copias = st.number_input("Número de etiquetas a imprimir", min_value=1, value=1)
-            
+        
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
         
         st.markdown("---")
         st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
-        
         st.markdown("""
-            <style>
-            @media print {
-                [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput {
-                    display: none !important;
-                }
-                body {
-                    background-color: white !important;
-                }
+        <style>
+        @media print {
+            [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput {
+                display: none !important;
             }
-            .etiqueta-box {
-                border: 2px dashed #000;
-                width: 320px;
-                padding: 15px;
-                font-family: Arial, sans-serif;
-                background: white;
-                color: black;
-                margin-bottom: 20px;
-                border-radius: 8px;
+            body {
+                background-color: white !important;
             }
-            </style>
+        }
+        .etiqueta-box {
+            border: 2px dashed #000;
+            width: 320px;
+            padding: 15px;
+            font-family: Arial, sans-serif;
+            background: white;
+            color: black;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        </style>
         """, unsafe_allow_html=True)
-        
+
         for i in range(cantidad_copias):
             html_etiqueta = f"""
             <div class="etiqueta-box">
@@ -519,6 +505,7 @@ html_etiqueta = f"""
                 <hr style="border: 1px solid #000; margin: 5px 0;">
                 <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
                 <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
                 <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
                 <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
                 <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
@@ -527,7 +514,7 @@ html_etiqueta = f"""
             </div>
             """
             st.markdown(html_etiqueta, unsafe_allow_html=True)
-        
+            
         st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
 
 # ---------------------------------------------------------
