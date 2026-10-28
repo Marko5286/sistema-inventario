@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-import os
-from PIL import Image
 from datetime import datetime
 import os
 from io import BytesIO
@@ -15,6 +13,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
+from PIL import Image
 
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
