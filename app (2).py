@@ -183,7 +183,6 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "9. Eliminar Transacciones",
     "10. Asistente IA",
     "11. Escáner de SKU"
-    
 ])
 
 st.sidebar.markdown("---")
@@ -226,7 +225,6 @@ if not st.session_state.materiales.empty:
 # ---------------------------------------------------------
 if menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
-    
     with st.form("form_nuevo_mat"):
         st.subheader("Registro Manual de Material")
         c1, c2 = st.columns(2)
@@ -405,21 +403,16 @@ elif menu == "5. Inventario":
     st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO: DASHBOARD GERENCIAL (Plotly)
+# MÓDULO 6: DASHBOARD GERENCIAL (Plotly)
 # ---------------------------------------------------------
 elif menu == "6. Dashboard Gerencial":
     st.header("📈 Dashboard Gerencial y Analítica de Bodega")
-    
     if st.session_state.materiales.empty:
         st.info("No hay suficientes datos de materiales para generar el dashboard.")
     else:
         import plotly.express as px
-        
-        # 1. Métricas Principales Superiores (KPIs)
         total_skus = len(st.session_state.materiales)
         stock_total = int(st.session_state.materiales["Stock_Actual"].sum())
-        
-        # Calcular valorización total del inventario (Stock * Valor Unitario)
         val_inventario = (st.session_state.materiales["Stock_Actual"] * st.session_state.materiales["Valor_Unitario"]).sum()
         
         col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
@@ -428,23 +421,12 @@ elif menu == "6. Dashboard Gerencial":
         col_kpi3.metric("💰 Valorización Total Inventario", f"${val_inventario:,.0f}")
         
         st.markdown("---")
-        
-        # 2. Gráficos Interactivos con Plotly
         col_g1, col_g2 = st.columns(2)
         
         with col_g1:
             st.subheader("Top Productos con Mayor Stock")
-            # Ordenar materiales por mayor stock actual
             df_top_stock = st.session_state.materiales.sort_values(by="Stock_Actual", ascending=False).head(10)
-            fig_stock = px.bar(
-                df_top_stock, 
-                x="SKU", 
-                y="Stock_Actual", 
-                text="Stock_Actual",
-                color="Stock_Actual",
-                color_continuous_scale="Blues",
-                title="Top 10 SKUs con Mayor Cantidad en Bodega"
-            )
+            fig_stock = px.bar(df_top_stock, x="SKU", y="Stock_Actual", text="Stock_Actual", color="Stock_Actual", color_continuous_scale="Blues", title="Top 10 SKUs con Mayor Cantidad en Bodega")
             fig_stock.update_layout(xaxis_title="SKU", yaxis_title="Cantidad Actual")
             st.plotly_chart(fig_stock, use_container_width=True)
             
@@ -453,36 +435,22 @@ elif menu == "6. Dashboard Gerencial":
             df_val = st.session_state.materiales.copy()
             df_val["Valor_Total"] = df_val["Stock_Actual"] * df_val["Valor_Unitario"]
             df_top_val = df_val.sort_values(by="Valor_Total", ascending=False).head(10)
-            
-            fig_val = px.pie(
-                df_top_val, 
-                names="SKU", 
-                values="Valor_Total", 
-                title="Distribución del Valor en Inventario (Top SKU)",
-                hole=0.4
-            )
+            fig_val = px.pie(df_top_val, names="SKU", values="Valor_Total", title="Distribución del Valor en Inventario (Top SKU)", hole=0.4)
             st.plotly_chart(fig_val, use_container_width=True)
             
-        # 3. Gráfico de Movimientos (Ingresos vs Despachos) si existen
         st.markdown("---")
         st.subheader("🔄 Actividad Operativa (Historial de Movimientos)")
         if not st.session_state.movimientos.empty:
             df_mov = st.session_state.movimientos.copy()
-            # Agrupar por tipo y fecha o contar movimientos
-            fig_mov = px.histogram(
-                df_mov, 
-                x="Tipo", 
-                color="Tipo",
-                title="Conteo de Transacciones por Tipo (Ingresos vs Despachos)",
-                text_auto=True
-            )
+            fig_mov = px.histogram(df_mov, x="Tipo", color="Tipo", title="Conteo de Transacciones por Tipo (Ingresos vs Despachos)", text_auto=True)
             st.plotly_chart(fig_mov, use_container_width=True)
         else:
             st.info("Aún no hay movimientos registrados para mostrar en el gráfico de actividad.")
+
 # ---------------------------------------------------------
-# MÓDULO 6: TRAZABILIDAD
+# MÓDULO 7: TRAZABILIDAD
 # ---------------------------------------------------------
-elif menu == "6. Trazabilidad":
+elif menu == "7. Trazabilidad":
     st.header("🔍 Historial de Movimientos")
     if st.session_state.movimientos.empty:
         st.info("No hay movimientos registrados.")
@@ -490,9 +458,9 @@ elif menu == "6. Trazabilidad":
         st.dataframe(st.session_state.movimientos.sort_values(by="Fecha", ascending=False), use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 7: ETIQUETAS
+# MÓDULO 8: ETIQUETAS
 # ---------------------------------------------------------
-elif menu == "7. Etiquetas":
+elif menu == "8. Etiquetas":
     st.header("🏷️ Generación e Impresión de Etiquetas de Bodega")
     if st.session_state.materiales.empty:
         st.info("No hay materiales registrados para etiquetar.")
@@ -550,9 +518,9 @@ elif menu == "7. Etiquetas":
         st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
 
 # ---------------------------------------------------------
-# MÓDULO 8: ELIMINAR TRANSACCIONES
+# MÓDULO 9: ELIMINAR TRANSACCIONES
 # ---------------------------------------------------------
-elif menu == "8. Eliminar Transacciones":
+elif menu == "9. Eliminar Transacciones":
     st.header("🗑️ Gestión y Anulación de Transacciones")
     if st.session_state.movimientos.empty:
         st.info("No hay transacciones registradas.")
@@ -578,9 +546,9 @@ elif menu == "8. Eliminar Transacciones":
             st.rerun()
 
 # ---------------------------------------------------------
-# MÓDULO 9: ASISTENTE IA
+# MÓDULO 10: ASISTENTE IA
 # ---------------------------------------------------------
-elif menu == "9. Asistente IA":
+elif menu == "10. Asistente IA":
     st.header("🤖 Asistente Inteligente")
     if "GEMINI_API_KEY" in st.secrets:
         try:
@@ -600,13 +568,11 @@ elif menu == "9. Asistente IA":
         st.warning("Configura tu GEMINI_API_KEY en los secretos.")
 
 # ---------------------------------------------------------
-# MÓDULO: ESCÁNER DE CÓDIGOS (Cámara Web / Pistola USB)
+# MÓDULO 11: ESCÁNER DE SKU
 # ---------------------------------------------------------
-elif menu == "10. Escáner de SKU":
+elif menu == "11. Escáner de SKU":
     st.header("📷 Escáner de SKU (Cámara Web o USB)")
-    
     tipo_escaneo = st.radio("Selecciona el método de lectura:", ["Pistola / Lector USB", "Cámara Web (QR / Barras)"])
-    
     sku_detectado = None
     
     if tipo_escaneo == "Pistola / Lector USB":
@@ -623,13 +589,10 @@ elif menu == "10. Escáner de SKU":
             try:
                 import cv2
                 import numpy as np
-                
-                # Convertir la imagen capturada por Streamlit a formato OpenCV
                 bytes_data = imagen_camara.getvalue()
                 np_arr = np.frombuffer(bytes_data, np.uint8)
                 img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                 
-                # Inicializar el detector de códigos de OpenCV
                 detector = cv2.QRCodeDetector()
                 data, bbox, _ = detector.detectAndDecode(img)
                 
@@ -637,26 +600,22 @@ elif menu == "10. Escáner de SKU":
                     sku_detectado = data.strip().upper()
                     st.success(f"¡Código detectado con éxito: **{sku_detectado}**!")
                 else:
-                    st.warning("No se pudo detectar ningún código QR en la imagen. Intenta acercar más el código a la cámara.")
+                    st.warning("No se pudo detectar ningún código QR en la imagen.")
             except Exception as e:
                 st.error(f"Error al procesar la imagen de la cámara: {e}")
 
-    # Si se detectó un SKU (por USB o Cámara), realizamos acción rápida (ej: Consulta o Ingreso rápido)
     if sku_detectado:
         st.markdown("---")
         st.subheader(f"🔍 Resultado para SKU: `{sku_detectado}`")
         
         if sku_detectado in st.session_state.materiales["SKU"].values:
-            # Obtener datos del material
             mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_detectado].iloc[0]
-            
             st.success(f"**Material Encontrado:** {mat_info['Nombre']}")
             c1, c2, c3 = st.columns(3)
             c1.metric("Stock Actual", mat_info['Stock_Actual'])
             c2.metric("Ubicación", mat_info.get('Ubicacion', 'N/A'))
             c3.metric("Valor Unitario", f"${mat_info['Valor_Unitario']:,.0f}")
             
-            # Acción rápida de ingreso o salida
             accion_rapida = st.selectbox("Acción rápida con este SKU:", ["Seleccionar...", "Registrar Ingreso", "Registrar Picking"])
             
             if accion_rapida == "Registrar Ingreso":
@@ -665,7 +624,6 @@ elif menu == "10. Escáner de SKU":
                     idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_detectado].tolist()[0]
                     st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_rapida
                     
-                    # Registrar movimiento
                     mov = pd.DataFrame([{
                         "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
                         "Tipo": "INGRESO",
@@ -691,7 +649,7 @@ elif menu == "10. Escáner de SKU":
                             "ID_Picking": id_ord,
                             "Cliente": cliente_rapido or "Cliente General",
                             "SKU": sku_detectado,
-                            "Ubicacion": mat_sel.get('Ubicacion', 'N/A') if 'mat_sel' in locals() else mat_info.get('Ubicacion', 'N/A'),
+                            "Ubicacion": mat_info.get('Ubicacion', 'N/A'),
                             "Cantidad": cant_pick_rapida,
                             "Estado": "Pendiente Despacho"
                         })
@@ -700,5 +658,3 @@ elif menu == "10. Escáner de SKU":
                         st.rerun()
         else:
             st.error(f"⚠️ El SKU `{sku_detectado}` no se encuentra registrado en el maestro de materiales.")
-            if st.button("Ir a registrar este SKU"):
-                st.info("Dirígete al Módulo 1 para darlo de alta en el sistema.")
