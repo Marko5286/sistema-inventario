@@ -17,15 +17,18 @@ EXCEL_MATERIALES = "db_materiales.xlsx"
 EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
 EXCEL_PICKING = "db_picking.xlsx"
 EXCEL_GUIAS = "db_guias.xlsx"
-
+# Modifica la inicialización del DataFrame de materiales para incluir "Bodega"
 if "materiales" not in st.session_state:
     if os.path.exists(EXCEL_MATERIALES):
         try:
             st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
         except:
-            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion"])
+            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
     else:
-        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion"])
+        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
+
+if "Bodega" not in st.session_state.materiales.columns:
+    st.session_state.materiales["Bodega"] = "Bodega Central Antofagasta"
 
 if "Ubicacion" not in st.session_state.materiales.columns:
     st.session_state.materiales["Ubicacion"] = "A-00-0"
@@ -182,7 +185,8 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "8. Etiquetas",
     "9. Eliminar Transacciones",
     "10. Asistente IA",
-    "11. Escáner de SKU"
+    "11. Escáner de SKU",
+    "12. Gestión de Bodegas"
 ])
 
 st.sidebar.markdown("---")
@@ -657,4 +661,77 @@ elif menu == "11. Escáner de SKU":
                         st.success(f"Orden de picking {id_ord} creada con éxito.")
                         st.rerun()
         else:
-            st.error(f"⚠️ El SKU `{sku_detectado}` no se encuentra registrado en el maestro de materiales.")
+            s
+ # ---------------------------------------------------------
+# MÓDULO 12: GESTIÓN DE MÚLTIPLES BODEGAS Y TRANSFERENCIAS
+# ---------------------------------------------------------
+elif menu == "12. Gestión de Bodegas":
+    st.header("🏢 Gestión de Múltiples Centros de Distribución y Transferencias")
+    
+    # Lista de bodegas predeterminadas o administradas
+    bodegas_disponibles = ["Bodega Central Antofagasta", "Bodega Norte", "Bodega Tránsito", "Centro de Acopio Sur"]
+    
+    tab_crear_mat_bodega, tab_transferencias = st.tabs(["📝 Materiales por Bodega", "🔄 Transferencia Interna entre Bodegas"])
+    
+    with tab_crear_mat_bodega:
+        st.subheader("Asignación de Material a Bodega")
+        if st.session_state.materiales.empty:
+            st.info("No hay materiales creados. Regístrelos primero en el Módulo 1.")
+        else:
+            with st.form("form_mat_bodega"):
+                sku_asig = st.selectbox("Seleccionar SKU", st.session_state.materiales["SKU"])
+                bodega_sel = st.selectbox("Seleccionar Bodega de Almacenamiento", bodegas_disponibles)
+                
+                if st.form_submit_button("Actualizar Bodega del Producto"):
+                    idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_asig].tolist()[0]
+                    st.session_state.materiales.loc[idx, "Bodega"] = bodega_sel
+                    guardar_datos()
+                    st.success(f"El SKU `{sku_asig}` ha sido asignado a la **{bodega_sel}**.")
+                    st.rerun()
+            
+            st.markdown("---")
+            st.subheader("Inventario Global por Bodega")
+            st.dataframe(st.session_state.materiales, use_container_width=True)
+
+    with tab_transferencias:
+        st.subheader("🔄 Realizar Traspaso / Transferencia de Stock")
+        if st.session_state.materiales.empty:
+            st.info("No hay inventario disponible para transferir.")
+        else:
+            with st.form("form_transferencia"):
+                sku_trans = st.selectbox("SKU a Transferir", st.session_state.materiales["SKU"])
+                
+                # Filtrar la bodega actual del SKU seleccionado
+                mat_row = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_trans].iloc[0]
+                bodega_origen = mat_row.get("Bodega", "Bodega Central Antofagasta")
+                stock_actual_origen = mat_row["Stock_Actual"]
+                
+                st.info(f"📍 **Bodega Origen Actual:** `{bodega_origen}` | **Stock Disponible:** `{stock_actual_origen}` unidades")
+                
+                bodega_destino = st.selectbox("Bodega de Destino", [b for b in bodegas_disponibles if b != bodega_origen])
+                cant_transferir = st.number_input("Cantidad a Transferir", min_value=1, value=1)
+                
+                if st.form_submit_button("Ejecutar Transferencia"):
+                    if cant_transferir > stock_actual_origen:
+                        st.error("⚠️ La cantidad a transferir supera el stock disponible en la bodega de origen.")
+                    else:
+                        # Descontar stock del origen (o actualizar registro)
+                        idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_trans].tolist()[0]
+                        st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cant_transferir
+                        st.session_state.materiales.loc[idx_mat, "Bodega"] = bodega_destino
+                        
+                        # Registrar movimiento de transferencia
+                        mov = pd.DataFrame([{
+                            "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                            "Tipo": "TRANSFERENCIA",
+                            "SKU": sku_trans,
+                            "Cantidad": cant_transferir,
+                            "Origen/Destino": f"De {bodega_origen} a {bodega_destino}",
+                            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        }])
+                        st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+                        guardar_datos()
+                        st.success(f"¡Transferencia exitosa de {cant_transferir} unidades del SKU `{sku_trans}` hacia la **{bodega_destino}**!")
+                        st.rerun()
+            
+            t.error(f"⚠️ El SKU `{sku_detectado}` no se encuentra registrado en el maestro de materiales.")
