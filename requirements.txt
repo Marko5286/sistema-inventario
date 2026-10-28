@@ -4,3 +4,6 @@ openpyxl
 gspread
 google-genai
 reportlab
+qrcode
+python-barcode
+Pillow
