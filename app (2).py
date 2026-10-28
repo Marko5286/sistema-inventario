@@ -186,7 +186,8 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "9. Eliminar Transacciones",
     "10. Asistente IA",
     "11. Escáner de SKU",
-    "12. Gestión de Bodegas"
+    "12. Gestión de Bodegas",
+    "13. Auditoría y Logs"
 ])
 
 st.sidebar.markdown("---")
@@ -278,13 +279,14 @@ elif menu == "2. Ingreso de Materiales":
                 st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_ingreso
                 
                 mov = pd.DataFrame([{
-                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                    "Tipo": "INGRESO",
-                    "SKU": sku_ingreso,
-                    "Cantidad": cant_ingreso,
-                    "Origen/Destino": proveedor_origen or "Recepción General",
-                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }])
+    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+    "Tipo": "INGRESO",
+    "SKU": sku_ingreso,
+    "Cantidad": cant_ingreso,
+    "Origen/Destino": proveedor_origen or "Recepción General",
+    "Usuario": st.session_state.get('usuario_actual', 'admin'), # 👈 REGISTRA AL USUARIO
+    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+}])
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
                 guardar_datos()
                 st.success(f"Ingresadas {cant_ingreso} unidades del SKU {sku_ingreso}.")
@@ -729,3 +731,46 @@ elif menu == "12. Gestión de Bodegas":
                         guardar_datos()
                         st.success(f"¡Transferencia exitosa de {cant_transferir} unidades del SKU `{sku_trans}` hacia la **{bodega_destino}**!")
                         st.rerun()
+# ---------------------------------------------------------
+# MÓDULO 13: AUDITORÍA Y LOGS DE ACTIVIDAD DE USUARIOS
+# ---------------------------------------------------------
+elif menu == "13. Auditoría y Logs":
+    st.header("📋 Auditoría y Registro de Actividad por Usuario")
+    st.markdown("Consulta el historial detallado de quién ejecutó cada operación crítica en la bodega.")
+    
+    if st.session_state.movimientos.empty:
+        st.info("No hay registros de actividad en el sistema.")
+    else:
+        df_logs = st.session_state.movimientos.copy()
+        
+        # Filtros interactivos de auditoría
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            usuarios_unicos = ["Todos"] + list(df_logs["Usuario"].dropna().unique())
+            filtro_usuario = st.selectbox("Filtrar por Usuario", usuarios_unicos)
+        with col_f2:
+            tipos_unicos = ["Todos"] + list(df_logs["Tipo"].dropna().unique())
+            filtro_tipo = st.selectbox("Filtrar por Tipo de Transacción", tipos_unicos)
+            
+        # Aplicar filtros
+        if filtro_usuario != "Todos":
+            df_logs = df_logs[df_logs["Usuario"] == filtro_usuario]
+        if filtro_tipo != "Todos":
+            df_logs = df_logs[df_logs["Tipo"] == filtro_tipo]
+            
+        st.markdown("---")
+        st.metric("Total de Acciones Registradas", len(df_logs))
+        st.dataframe(df_logs.sort_values(by="Fecha", ascending=False), use_container_width=True)
+        
+        # Botón para descargar el reporte de auditoría
+        output_audit = BytesIO()
+        with pd.ExcelWriter(output_audit, engine='openpyxl') as writer:
+            df_logs.to_excel(writer, sheet_name='auditoria_logs', index=False)
+        audit_data = output_audit.getvalue()
+        
+        st.download_button(
+            label="📥 Descargar Reporte de Auditoría en Excel",
+            data=audit_data,
+            file_name=f"auditoria_wms_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
