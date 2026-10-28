@@ -74,7 +74,6 @@ def guardar_datos():
 # --------------------------------------------------------- #
 # 0.1 BASE DE DATOS Y GESTIÓN DE USUARIOS (SQLite + Bcrypt) #
 # --------------------------------------------------------- #
-
 DB_PATH = "usuarios_wms.db"
 
 def obtener_conexion():
@@ -120,7 +119,6 @@ def verificar_credenciales_bd(usuario, password):
 
     if resultado:
         hash_almacenado, rol = resultado
-        # bcrypt.checkpw verifica el texto plano contra el hash encriptado
         if bcrypt.checkpw(password.encode('utf-8'), hash_almacenado):
             return True, rol
     return False, None
