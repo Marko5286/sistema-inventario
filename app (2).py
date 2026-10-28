@@ -212,6 +212,7 @@ menu = st.sidebar.radio(
         "8. Eliminar Transacciones",
         "9. Asistente IA",
         "10. Fotografías de Respaldo"
+        "11. Alertas de Stock"
     ]
 )
 
@@ -624,29 +625,23 @@ elif menu == "10. Fotografías de Respaldo":
                     st.image(os.path.join(CARPETA_FOTOS, arq), width=300)
         else:
             st.info("No hay fotografías guardadas todavía.")
-    else:
 
-        # ---------------------------------------------------------
-# MÓDULO: ALERTAS DE STOCK BAJO
+# ---------------------------------------------------------
+# MÓDULO 11: ALERTAS DE STOCK
 # ---------------------------------------------------------
 elif menu == "11. Alertas de Stock":
     st.header("⚠️ Control de Stock Crítico")
     st.write("Productos que se encuentran por debajo del mínimo establecido y necesitan reabastecimiento.")
 
-    # Supongamos que tu DataFrame principal de inventario se llama 'df_inventario'
-    # y contiene columnas como 'Producto', 'Stock Actual' y 'Stock Mínimo'.
-    # Si usas otro nombre para tus variables, asegúrate de adaptarlo aquí.
-    
     try:
-        # Ejemplo de simulación o lectura de tu base de datos/dataframe actual
-        # Asegúrate de cambiar 'df_inventario' por la variable real donde guardas tus productos
+        # Asegúrate de que 'df_inventario' sea tu variable de inventario principal
         if 'df_inventario' in locals() and not df_inventario.empty:
             
-            # Verificar si existe la columna de stock mínimo, si no, crear una por defecto (ej: 5 unidades)
+            # Verificar si existe la columna de stock mínimo, si no, crear una por defecto
             if 'Stock Mínimo' not in df_inventario.columns:
-                df_inventario['Stock Mínimo'] = 5  # Valor por defecto sugerido
+                df_inventario['Stock Mínimo'] = 5  # Valor por defecto
 
-            # Filtrar productos cuyo stock actual sea menor o igual al stock mínimo
+            # Filtrar productos con stock crítico
             stock_critico = df_inventario[df_inventario['Stock Actual'] <= df_inventario['Stock Mínimo']]
 
             if not stock_critico.empty:
@@ -655,7 +650,7 @@ elif menu == "11. Alertas de Stock":
                 # Mostrar tabla resaltada
                 st.dataframe(stock_critico, use_container_width=True)
                 
-                # Opción para exportar la lista de compras urgente
+                # Opción para descargar la lista de compras urgente
                 csv_criticos = stock_critico.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="📥 Descargar Lista de Reabastecimiento (CSV)",
@@ -666,8 +661,7 @@ elif menu == "11. Alertas de Stock":
             else:
                 st.success("¡Excelente! Todos los productos tienen niveles de stock saludables.")
         else:
-            st.info("No se encontró una tabla de inventario activa o está vacía. Asegúrate de registrar productos primero.")
+            st.info("No se encontró una tabla de inventario activa o está vacía.")
             
     except Exception as e:
-        st.info("Para activar las alertas, asegúrate de que tu inventario tenga las columnas de cantidad actual y stock mínimo.")
-        st.info("No hay fotografías guardadas todavía.")
+        st.error(f"Ocurrió un error al procesar las alertas: {e}")
