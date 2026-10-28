@@ -11,3 +11,4 @@ streamlit
 bcrypt
 opencv-python-headless
 numpy
+plotly
