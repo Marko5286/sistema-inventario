@@ -584,3 +584,48 @@ elif menu == "9. Asistente IA":
             st.error(f"Error IA: {e}")
     else:
         st.warning("Configura tu GEMINI_API_KEY en los secretos.")
+# ---------------------------------------------------------
+# MÓDULO 10: FOTOGRAFÍAS DE RESPALDO
+# ---------------------------------------------------------
+elif menu == "10. Fotografías de Respaldo":
+    st.header("📸 Respaldo Fotográfico de Bodega")
+    st.write("Sube fotografías de productos, recepción de mercadería o evidencias de inventario.")
+
+    import os
+    from PIL import Image
+
+    # Crear una carpeta local para guardar las imágenes si no existe
+    CARPETA_FOTOS = "respaldos_fotos"
+    if not os.path.exists(CARPETA_FOTOS):
+        os.makedirs(CARPETA_FOTOS)
+
+    # Widget para cargar archivos de imagen
+    archivo_subido = st.file_uploader("Elige una imagen...", type=["jpg", "jpeg", "png"])
+    
+    descripcion_foto = st.text_input("Descripción o motivo de la fotografía (ej: Lote dañado, Recepción factura #123)")
+
+    if archivo_subido is not None:
+        # Mostrar vista previa de la imagen
+        imagen = Image.open(archivo_subido)
+        st.image(imagen, caption="Vista previa de la imagen", use_column_width=True)
+
+        if st.button("Guardar Fotografía de Respaldo"):
+            # Guardar la imagen físicamente en el servidor/carpeta
+            ruta_archivo = os.path.join(CARPETA_FOTOS, archivo_subido.name)
+            with open(ruta_archivo, "wb") as f:
+                f.write(archivo_subido.getbuffer())
+            
+            st.success(f"¡Fotografía guardada exitosamente como: {archivo_subido.name}!")
+            st.info(f"Detalle: {descripcion_foto}")
+
+    # Mostrar galería de fotos ya guardadas
+    st.subheader("📁 Archivos de Respaldo Guardados")
+    archivos_guardados = os.listdir(CARPETA_FOTOS)
+    
+    if archivos_guardados:
+        for archivo in archivos_guardados:
+            if archivo.lower().endswith(('.png', '.jpg', '.jpeg')):
+                with st.expander(f"Ver: {archivo}"):
+                    st.image(os.path.join(CARPETA_FOTOS, archivo), width=300)
+    else:
+        st.write("Aún no hay fotografías guardadas.")
