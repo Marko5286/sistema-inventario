@@ -213,7 +213,8 @@ menu = st.sidebar.radio(
         "9. Asistente IA",
         "10. Fotografías de Respaldo",
         "11. Alertas de Stock",
-        "12. Kardex de Movimientos"
+        "12. Kardex de Movimientos",
+        "13. Generadores QR/Barras"
     ]
 )
 
@@ -758,3 +759,84 @@ elif menu == "12. Kardex de Movimientos":
         )
     else:
         st.info("Aún no hay movimientos registrados en el Kardex.")
+
+# ---------------------------------------------------------
+# MÓDULO 13: GENERADOR DE CÓDIGOS QR Y BARRAS
+# ---------------------------------------------------------
+elif menu == "13. Generadores QR/Barras":
+    st.header("🔲 Generador de Códigos QR y de Barras")
+    st.write("Crea etiquetas con códigos QR o de barras para identificar tus productos rápidamente.")
+
+    import qrcode
+    from io import BytesIO
+
+    # Pestañas para separar QR de Códigos de Barras
+    tab1, tab2 = st.tabs(["Generador de Códigos QR", "Generador de Códigos de Barras"])
+
+    with tab1:
+        st.subheader("📲 Crear Código QR para Producto o Lote")
+        
+        # Opción para seleccionar producto del inventario si existe
+        texto_qr = ""
+        if 'df_inventario' in locals() and not df_inventario.empty and 'Producto' in df_inventario.columns:
+            opcion_prod = st.selectbox("Seleccionar desde Inventario (Opcional)", ["-- Escribir manual --"] + df_inventario['Producto'].tolist(), key="select_qr_prod")
+            if opcion_prod != "-- Escribir manual --":
+                texto_qr = opcion_prod
+
+        texto_ingresado = st.text_input("Texto o código a codificar en el QR", value=texto_qr, key="input_texto_qr")
+
+        if st.button("Generar Código QR", key="btn_generar_qr"):
+            if texto_ingresado:
+                # Generar imagen QR con la librería qrcode
+                img_qr = qrcode.make(texto_ingresado)
+                
+                # Convertir la imagen a bytes para mostrarla y descargarla
+                buffer = BytesIO()
+                img_qr.save(buffer, format="PNG")
+                byte_im = buffer.getvalue()
+
+                st.image(byte_im, caption=f"Código QR para: {texto_ingresado}", width=250)
+                
+                st.download_button(
+                    label="📥 Descargar Imagen QR (PNG)",
+                    data=byte_im,
+                    file_name=f"qr_{texto_ingresado.replace(' ', '_')}.png",
+                    mime="image/png"
+                )
+            else:
+                st.warning("Por favor, ingresa un texto o selecciona un producto.")
+
+    with tab2:
+        st.subheader("📊 Crear Código de Barras")
+        st.write("Utiliza códigos numéricos o alfanuméricos estándar (tipo Code128).")
+        
+        texto_barras = st.text_input("Código para las barras (ej: SKU-100234)", key="input_texto_barras")
+
+        if st.button("Generar Código de Barras", key="btn_generar_barras"):
+            if texto_barras:
+                try:
+                    import barcode
+                    from barcode.writer import ImageWriter
+
+                    # Usar Code128 que soporta letras y números
+                    CODE = barcode.get_class('code128')
+                    barcode_obj = CODE(texto_barras, writer=ImageWriter())
+
+                    buffer_barras = BytesIO()
+                    barcode_obj.write(buffer_barras)
+                    byte_barras = buffer_barras.getvalue()
+
+                    st.image(byte_barras, caption=f"Código de Barras: {texto_barras}", width=350)
+
+                    st.download_button(
+                        label="📥 Descargar Código de Barras (PNG)",
+                        data=byte_barras,
+                        file_name=f"barras_{texto_barras}.png",
+                        mime="image/png"
+                    )
+                except ImportError:
+                    st.error("Falta instalar la librería 'python-barcode'. Puedes añadirla a tu archivo requirements.txt.")
+                except Exception as e:
+                    st.error(f"Error al generar el código de barras: {e}")
+            else:
+                st.warning("Por favor, ingresa un código válido.")
