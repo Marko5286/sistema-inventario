@@ -572,7 +572,7 @@ elif menu == "9. Asistente IA":
         try:
             from google import genai
             client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-            pregunta = st.text_input("Consulta al ERP (Ej: ¿Qué productos tienen bajo stock?)")
+            pregunta = st.text_input("Consulta al WMS (Ej: ¿Qué productos tienen bajo stock?)")
             if st.button("Consultar IA") and pregunta:
                 resumen = st.session_state.materiales.to_string()
                 response = client.models.generate_content(
