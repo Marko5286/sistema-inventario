@@ -610,22 +610,25 @@ elif menu == "10. Fotografías de Respaldo":
             # Abrir la imagen con PIL
             imagen = Image.open(archivo_subido)
             
-            # Corregir el problema del fondo negro convirtiendo transparencias (PNG) a fondo blanco
-            if imagen.mode in ('RGBA', 'LA') or (imagen.mode == 'P' and 'transparency' in imagen.info):
+            # Forzar conversión estricta a RGB para evitar fondos negros por transparencias
+            if imagen.mode in ("RGBA", "LA") or (imagen.mode == "P" and "transparency" in imagen.info):
+                # Crear un fondo blanco sólido
                 fondo_blanco = Image.new("RGB", imagen.size, (255, 255, 255))
-                fondo_blanco.paste(imagen, mask=imagen.convert('RGBA'))
+                if imagen.mode == "P":
+                    imagen = imagen.convert("RGBA")
+                fondo_blanco.paste(imagen, mask=imagen.split()[3]) # Pegar usando el canal alfa como máscara
                 imagen_para_mostrar = fondo_blanco
             else:
-                imagen_para_mostrar = imagen.convert('RGB')
+                imagen_para_mostrar = imagen.convert("RGB")
 
             # Mostrar vista previa de la imagen corregida
             st.image(imagen_para_mostrar, caption="Vista previa de la imagen", use_column_width=True)
 
             if st.button("Guardar Fotografía de Respaldo"):
-                # Guardar la imagen físicamente en el servidor/carpeta
+                # Guardar la imagen físicamente en la carpeta
                 ruta_archivo = os.path.join(CARPETA_FOTOS, archivo_subido.name)
-                with open(ruta_archivo, "wb") as f:
-                    f.write(archivo_subido.getbuffer())
+                # Guardamos la versión ya limpia en RGB para que al consultarla tampoco salga negra
+                imagen_para_mostrar.save(ruta_archivo)
                 
                 st.success(f"¡Fotografía guardada exitosamente como: {archivo_subido.name}!")
                 st.info(f"Detalle: {descripcion_foto}")
