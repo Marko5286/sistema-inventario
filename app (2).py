@@ -69,40 +69,113 @@ def guardar_datos():
         pd.DataFrame(st.session_state.guias_despacho).to_excel(EXCEL_GUIAS, index=False)
     except Exception as e:
         st.error(f"Error al guardar datos: {e}")
+import sqlite3
+import bcrypt
+import streamlit as st
 
-# ---------------------------------------------------------
-# 0.1 AUTENTICACIÓN DE USUARIOS
-# ---------------------------------------------------------
+# --------------------------------------------------------- #
+# 0.1 BASE DE DATOS Y GESTIÓN DE USUARIOS (SQLite + Bcrypt) #
+# --------------------------------------------------------- #
+
+DB_PATH = "usuarios_wms.db"
+
+def obtener_conexion():
+    """Crea la conexión a la base de datos SQLite."""
+    conn = sqlite3.connect(DB_PATH)
+    return conn
+
+def inicializar_bd_usuarios():
+    """Crea la tabla de usuarios y un usuario administrador por defecto si no existe."""
+    conn = obtener_conexion()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario TEXT UNIQUE NOT NULL,
+            password_hash BLOB NOT NULL,
+            rol TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    
+    # Crear un administrador inicial si la tabla está vacía
+    cursor.execute("SELECT COUNT(*) FROM usuarios")
+    if cursor.fetchone()[0] == 0:
+        salt = bcrypt.gensalt()
+        pass_hash = bcrypt.hashpw("admin123".encode('utf-8'), salt)
+        cursor.execute(
+            "INSERT INTO usuarios (usuario, password_hash, rol) VALUES (?, ?, ?)",
+            ("admin", pass_hash, "Administrador")
+        )
+        conn.commit()
+        st.toast("🔑 Usuario inicial creado: admin / admin123")
+    
+    conn.close()
+
+def verificar_credenciales_bd(usuario, password):
+    """Verifica si el usuario existe y si la contraseña coincide con el hash encriptado."""
+    conn = obtener_conexion()
+    cursor = conn.cursor()
+    cursor.execute("SELECT password_hash, rol FROM usuarios WHERE usuario = ?", (usuario,))
+    resultado = cursor.fetchone()
+    conn.close()
+
+    if resultado:
+        hash_almacenado, rol = resultado
+        # bcrypt.checkpw verifica el texto plano contra el hash encriptado
+        if bcrypt.checkpw(password.encode('utf-8'), hash_almacenado):
+            return True, rol
+    return False, None
+
+def registrar_nuevo_usuario(usuario, password, rol="Usuario"):
+    """Encripta la contraseña y guarda un nuevo usuario en la base de datos."""
+    salt = bcrypt.gensalt()
+    pass_hash = bcrypt.hashpw(password.encode('utf-8'), salt)
+    
+    try:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO usuarios (usuario, password_hash, rol) VALUES (?, ?, ?)",
+            (usuario, pass_hash, rol)
+        )
+        conn.commit()
+        conn.close()
+        return True, "Usuario registrado exitosamente."
+    except sqlite3.IntegrityError:
+        return False, f"El usuario '{usuario}' ya existe."
+    except Exception as e:
+        return False, f"Error al registrar: {e}"
+
+# Inicializar la base de datos al arrancar
+inicializar_bd_usuarios()
+
+# --------------------------------------------------------- #
+# INTERFAZ DE LOGIN DE STREAMLIT                           #
+# --------------------------------------------------------- #
+
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
-
-def verificar_credenciales(usuario, clave):
-    usuarios_permitidos = {
-        "admin": "admin123",
-        "bodega": "bodega2026",
-        "logistica": "marko2026"
-    }
-    if usuario in usuarios_permitidos and usuarios_permitidos[usuario] == clave:
-        return True
-    return False
 
 if not st.session_state.autenticado:
     st.title("🔐 Acceso al WMS Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
     
     with st.form("form_login"):
-        user_input = st.text_input("Usuario")
+        user_input = st.text_input("Usuario").strip()
         pass_input = st.text_input("Contraseña", type="password")
         btn_login = st.form_submit_button("Iniciar Sesión")
         
         if btn_login:
-            if verificar_credenciales(user_input, pass_input):
+            es_valido, rol = verificar_credenciales_bd(user_input, pass_input)
+            if es_valido:
                 st.session_state.autenticado = True
                 st.session_state.usuario_actual = user_input
+                st.session_state.rol_usuario = rol
+                st.success(f"Bienvenido {user_input}")
                 st.rerun()
             else:
                 st.error("Usuario o contraseña incorrectos.")
-    
     st.stop()
 
 # ---------------------------------------------------------
