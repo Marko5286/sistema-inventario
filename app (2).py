@@ -260,122 +260,56 @@ if not st.session_state.materiales.empty:
 # ---------------------------------------------------------
 if menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
-    
-    tab_manual, tab_masivo = st.tabs(["➕ Registro Manual", "📂 Carga Masiva (Excel / CSV)"])
-
-    # Dentro de tab_manual en el Módulo 1:
-with st.form("form_nuevo_material"):
-    col1, col2 = st.columns(2)
-    with col1:
-        sku = st.text_input("Código SKU / Material *").strip().upper()
-        nombre = st.text_input("Nombre / Descripción del Material *")
-        unidad = st.selectbox("Unidad de Medida", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
-    with col2:
-        ubicacion = st.text_input("Ubicación en Bodega (ej. A-01-2)", value="A-00-0").strip().upper()
-        valor_unitario = st.number_input("Valor / Precio Unitario ($)", min_value=0.0, value=0.0, step=100.0)
-        stock_inicial = st.number_input("Stock Inicial", min_value=0, value=0)
-
-    submitted = st.form_submit_button("Guardar Material")
-    if submitted:
-        if not sku or not nombre:
-            st.error("⚠️ Los campos SKU y Nombre son obligatorios.")
-        elif sku in st.session_state.materiales["SKU"].values:
-            st.error(f"El SKU '{sku}' ya se encuentra registrado.")
-        else:
-            nuevo_mat = pd.DataFrame([{
-                "SKU": sku,
-                "Nombre": nombre,
-                "Unidad": unidad,
-                "Ubicacion": ubicacion,
-                "Valor_Unitario": valor_unitario,
-                "Stock_Actual": stock_inicial
-            }])
-            st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_mat], ignore_index=True)
-            # ... resto de la lógica de stock inicial ...
-    with tab_manual:
-        with st.form("form_nuevo_material"):
-            col1, col2 = st.columns(2)
-            with col1:
-                sku = st.text_input("Código SKU / Material *").strip().upper()
-                nombre = st.text_input("Nombre / Descripción del Material *")
-                unidad = st.selectbox("Unidad de Medida", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
-            with col2:
-                valor_unitario = st.number_input("Valor / Precio Unitario ($)", min_value=0.0, value=0.0, step=100.0)
-                stock_inicial = st.number_input("Stock Inicial", min_value=0, value=0)
-            
-            submitted = st.form_submit_button("Guardar Material")
-            if submitted:
-                if not sku or not nombre:
-                    st.error("⚠️ Los campos SKU y Nombre son obligatorios.")
-                else:
-                    if sku in st.session_state.materiales["SKU"].values:
-                        st.error(f"El SKU '{sku}' ya se encuentra registrado.")
-                    else:
-                        nuevo_mat = pd.DataFrame([{
-                            "SKU": sku, 
-                            "Nombre": nombre, 
-                            "Unidad": unidad, 
-                            "Valor_Unitario": valor_unitario,
-                            "Stock_Actual": stock_inicial
-                        }])
-                        st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_mat], ignore_index=True)
-                        
-                        if stock_inicial > 0:
-                            mov = pd.DataFrame([{
-                                "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                                "Tipo": "STOCK_INICIAL",
-                                "SKU": sku,
-                                "Cantidad": stock_inicial,
-                                "Origen/Destino": "Carga Inicial",
-                                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            }])
-                            st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                        
-                        guardar_datos()
-                        st.success(f"Material {sku} creado correctamente.")
-
     with tab_masivo:
-        st.subheader("Carga Masiva desde Archivo")
-        st.code("SKU | Nombre | Unidad | Valor_Unitario | Stock_Actual")
-        archivo_subido = st.file_uploader("Selecciona tu archivo de materiales", type=["csv", "xlsx"])
-        
-        if archivo_subido is not None:
-            try:
-                if archivo_subido.name.endswith('.csv'):
-                    df_carga = pd.read_csv(archivo_subido)
-                else:
-                    df_carga = pd.read_excel(archivo_subido)
+    st.subheader("Carga Masiva desde Archivo")
+    st.code("SKU | Nombre | Unidad | Valor_Unitario | Stock_Actual")
+    archivo_subido = st.file_uploader("Selecciona tu archivo de materiales", type=["csv", "xlsx"])
+    
+    if archivo_subido is not None:
+        try:
+            if archivo_subido.name.endswith('.csv'):
+                df_carga = pd.read_csv(archivo_subido)
+            else:
+                df_carga = pd.read_excel(archivo_subido)
+            
+            df_carga.columns = df_carga.columns.str.strip()
+            columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"]
+            
+            if all(col in df_carga.columns for col in columnas_requeridas):
+                st.dataframe(df_carga.head(), use_container_width=True)
                 
-                df_carga.columns = df_carga.columns.str.strip()
-                columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"]
-                
-                if all(col in df_carga.columns for col in columnas_requeridas):
-                    st.dataframe(df_carga.head(), use_container_width=True)
-                    if st.button("Confirmar e Importar Materiales"):
-                        importados = 0
-                        for _, row in df_carga.iterrows():
-                            sku_val = str(row["SKU"]).strip().upper()
-                            if not sku_val or pd.isna(row["SKU"]): continue
-                            
-                            if sku_val in st.session_state.materiales["SKU"].values:
-                                idx_existente = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_val].tolist()[0]
-                                st.session_state.materiales.loc[idx_existente, "Stock_Actual"] += int(row["Stock_Actual"])
-                            else:
-                                nuevo_row = pd.DataFrame([{
-                                    "SKU": sku_val, "Nombre": str(row["Nombre"]), "Unidad": str(row["Unidad"]),
-                                    "Valor_Unitario": float(row["Valor_Unitario"]), "Stock_Actual": int(row["Stock_Actual"])
-                                }])
-                                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_row], ignore_index=True)
-                            
+                if st.button("Confirmar e Importar Materiales"):
+                    importados = 0
+                    for _, row in df_carga.iterrows():
+                        sku_val = str(row["SKU"]).strip().upper()
+                        if not sku_val or pd.isna(row["SKU"]):
+                            continue
+                        
+                        if sku_val in st.session_state.materiales["SKU"].values:
+                            idx_existente = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_val].tolist()[0]
+                            st.session_state.materiales.loc[idx_existente, "Stock_Actual"] += int(row["Stock_Actual"])
+                        else:
+                            nuevo_row = pd.DataFrame([{
+                                "SKU": sku_val,
+                                "Nombre": str(row["Nombre"]),
+                                "Unidad": str(row["Unidad"]),
+                                "Valor_Unitario": float(row["Valor_Unitario"]),
+                                "Stock_Actual": int(row["Stock_Actual"]),
+                                "Ubicacion": "A-00-0"
+                            }])
+                            st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_row], ignore_index=True)
                             importados += 1
-                        guardar_datos()
-                        st.success(f"¡Se importaron {importados} materiales!")
-                        st.rerun()
-            except Exception as e:
-            st.error(f"Error: {e}")
+                            
+                    guardar_datos()
+                    st.success(f"¡Se importaron {importados} materiales!")
+                    st.rerun()
+            else:
+                st.error("El archivo no contiene las columnas requeridas.")
+        except Exception as e:
+            st.error(f"Error al procesar el archivo: {e}")
 
-    st.subheader("Maestro de Materiales Registrados")
-    st.dataframe(st.session_state.materiales, use_container_width=True)
+st.subheader("Maestro de Materiales Registrados")
+st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
 # MÓDULO 2: INGRESO DE MATERIALES
