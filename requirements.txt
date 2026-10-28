@@ -7,3 +7,5 @@ reportlab
 qrcode
 python-barcode
 Pillow
+streamlit
+bcrypt
