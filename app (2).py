@@ -173,9 +173,126 @@ menu = st.sidebar.selectbox("Menú Principal", [
 ])
 
 # --------------------------------------------------------- #
+# MÓDULO 1: GESTIÓN DE MATERIALES                          #
+# --------------------------------------------------------- #
+if menu == "1. Gestión de Materiales":
+    st.header("📦 Gestión de Materiales e Inventario")
+    
+    with st.form("form_material"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            sku = st.text_input("SKU / Código").strip()
+        with col2:
+            nombre = st.text_input("Nombre del Material").strip()
+        with col3:
+            unidad = st.selectbox("Unidad de Medida", ["Unidades", "Kg", "Litros", "Metros", "Cajas"])
+        
+        col4, col5 = st.columns(2)
+        with col4:
+            valor = st.number_input("Valor Unitario", min_value=0.0, value=0.0)
+        with col5:
+            stock = st.number_input("Stock Inicial", min_value=0.0, value=0.0)
+            
+        btn_guardar_mat = st.form_submit_button("Registrar / Actualizar Material")
+        
+        if btn_guardar_mat:
+            if not sku or not nombre:
+                st.error("El SKU y el Nombre son obligatorios.")
+            else:
+                df = st.session_state.materiales
+                if sku in df['SKU'].values:
+                    df.loc[df['SKU'] == sku, ['Nombre', 'Unidad', 'Valor_Unitario', 'Stock_Actual']] = [nombre, unidad, valor, stock]
+                    st.success(f"Material {sku} actualizado correctamente.")
+                else:
+                    nuevo_row = pd.DataFrame([{"SKU": sku, "Nombre": nombre, "Unidad": unidad, "Valor_Unitario": valor, "Stock_Actual": stock}])
+                    st.session_state.materiales = pd.concat([df, nuevo_row], ignore_index=True)
+                    st.success(f"Material {sku} registrado correctamente.")
+                guardar_datos()
+                st.rerun()
+
+    st.markdown("---")
+    st.subheader("📋 Inventario Actual")
+    st.dataframe(st.session_state.materiales, use_container_width=True)
+
+# --------------------------------------------------------- #
+# MÓDULO 2: MOVIMIENTOS DE STOCK                            #
+# --------------------------------------------------------- #
+elif menu == "2. Movimientos de Stock":
+    st.header("🔄 Movimientos de Entrada y Salida")
+    
+    if st.session_state.materiales.empty:
+        st.warning("⚠️ Primero debes registrar materiales en el Módulo 1.")
+    else:
+        with st.form("form_movimiento"):
+            tipo = st.selectbox("Tipo de Movimiento", ["Entrada", "Salida", "Ajuste"])
+            sku_sel = st.selectbox("Seleccionar SKU", st.session_state.materiales['SKU'].tolist())
+            cantidad = st.number_input("Cantidad", min_value=0.1, value=1.0)
+            origen_destino = st.text_input("Origen / Destino / Motivo").strip()
+            
+            btn_mov = st.form_submit_button("Registrar Movimiento")
+            
+            if btn_mov:
+                idx = st.session_state.materiales.index[st.session_state.materiales['SKU'] == sku_sel][0]
+                stock_actual = st.session_state.materiales.at[idx, 'Stock_Actual']
+                
+                if tipo == "Salida" and cantidad > stock_actual:
+                    st.error(f"Stock insuficiente. Stock actual disponible: {stock_actual}")
+                else:
+                    # Actualizar stock
+                    if tipo == "Entrada":
+                        nuevo_stock = stock_actual + cantidad
+                    elif tipo == "Salida":
+                        nuevo_stock = stock_actual - cantidad
+                    else:
+                        nuevo_stock = cantidad # Ajuste directo
+                        
+                    st.session_state.materiales.at[idx, 'Stock_Actual'] = nuevo_stock
+                    
+                    # Registrar movimiento
+                    id_mov = f"MOV-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                    nuevo_mov = pd.DataFrame([{
+                        "ID_Mov": id_mov,
+                        "Tipo": tipo,
+                        "SKU": sku_sel,
+                        "Cantidad": cantidad,
+                        "Origen/Destino": origen_destino,
+                        "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }])
+                    st.session_state.movimientos = pd.concat([st.session_state.movimientos, nuevo_mov], ignore_index=True)
+                    guardar_datos()
+                    st.success(f"Movimiento {id_mov} registrado con éxito.")
+                    st.rerun()
+
+    st.markdown("---")
+    st.subheader("📜 Historial de Movimientos")
+    st.dataframe(st.session_state.movimientos, use_container_width=True)
+
+# --------------------------------------------------------- #
+# MÓDULO 3: ÓRDENES DE PICKING                             #
+# --------------------------------------------------------- #
+elif menu == "3. Órdenes de Picking":
+    st.header("📋 Órdenes de Picking")
+    st.info("Módulo de preparación de pedidos y despachos.")
+    if st.session_state.ordenes_picking:
+        st.write(st.session_state.ordenes_picking)
+    else:
+        st.write("No hay órdenes de picking registradas.")
+
+# --------------------------------------------------------- #
+# MÓDULO 4: GUÍAS DE DESPACHO                              #
+# --------------------------------------------------------- #
+elif menu == "4. Guías de Despacho":
+    st.header("📄 Guías de Despacho")
+    st.info("Módulo de emisión de guías y documentos de transporte.")
+    if st.session_state.guias_despacho:
+        st.write(st.session_state.guias_despacho)
+    else:
+        st.write("No hay guías de despacho emitidas.")
+
+# --------------------------------------------------------- #
 # MÓDULO 16: GESTIÓN DE USUARIOS                           #
 # --------------------------------------------------------- #
-if menu == "16. Gestión de Usuarios":
+elif menu == "16. Gestión de Usuarios":
     st.header("👤 Administración y Registro de Usuarios")
 
     if st.session_state.get("rol_usuario") != "Administrador":
