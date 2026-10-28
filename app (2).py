@@ -17,7 +17,7 @@ EXCEL_MATERIALES = "db_materiales.xlsx"
 EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
 EXCEL_PICKING = "db_picking.xlsx"
 EXCEL_GUIAS = "db_guias.xlsx"
-# Modifica la inicialización del DataFrame de materiales para incluir "Bodega"
+
 if "materiales" not in st.session_state:
     if os.path.exists(EXCEL_MATERIALES):
         try:
@@ -249,7 +249,7 @@ if menu == "1. Creación de Materiales":
             else:
                 nuevo = pd.DataFrame([{
                     "SKU": sku_m, "Nombre": nom_m, "Unidad": uni_m,
-                    "Valor_Unitario": val_m, "Stock_Actual": stk_m, "Ubicacion": ubi_m
+                    "Valor_Unitario": val_m, "Stock_Actual": stk_m, "Ubicacion": ubi_m, "Bodega": "Bodega Central Antofagasta"
                 }])
                 st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
                 guardar_datos()
@@ -510,6 +510,7 @@ elif menu == "8. Etiquetas":
                 <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
                 <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
                 <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
                 <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
                 <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
                 <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
@@ -586,152 +587,3 @@ elif menu == "11. Escáner de SKU":
             sku_detectado = sku_input
             
     else:
-        st.info("📸 Enfoca el código QR del producto con la cámara de tu dispositivo.")
-        imagen_camara = st.camera_input("Capturar Código")
-        
-        if imagen_camara is not None:
-            try:
-                import cv2
-                import numpy as np
-                bytes_data = imagen_camara.getvalue()
-                np_arr = np.frombuffer(bytes_data, np.uint8)
-                img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-                
-                detector = cv2.QRCodeDetector()
-                data, bbox, _ = detector.detectAndDecode(img)
-                
-                if data:
-                    sku_detectado = data.strip().upper()
-                    st.success(f"¡Código detectado con éxito: **{sku_detectado}**!")
-                else:
-                    st.warning("No se pudo detectar ningún código QR en la imagen.")
-            except Exception as e:
-                st.error(f"Error al procesar la imagen de la cámara: {e}")
-
-    if sku_detectado:
-        st.markdown("---")
-        st.subheader(f"🔍 Resultado para SKU: `{sku_detectado}`")
-        
-        if sku_detectado in st.session_state.materiales["SKU"].values:
-            mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_detectado].iloc[0]
-            st.success(f"**Material Encontrado:** {mat_info['Nombre']}")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Stock Actual", mat_info['Stock_Actual'])
-            c2.metric("Ubicación", mat_info.get('Ubicacion', 'N/A'))
-            c3.metric("Valor Unitario", f"${mat_info['Valor_Unitario']:,.0f}")
-            
-            accion_rapida = st.selectbox("Acción rápida con este SKU:", ["Seleccionar...", "Registrar Ingreso", "Registrar Picking"])
-            
-            if accion_rapida == "Registrar Ingreso":
-                cant_rapida = st.number_input("Cantidad a Ingresar", min_value=1, value=1, key="cant_ing_rapido")
-                if st.button("Confirmar Ingreso Rápido"):
-                    idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_detectado].tolist()[0]
-                    st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_rapida
-                    
-                    mov = pd.DataFrame([{
-                        "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                        "Tipo": "INGRESO",
-                        "SKU": sku_detectado,
-                        "Cantidad": cant_rapida,
-                        "Origen/Destino": "Escáner Web/USB",
-                        "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    }])
-                    st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                    guardar_datos()
-                    st.success(f"¡Ingresadas {cant_rapida} unidades al SKU {sku_detectado}!")
-                    st.rerun()
-            
-            elif accion_rapida == "Registrar Picking":
-                cant_pick_rapida = st.number_input("Cantidad a Preparar", min_value=1, value=1, key="cant_pick_rapido")
-                cliente_rapido = st.text_input("Cliente / Destino", key="cli_rapido")
-                if st.button("Confirmar Picking Rápido"):
-                    if cant_pick_rapida > mat_info['Stock_Actual']:
-                        st.error("Stock insuficiente.")
-                    else:
-                        id_ord = f"PICK-{len(st.session_state.ordenes_picking)+1:04d}"
-                        st.session_state.ordenes_picking.append({
-                            "ID_Picking": id_ord,
-                            "Cliente": cliente_rapido or "Cliente General",
-                            "SKU": sku_detectado,
-                            "Ubicacion": mat_info.get('Ubicacion', 'N/A'),
-                            "Cantidad": cant_pick_rapida,
-                            "Estado": "Pendiente Despacho"
-                        })
-                        guardar_datos()
-                        st.success(f"Orden de picking {id_ord} creada con éxito.")
-                        st.rerun()
-        else:
-            s
- # ---------------------------------------------------------
-# MÓDULO 12: GESTIÓN DE MÚLTIPLES BODEGAS Y TRANSFERENCIAS
-# ---------------------------------------------------------
-elif menu == "12. Gestión de Bodegas":
-    st.header("🏢 Gestión de Múltiples Centros de Distribución y Transferencias")
-    
-    # Lista de bodegas predeterminadas o administradas
-    bodegas_disponibles = ["Bodega Central Antofagasta", "Bodega Norte", "Bodega Tránsito", "Centro de Acopio Sur"]
-    
-    tab_crear_mat_bodega, tab_transferencias = st.tabs(["📝 Materiales por Bodega", "🔄 Transferencia Interna entre Bodegas"])
-    
-    with tab_crear_mat_bodega:
-        st.subheader("Asignación de Material a Bodega")
-        if st.session_state.materiales.empty:
-            st.info("No hay materiales creados. Regístrelos primero en el Módulo 1.")
-        else:
-            with st.form("form_mat_bodega"):
-                sku_asig = st.selectbox("Seleccionar SKU", st.session_state.materiales["SKU"])
-                bodega_sel = st.selectbox("Seleccionar Bodega de Almacenamiento", bodegas_disponibles)
-                
-                if st.form_submit_button("Actualizar Bodega del Producto"):
-                    idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_asig].tolist()[0]
-                    st.session_state.materiales.loc[idx, "Bodega"] = bodega_sel
-                    guardar_datos()
-                    st.success(f"El SKU `{sku_asig}` ha sido asignado a la **{bodega_sel}**.")
-                    st.rerun()
-            
-            st.markdown("---")
-            st.subheader("Inventario Global por Bodega")
-            st.dataframe(st.session_state.materiales, use_container_width=True)
-
-    with tab_transferencias:
-        st.subheader("🔄 Realizar Traspaso / Transferencia de Stock")
-        if st.session_state.materiales.empty:
-            st.info("No hay inventario disponible para transferir.")
-        else:
-            with st.form("form_transferencia"):
-                sku_trans = st.selectbox("SKU a Transferir", st.session_state.materiales["SKU"])
-                
-                # Filtrar la bodega actual del SKU seleccionado
-                mat_row = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_trans].iloc[0]
-                bodega_origen = mat_row.get("Bodega", "Bodega Central Antofagasta")
-                stock_actual_origen = mat_row["Stock_Actual"]
-                
-                st.info(f"📍 **Bodega Origen Actual:** `{bodega_origen}` | **Stock Disponible:** `{stock_actual_origen}` unidades")
-                
-                bodega_destino = st.selectbox("Bodega de Destino", [b for b in bodegas_disponibles if b != bodega_origen])
-                cant_transferir = st.number_input("Cantidad a Transferir", min_value=1, value=1)
-                
-                if st.form_submit_button("Ejecutar Transferencia"):
-                    if cant_transferir > stock_actual_origen:
-                        st.error("⚠️ La cantidad a transferir supera el stock disponible en la bodega de origen.")
-                    else:
-                        # Descontar stock del origen (o actualizar registro)
-                        idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_trans].tolist()[0]
-                        st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cant_transferir
-                        st.session_state.materiales.loc[idx_mat, "Bodega"] = bodega_destino
-                        
-                        # Registrar movimiento de transferencia
-                        mov = pd.DataFrame([{
-                            "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                            "Tipo": "TRANSFERENCIA",
-                            "SKU": sku_trans,
-                            "Cantidad": cant_transferir,
-                            "Origen/Destino": f"De {bodega_origen} a {bodega_destino}",
-                            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        }])
-                        st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                        guardar_datos()
-                        st.success(f"¡Transferencia exitosa de {cant_transferir} unidades del SKU `{sku_trans}` hacia la **{bodega_destino}**!")
-                        st.rerun()
-            
-            t.error(f"⚠️ El SKU `{sku_detectado}` no se encuentra registrado en el maestro de materiales.")
