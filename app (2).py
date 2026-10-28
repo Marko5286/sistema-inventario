@@ -180,7 +180,8 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "6. Trazabilidad",
     "7. Etiquetas",
     "8. Eliminar Transacciones",
-    "9. Asistente IA"
+    "9. Asistente IA",
+    "10. Escáner de SKU"
 ])
 
 st.sidebar.markdown("---")
@@ -520,3 +521,107 @@ elif menu == "9. Asistente IA":
             st.error(f"Error IA: {e}")
     else:
         st.warning("Configura tu GEMINI_API_KEY en los secretos.")
+
+# ---------------------------------------------------------
+# MÓDULO: ESCÁNER DE CÓDIGOS (Cámara Web / Pistola USB)
+# ---------------------------------------------------------
+elif menu == "10. Escáner de SKU":
+    st.header("📷 Escáner de SKU (Cámara Web o USB)")
+    
+    tipo_escaneo = st.radio("Selecciona el método de lectura:", ["Pistola / Lector USB", "Cámara Web (QR / Barras)"])
+    
+    sku_detectado = None
+    
+    if tipo_escaneo == "Pistola / Lector USB":
+        st.info("💡 Haz clic en el campo de abajo y dispara con tu pistola lectora de códigos de barra. El sistema detectará el SKU automáticamente.")
+        sku_input = st.text_input("Esperando lectura de pistola USB...").strip().upper()
+        if sku_input:
+            sku_detectado = sku_input
+            
+    else:
+        st.info("📸 Enfoca el código QR del producto con la cámara de tu dispositivo.")
+        imagen_camara = st.camera_input("Capturar Código")
+        
+        if imagen_camara is not None:
+            try:
+                import cv2
+                import numpy as np
+                
+                # Convertir la imagen capturada por Streamlit a formato OpenCV
+                bytes_data = imagen_camara.getvalue()
+                np_arr = np.frombuffer(bytes_data, np.uint8)
+                img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                
+                # Inicializar el detector de códigos de OpenCV
+                detector = cv2.QRCodeDetector()
+                data, bbox, _ = detector.detectAndDecode(img)
+                
+                if data:
+                    sku_detectado = data.strip().upper()
+                    st.success(f"¡Código detectado con éxito: **{sku_detectado}**!")
+                else:
+                    st.warning("No se pudo detectar ningún código QR en la imagen. Intenta acercar más el código a la cámara.")
+            except Exception as e:
+                st.error(f"Error al procesar la imagen de la cámara: {e}")
+
+    # Si se detectó un SKU (por USB o Cámara), realizamos acción rápida (ej: Consulta o Ingreso rápido)
+    if sku_detectado:
+        st.markdown("---")
+        st.subheader(f"🔍 Resultado para SKU: `{sku_detectado}`")
+        
+        if sku_detectado in st.session_state.materiales["SKU"].values:
+            # Obtener datos del material
+            mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_detectado].iloc[0]
+            
+            st.success(f"**Material Encontrado:** {mat_info['Nombre']}")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Stock Actual", mat_info['Stock_Actual'])
+            c2.metric("Ubicación", mat_info.get('Ubicacion', 'N/A'))
+            c3.metric("Valor Unitario", f"${mat_info['Valor_Unitario']:,.0f}")
+            
+            # Acción rápida de ingreso o salida
+            accion_rapida = st.selectbox("Acción rápida con este SKU:", ["Seleccionar...", "Registrar Ingreso", "Registrar Picking"])
+            
+            if accion_rapida == "Registrar Ingreso":
+                cant_rapida = st.number_input("Cantidad a Ingresar", min_value=1, value=1, key="cant_ing_rapido")
+                if st.button("Confirmar Ingreso Rápido"):
+                    idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_detectado].tolist()[0]
+                    st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_rapida
+                    
+                    # Registrar movimiento
+                    mov = pd.DataFrame([{
+                        "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                        "Tipo": "INGRESO",
+                        "SKU": sku_detectado,
+                        "Cantidad": cant_rapida,
+                        "Origen/Destino": "Escáner Web/USB",
+                        "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }])
+                    st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+                    guardar_datos()
+                    st.success(f"¡Ingresadas {cant_rapida} unidades al SKU {sku_detectado}!")
+                    st.rerun()
+            
+            elif accion_rapida == "Registrar Picking":
+                cant_pick_rapida = st.number_input("Cantidad a Preparar", min_value=1, value=1, key="cant_pick_rapido")
+                cliente_rapido = st.text_input("Cliente / Destino", key="cli_rapido")
+                if st.button("Confirmar Picking Rápido"):
+                    if cant_pick_rapida > mat_info['Stock_Actual']:
+                        st.error("Stock insuficiente.")
+                    else:
+                        id_ord = f"PICK-{len(st.session_state.ordenes_picking)+1:04d}"
+                        st.session_state.ordenes_picking.append({
+                            "ID_Picking": id_ord,
+                            "Cliente": cliente_rapido or "Cliente General",
+                            "SKU": sku_detectado,
+                            "Ubicacion": mat_sel.get('Ubicacion', 'N/A') if 'mat_sel' in locals() else mat_info.get('Ubicacion', 'N/A'),
+                            "Cantidad": cant_pick_rapida,
+                            "Estado": "Pendiente Despacho"
+                        })
+                        guardar_datos()
+                        st.success(f"Orden de picking {id_ord} creada con éxito.")
+                        st.rerun()
+        else:
+            st.error(f"⚠️ El SKU `{sku_detectado}` no se encuentra registrado en el maestro de materiales.")
+            if st.button("Ir a registrar este SKU"):
+                st.info("Dirígete al Módulo 1 para darlo de alta en el sistema.")
