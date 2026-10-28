@@ -332,15 +332,14 @@ elif menu == "3. Picking de Materiales":
         st.markdown("---")
         st.subheader("Historial de Órdenes de Picking")
         st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
-
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
+# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO CON FIRMA DIGITAL
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Traslado")
+    st.header("🚚 Despacho y Emisión de Guía de Traslado con Firma Digital")
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
     if not pendientes:
-        st.info("No hay órdenes de picking pendientes.")
+        st.info("No hay órdenes de picking pendientes de despacho.")
     else:
         df_pendientes = pd.DataFrame(pendientes)
         orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
@@ -356,10 +355,39 @@ elif menu == "4. Despacho y Guía":
             rut_cliente = st.text_input("R.U.T. del Cliente")
             motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
             
-        if st.button("Confirmar Despacho y Generar Guía"):
+        st.markdown("---")
+        st.subheader("✍️ Firma Digital de Recepción (Check-in Cliente)")
+        st.markdown("Dibuja la firma del cliente o receptor en el recuadro inferior:")
+        
+        from streamlit_drawable_canvas import st_canvas
+        
+        # Crear el lienzo de firma digital
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)",
+            stroke_width=3,
+            stroke_color="#000000",
+            background_color="#FFFFFF",
+            height=150,
+            width=400,
+            drawing_mode="freedraw",
+            key=f"canvas_firma_{orden_sel}",
+        )
+        
+        if st.button("Confirmar Despacho y Generar Guía Oficial"):
             idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
             st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
             datos_orden["Estado"] = "Despachado"
+            
+            # Procesar la imagen de la firma si el usuario dibujó algo
+            imagen_firma_io = None
+            if canvas_result.image_data is not None:
+                from PIL import Image
+                import numpy as np
+                img_data = canvas_result.image_data.astype(np.uint8)
+                img = Image.fromarray(img_data)
+                imagen_firma_io = BytesIO()
+                img.save(imagen_firma_io, format="PNG")
+                imagen_firma_io.seek(0)
             
             mov = pd.DataFrame([{
                 "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
@@ -367,6 +395,7 @@ elif menu == "4. Despacho y Guía":
                 "SKU": datos_orden["SKU"],
                 "Cantidad": datos_orden["Cantidad"],
                 "Origen/Destino": datos_orden["Cliente"],
+                "Usuario": st.session_state.get('usuario_actual', 'admin'),
                 "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }])
             st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
@@ -376,11 +405,12 @@ elif menu == "4. Despacho y Guía":
                 "Numero_Guia": num_guia, "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "Cliente": datos_orden["Cliente"], "Rut": rut_cliente, "SKU": datos_orden["SKU"],
                 "Cantidad": datos_orden["Cantidad"], "Transporte": transporte, "Conductor": nombre_conductor,
-                "Rut_Conductor": rut_conductor, "Patente": patente, "Motivo": motivo
+                "Rut_Conductor": rut_conductor, "Patente": patente, "Motivo": motivo,
+                "Firma": imagen_firma_io
             }
             st.session_state.guias_despacho.append(guia_data)
             guardar_datos()
-            st.success(f"¡Despacho realizado! Guía N° **{num_guia}**")
+            st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}** generada con firma digital.")
             st.session_state.ultima_guia = guia_data
             st.rerun()
 
@@ -388,14 +418,14 @@ elif menu == "4. Despacho y Guía":
         st.markdown("---")
         guia = st.session_state.ultima_guia
         st.subheader(f"📄 Descarga Directa: Guía N° {guia['Numero_Guia']}")
-        pdf_buffer = generar_pdf_guia(guia)
+        pdf_buffer = generar_pdf_guia(guia, guia.get("Firma"))
         st.download_button(
-            label="📥 Descargar Guía Oficial en PDF",
+            label="📥 Descargar Guía Oficial en PDF con Firma",
             data=pdf_buffer,
             file_name=f"Guia_{guia['Numero_Guia']}.pdf",
             mime="application/pdf"
         )
-
+        
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
