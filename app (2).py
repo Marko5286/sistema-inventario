@@ -594,14 +594,32 @@ elif menu == "10. Asistente IA":
             from google import genai
             client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
             pregunta = st.text_input("Consulta al ERP (Ej: ¿Qué productos tienen bajo stock?)")
+            
             if st.button("Consultar IA") and pregunta:
                 resumen = st.session_state.materiales.to_string()
-                # 💡 Actualizado al modelo actual recomendado
-                response = client.models.generate_content(
-                    model='gemini-3.8-flash',
-                    contents=f"Eres un experto en logística. Datos de bodega:\n{resumen}\nResponde a: {pregunta}"
-                )
-                st.success(response.text)
+                prompt_sistema = f"Eres un experto en logística. Datos de bodega:\n{resumen}\nResponde a: {pregunta}"
+                
+                response = None
+                # Intentar primero con el modelo principal y respaldar si hay saturación
+                modelos_a_probar = ['gemini-3.8-flash', 'gemini-2.5-flash']
+                
+                with st.spinner("Consultando al asistente de bodega..."):
+                    for mod in modelos_a_probar:
+                        try:
+                            response = client.models.generate_content(
+                                model=mod,
+                                contents=prompt_sistema
+                            )
+                            break # Si sale bien, rompemos el ciclo
+                        except Exception as ex:
+                            # Si da error de servidor ocupado, prueba con el siguiente modelo
+                            continue
+                
+                if response and hasattr(response, 'text'):
+                    st.success(response.text)
+                else:
+                    st.warning("⚠️ Los servidores de IA están experimentando alta demanda en este momento. Por favor, intenta hacer tu consulta nuevamente en unos segundos.")
+                    
         except Exception as e:
             st.error(f"Error IA: {e}")
     else:
