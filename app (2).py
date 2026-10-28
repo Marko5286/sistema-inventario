@@ -585,6 +585,7 @@ elif menu == "9. Asistente IA":
             st.error(f"Error IA: {e}")
     else:
         st.warning("Configura tu GEMINI_API_KEY en los secretos.")
+
 # ---------------------------------------------------------
 # MÓDULO 10: FOTOGRAFÍAS DE RESPALDO
 # ---------------------------------------------------------
@@ -607,42 +608,29 @@ elif menu == "10. Fotografías de Respaldo":
 
     if archivo_subido is not None:
         try:
-            # Abrir la imagen con PIL
-            imagen = Image.open(archivo_subido)
-            
-            # Forzar conversión estricta a RGB para evitar fondos negros por transparencias
-            if imagen.mode in ("RGBA", "LA") or (imagen.mode == "P" and "transparency" in imagen.info):
-                # Crear un fondo blanco sólido
-                fondo_blanco = Image.new("RGB", imagen.size, (255, 255, 255))
-                if imagen.mode == "P":
-                    imagen = imagen.convert("RGBA")
-                fondo_blanco.paste(imagen, mask=imagen.split()[3]) # Pegar usando el canal alfa como máscara
-                imagen_para_mostrar = fondo_blanco
-            else:
-                imagen_para_mostrar = imagen.convert("RGB")
-
-            # Mostrar vista previa de la imagen corregida
-            st.image(imagen_para_mostrar, caption="Vista previa de la imagen", use_column_width=True)
+            # Mostrar vista previa directamente de manera nativa
+            st.image(archivo_subido, caption="Vista previa de la imagen", use_column_width=True)
 
             if st.button("Guardar Fotografía de Respaldo"):
                 # Guardar la imagen físicamente en la carpeta
                 ruta_archivo = os.path.join(CARPETA_FOTOS, archivo_subido.name)
-                # Guardamos la versión ya limpia en RGB para que al consultarla tampoco salga negra
-                imagen_para_mostrar.save(ruta_archivo)
+                with open(ruta_archivo, "wb") as f:
+                    f.write(archivo_subido.getbuffer())
                 
                 st.success(f"¡Fotografía guardada exitosamente como: {archivo_subido.name}!")
                 st.info(f"Detalle: {descripcion_foto}")
         except Exception as e:
-            st.error(f"No se pudo procesar la imagen: {e}")
+            st.error(f"No se pudo cargar la imagen: {e}")
 
     # Mostrar galería de fotos ya guardadas
     st.subheader("📁 Archivos de Respaldo Guardados")
-    archivos_guardados = os.listdir(CARPETA_FOTOS)
-    
-    if archivos_guardados:
-        for archivo in archivos_guardados:
-            if archivo.lower().endswith(('.png', '.jpg', '.jpeg')):
-                with st.expander(f"Ver: {archivo}"):
-                    st.image(os.path.join(CARPETA_FOTOS, archivo), width=300)
-    else:
-        st.write("Aún no hay fotografías guardadas.")
+    if os.path.exists(CARPETA_FOTOS):
+        archivos_guardados = os.listdir(CARPETA_FOTOS)
+        
+        if archivos_guardados:
+            for archivo in archivos_guardados:
+                if archivo.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    with st.expander(f"Ver: {archivo}"):
+                        st.image(os.path.join(CARPETA_FOTOS, archivo), width=300)
+        else:
+            st.write("Aún no hay fotografías guardadas.")
