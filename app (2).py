@@ -23,12 +23,13 @@ if "materiales" not in st.session_state:
         try:
             st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
         except:
-            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual","Ubicaciones"])
+            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion"])
     else:
-        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual","Ubicaciones"])
+        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion"])
 
 if "Ubicacion" not in st.session_state.materiales.columns:
     st.session_state.materiales["Ubicacion"] = "A-00-0"
+
 if "movimientos" not in st.session_state:
     if os.path.exists(EXCEL_MOVIMIENTOS):
         try:
@@ -86,12 +87,10 @@ def verificar_credenciales(usuario, clave):
 if not st.session_state.autenticado:
     st.title("🔐 Acceso al WMS Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
-    
     with st.form("form_login"):
         user_input = st.text_input("Usuario")
         pass_input = st.text_input("Contraseña", type="password")
         btn_login = st.form_submit_button("Iniciar Sesión")
-        
         if btn_login:
             if verificar_credenciales(user_input, pass_input):
                 st.session_state.autenticado = True
@@ -99,7 +98,6 @@ if not st.session_state.autenticado:
                 st.rerun()
             else:
                 st.error("Usuario o contraseña incorrectos.")
-    
     st.stop()
 
 # ---------------------------------------------------------
@@ -108,73 +106,47 @@ if not st.session_state.autenticado:
 def generar_pdf_guia(guia):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
-    
     c.setFont("Helvetica-Bold", 16)
     c.drawString(50, 750, "WMS MARKLOGISTIC S.A.")
     c.setFont("Helvetica", 10)
     c.drawString(50, 735, "R.U.T.: 76.543.210-K | Giro: Logística y Distribución")
-    
     c.setFont("Helvetica-Bold", 14)
     c.drawRightString(550, 750, "GUÍA DE TRASLADO ")
     c.setFont("Helvetica-Bold", 12)
     c.drawRightString(550, 735, f"N° {guia['Numero_Guia']}")
-    
     c.line(50, 720, 550, 720)
-    
     c.setFont("Helvetica", 11)
     c.drawString(50, 690, f"Fecha de Emisión: {guia['Fecha']}")
     c.drawString(50, 670, f"Señor(es): {guia['Cliente']}")
     c.drawString(350, 670, f"R.U.T.: {guia.get('Rut', 'N/A')}")
-    
     c.drawString(50, 650, f"Transportista: {guia['Transporte']} ({guia.get('Conductor', '')})")
     c.drawString(350, 650, f"Patente: {guia['Patente']}")
     c.drawString(50, 630, f"Motivo de Traslado: {guia['Motivo']}")
-    
     c.line(50, 610, 550, 610)
     c.setFont("Helvetica-Bold", 10)
     c.drawString(60, 595, "SKU")
     c.drawString(150, 595, "CANTIDAD")
     c.drawString(250, 595, "DESCRIPCIÓN / DETALLE")
     c.line(50, 585, 550, 585)
-    
     c.setFont("Helvetica", 10)
     c.drawString(60, 565, str(guia['SKU']))
     c.drawString(150, 565, str(guia['Cantidad']))
     c.drawString(250, 565, "Despacho operativo según orden de picking")
-    
     c.line(50, 150, 220, 150)
     c.drawString(70, 135, "Firma Chofer / Transportista")
-    
     c.line(380, 150, 550, 150)
     c.drawString(400, 135, "Firma Recinto / Cliente")
-    
     c.save()
     buffer.seek(0)
     return buffer
+
 def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_bytes):
-    msg = marco.inostroza63.mi@gmail.com()
+    msg = EmailMessage()
     msg['Subject'] = f"📊 Respaldo Automático WMS Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
     msg['From'] = remitente
     msg['To'] = destinatario
     msg.set_content("Adjunto encontrarás el reporte y respaldo automático con los movimientos y stock actual de la bodega.")
-    
-    msg.add_attachment(
-        archivo_excel_bytes,
-        maintype='application',
-        subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        filename=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
-    )
-    
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(remitente, password_app)
-            smtp.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"Error al enviar correo: {e}")
-        return False
-
-    
+    msg.add_attachment(archivo_excel_bytes, maintype='application', subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(remitente, password_app)
@@ -188,38 +160,32 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
 # 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS Marklogistic")
-
 try:
     st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=200)
 except:
     pass
 
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
-
 if st.sidebar.button("Cerrar Sesión"):
     st.session_state.autenticado = False
     st.rerun()
 
 st.sidebar.markdown("---")
-menu = st.sidebar.radio(
-    "Módulos del Sistema",
-    [
-        "1. Creación de Materiales",
-        "2. Ingreso de Materiales",
-        "3. Picking de Materiales",
-        "4. Despacho y Guía",
-        "5. Inventario",
-        "6. Trazabilidad",
-        "7. Etiquetas",
-        "8. Eliminar Transacciones",
-        "9. Asistente IA"
-    ]
-)
+menu = st.sidebar.radio("Módulos del Sistema", [
+    "1. Creación de Materiales",
+    "2. Ingreso de Materiales",
+    "3. Picking de Materiales",
+    "4. Despacho y Guía",
+    "5. Inventario",
+    "6. Trazabilidad",
+    "7. Etiquetas",
+    "8. Eliminar Transacciones",
+    "9. Asistente IA"
+])
 
-# Automatización de Correo en la barra lateral
 st.sidebar.markdown("---")
 st.sidebar.subheader("📧 Envío Automático de Reportes")
-correo_remitente = st.sidebar.text_input("marco.inostroza63.mi@gmail.com")
+correo_remitente = st.sidebar.text_input("Correo Remitente (Gmail)", value="marco.inostroza63.mi@gmail.com")
 pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="password")
 correo_destino = st.sidebar.text_input("Correo Destino (Gerencia)", value="marco.inostroza63.mi@gmail.com")
 
@@ -232,13 +198,11 @@ if st.sidebar.button("Enviar Respaldo por Email"):
             st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
             st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
         excel_bytes = output.getvalue()
-        
         if enviar_correo_respaldo(correo_remitente, pass_remitente, correo_destino, excel_bytes):
             st.sidebar.success("¡Correo de respaldo enviado con éxito!")
         else:
             st.sidebar.error("Error al enviar. Revisa tus credenciales.")
 
-# Botón de Copia de Seguridad Local
 st.sidebar.markdown("---")
 st.sidebar.subheader("💾 Descarga Manual Respaldo")
 if not st.session_state.materiales.empty:
@@ -246,7 +210,6 @@ if not st.session_state.materiales.empty:
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
         st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
-    
     excel_data = output.getvalue()
     st.sidebar.download_button(
         label="📥 Descargar Respaldo BD",
@@ -258,61 +221,37 @@ if not st.session_state.materiales.empty:
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES
 # ---------------------------------------------------------
-elif menu == "1. Creación de Materiales":
+if menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
     
-    # 📌 Asegúrate de usar pestañas (tabs) o quita el 'with tab_masivo:' si no lo tienes definido arriba.
-    # Si tienes definidas pestañas arriba (ej: tab_manual, tab_masivo = st.tabs(...)), 
-    # todo el contenido de la pestaña debe llevar sangría (4 espacios):
-    
-    with tab_masivo:
-        st.subheader("Carga Masiva desde Archivo")
-        st.code("SKU | Nombre | Unidad | Valor_Unitario | Stock_Actual")
-        archivo_subido = st.file_uploader("Selecciona tu archivo de materiales", type=["csv", "xlsx"])
-        
-        if archivo_subido is not None:
-            try:
-                if archivo_subido.name.endswith('.csv'):
-                    df_carga = pd.read_csv(archivo_subido)
-                else:
-                    df_carga = pd.read_excel(archivo_subido)
-                
-                df_carga.columns = df_carga.columns.str.strip()
-                columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"]
-                
-                if all(col in df_carga.columns for col in columnas_requeridas):
-                    st.dataframe(df_carga.head(), use_container_width=True)
-                    
-                    if st.button("Confirmar e Importar Materiales"):
-                        importados = 0
-                        for _, row in df_carga.iterrows():
-                            sku_val = str(row["SKU"]).strip().upper()
-                            if not sku_val or pd.isna(row["SKU"]):
-                                continue
-                            
-                            if sku_val in st.session_state.materiales["SKU"].values:
-                                idx_existente = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_val].tolist()[0]
-                                st.session_state.materiales.loc[idx_existente, "Stock_Actual"] += int(row["Stock_Actual"])
-                            else:
-                                nuevo_row = pd.DataFrame([{
-                                    "SKU": sku_val,
-                                    "Nombre": str(row["Nombre"]),
-                                    "Unidad": str(row["Unidad"]),
-                                    "Valor_Unitario": float(row["Valor_Unitario"]),
-                                    "Stock_Actual": int(row["Stock_Actual"]),
-                                    "Ubicacion": "A-00-0"
-                                }])
-                                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_row], ignore_index=True)
-                                importados += 1
-                                
-                        guardar_datos()
-                        st.success(f"¡Se importaron {importados} materiales!")
-                        st.rerun()
-                else:
-                    st.error("El archivo no contiene las columnas requeridas.")
-            except Exception as e:
-                st.error(f"Error al procesar el archivo: {e}")
+    with st.form("form_nuevo_mat"):
+        st.subheader("Registro Manual de Material")
+        c1, c2 = st.columns(2)
+        with c1:
+            sku_m = st.text_input("SKU").strip().upper()
+            nom_m = st.text_input("Nombre / Descripción")
+            uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
+        with c2:
+            ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
+            val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
+            stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
+            
+        if st.form_submit_button("Guardar Material"):
+            if not sku_m or not nom_m:
+                st.error("SKU y Nombre son obligatorios.")
+            elif sku_m in st.session_state.materiales["SKU"].values:
+                st.error("El SKU ya existe.")
+            else:
+                nuevo = pd.DataFrame([{
+                    "SKU": sku_m, "Nombre": nom_m, "Unidad": uni_m,
+                    "Valor_Unitario": val_m, "Stock_Actual": stk_m, "Ubicacion": ubi_m
+                }])
+                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
+                guardar_datos()
+                st.success(f"Material {sku_m} creado correctamente.")
+                st.rerun()
 
+    st.markdown("---")
     st.subheader("Maestro de Materiales Registrados")
     st.dataframe(st.session_state.materiales, use_container_width=True)
 
@@ -344,45 +283,52 @@ elif menu == "2. Ingreso de Materiales":
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
                 guardar_datos()
                 st.success(f"Ingresadas {cant_ingreso} unidades del SKU {sku_ingreso}.")
-
+                st.rerun()
 
 # ---------------------------------------------------------
 # MÓDULO 3: PICKING DE MATERIALES
 # ---------------------------------------------------------
-# En el Módulo 3: Picking de Materiales
-if not st.session_state.materiales.empty:
-    with st.form("form_picking"):
-        cliente = st.text_input("Cliente / Destino")
-        sku_pick = st.selectbox("Material a Extraer", st.session_state.materiales["SKU"])
-        
-        # Obtener y mostrar la ubicación del SKU seleccionado
-        mat_sel = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_pick].iloc[0]
-        st.info(f"📍 **Ubicación en Bodega:** {mat_sel.get('Ubicacion', 'Sin asignar')} | **Stock Disponible:** {mat_sel['Stock_Actual']}")
-        
-        cant_pick = st.number_input("Cantidad a Preparar", min_value=1, value=1)
-        
-        if st.form_submit_button("Crear Orden de Picking"):
-            if cant_pick > mat_sel['Stock_Actual']:
-                st.error("Stock insuficiente.")
-            else:
-                id_ord = f"PICK-{len(st.session_state.ordenes_picking)+1:04d}"
-                st.session_state.ordenes_picking.append({
-                    "ID_Picking": id_ord,
-                    "Cliente": cliente,
-                    "SKU": sku_pick,
-                    "Ubicacion": mat_sel.get('Ubicacion', 'N/A'),
-                    "Cantidad": cant_pick,
-                    "Estado": "Pendiente Despacho"
-                })
-                guardar_datos()
-                st.success(f"Orden {id_ord} creada con éxito.")
+elif menu == "3. Picking de Materiales":
+    st.header("📦 Órdenes de Picking")
+    if st.session_state.materiales.empty:
+        st.info("No hay materiales registrados.")
+    else:
+        with st.form("form_picking"):
+            cliente = st.text_input("Cliente / Destino")
+            sku_pick = st.selectbox("Material a Extraer", st.session_state.materiales["SKU"])
+            
+            mat_sel = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_pick].iloc[0]
+            st.info(f"📍 **Ubicación:** {mat_sel.get('Ubicacion', 'N/A')} | **Stock Disponible:** {mat_sel['Stock_Actual']}")
+            
+            cant_pick = st.number_input("Cantidad a Preparar", min_value=1, value=1)
+            
+            if st.form_submit_button("Crear Orden de Picking"):
+                if cant_pick > mat_sel['Stock_Actual']:
+                    st.error("Stock insuficiente.")
+                else:
+                    id_ord = f"PICK-{len(st.session_state.ordenes_picking)+1:04d}"
+                    st.session_state.ordenes_picking.append({
+                        "ID_Picking": id_ord,
+                        "Cliente": cliente,
+                        "SKU": sku_pick,
+                        "Ubicacion": mat_sel.get('Ubicacion', 'N/A'),
+                        "Cantidad": cant_pick,
+                        "Estado": "Pendiente Despacho"
+                    })
+                    guardar_datos()
+                    st.success(f"Orden {id_ord} creada con éxito.")
+                    st.rerun()
+
+    if st.session_state.ordenes_picking:
+        st.markdown("---")
+        st.subheader("Historial de Órdenes de Picking")
+        st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
 
 # ---------------------------------------------------------
 # MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
     st.header("🚚 Despacho y Emisión de Guía de Traslado")
-    
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
     if not pendientes:
         st.info("No hay órdenes de picking pendientes.")
@@ -400,7 +346,7 @@ elif menu == "4. Despacho y Guía":
         with col_d2:
             rut_cliente = st.text_input("R.U.T. del Cliente")
             motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
-        
+            
         if st.button("Confirmar Despacho y Generar Guía"):
             idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
             st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
@@ -408,8 +354,11 @@ elif menu == "4. Despacho y Guía":
             
             mov = pd.DataFrame([{
                 "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                "Tipo": "DESPACHO", "SKU": datos_orden["SKU"], "Cantidad": datos_orden["Cantidad"],
-                "Origen/Destino": datos_orden["Cliente"], "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                "Tipo": "DESPACHO",
+                "SKU": datos_orden["SKU"],
+                "Cantidad": datos_orden["Cantidad"],
+                "Origen/Destino": datos_orden["Cliente"],
+                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }])
             st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
             
@@ -424,12 +373,12 @@ elif menu == "4. Despacho y Guía":
             guardar_datos()
             st.success(f"¡Despacho realizado! Guía N° **{num_guia}**")
             st.session_state.ultima_guia = guia_data
+            st.rerun()
 
     if "ultima_guia" in st.session_state:
         st.markdown("---")
         guia = st.session_state.ultima_guia
         st.subheader(f"📄 Descarga Directa: Guía N° {guia['Numero_Guia']}")
-        
         pdf_buffer = generar_pdf_guia(guia)
         st.download_button(
             label="📥 Descargar Guía Oficial en PDF",
@@ -444,8 +393,12 @@ elif menu == "4. Despacho y Guía":
 elif menu == "5. Inventario":
     st.header("📊 Control de Inventario en Tiempo Real")
     col_k1, col_k2 = st.columns(2)
-    with col_k1: st.metric("Total SKU Registrados", len(st.session_state.materiales))
-    with col_k2: st.metric("Total Unidades", int(st.session_state.materiales["Stock_Actual"].sum()) if not st.session_state.materiales.empty else 0)
+    with col_k1:
+        st.metric("Total SKU Registrados", len(st.session_state.materiales))
+    with col_k2:
+        st.metric("Total Unidades", int(st.session_state.materiales["Stock_Actual"].sum()) if not st.session_state.materiales.empty else 0)
+    
+    st.markdown("---")
     st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
@@ -453,7 +406,9 @@ elif menu == "5. Inventario":
 # ---------------------------------------------------------
 elif menu == "6. Trazabilidad":
     st.header("🔍 Historial de Movimientos")
-    if not st.session_state.movimientos.empty:
+    if st.session_state.movimientos.empty:
+        st.info("No hay movimientos registrados.")
+    else:
         st.dataframe(st.session_state.movimientos.sort_values(by="Fecha", ascending=False), use_container_width=True)
 
 # ---------------------------------------------------------
@@ -461,7 +416,6 @@ elif menu == "6. Trazabilidad":
 # ---------------------------------------------------------
 elif menu == "7. Etiquetas":
     st.header("🏷️ Generación e Impresión de Etiquetas de Bodega")
-
     if st.session_state.materiales.empty:
         st.info("No hay materiales registrados para etiquetar.")
     else:
@@ -522,7 +476,9 @@ elif menu == "7. Etiquetas":
 # ---------------------------------------------------------
 elif menu == "8. Eliminar Transacciones":
     st.header("🗑️ Gestión y Anulación de Transacciones")
-    if not st.session_state.movimientos.empty:
+    if st.session_state.movimientos.empty:
+        st.info("No hay transacciones registradas.")
+    else:
         st.dataframe(st.session_state.movimientos, use_container_width=True)
         id_eliminar = st.selectbox("ID de Movimiento a Eliminar", st.session_state.movimientos["ID_Mov"])
         if st.button("Eliminar Transacción"):
@@ -537,7 +493,7 @@ elif menu == "8. Eliminar Transacciones":
                     st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cant_mov
                 elif tipo_mov == "DESPACHO":
                     st.session_state.materiales.loc[idx_mat, "Stock_Actual"] += cant_mov
-            
+                    
             st.session_state.movimientos = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] != id_eliminar].reset_index(drop=True)
             guardar_datos()
             st.success("Transacción eliminada y stock revertido con éxito.")
