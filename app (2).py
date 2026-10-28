@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import os
+from PIL import Image
 from datetime import datetime
 import os
 from io import BytesIO
@@ -593,26 +595,23 @@ elif menu == "10. Fotografías de Respaldo":
     st.header("📸 Respaldo Fotográfico de Bodega")
     st.write("Sube fotografías de productos, recepción de mercadería o evidencias de inventario.")
 
-    import os
-    from PIL import Image
-
-    # Crear una carpeta local para guardar las imágenes si no existe
+    # Carpeta para almacenar las fotos
     CARPETA_FOTOS = "respaldos_fotos"
     if not os.path.exists(CARPETA_FOTOS):
         os.makedirs(CARPETA_FOTOS)
 
     # Widget para cargar archivos de imagen
-    archivo_subido = st.file_uploader("Elige una imagen...", type=["jpg", "jpeg", "png"])
+    archivo_subido = st.file_uploader("Elige una imagen...", type=["jpg", "jpeg", "png"], key="uploader_fotos")
     
-    descripcion_foto = st.text_input("Descripción o motivo de la fotografía (ej: Lote dañado, Recepción factura #123)")
+    descripcion_foto = st.text_input("Descripción o motivo de la fotografía (ej: Lote dañado, Recepción factura #123)", key="desc_foto")
 
     if archivo_subido is not None:
         try:
-            # Mostrar vista previa directamente de manera nativa
+            # Mostrar vista previa de la imagen
             st.image(archivo_subido, caption="Vista previa de la imagen", use_column_width=True)
 
             if st.button("Guardar Fotografía de Respaldo"):
-                # Guardar la imagen físicamente en la carpeta
+                # Guardar la imagen físicamente en la carpeta del servidor
                 ruta_archivo = os.path.join(CARPETA_FOTOS, archivo_subido.name)
                 with open(ruta_archivo, "wb") as f:
                     f.write(archivo_subido.getbuffer())
@@ -620,17 +619,21 @@ elif menu == "10. Fotografías de Respaldo":
                 st.success(f"¡Fotografía guardada exitosamente como: {archivo_subido.name}!")
                 st.info(f"Detalle: {descripcion_foto}")
         except Exception as e:
-            st.error(f"No se pudo cargar la imagen: {e}")
+            st.error(f"Error al procesar la imagen: {e}")
 
-    # Mostrar galería de fotos ya guardadas
+    st.markdown("---")
     st.subheader("📁 Archivos de Respaldo Guardados")
+    
     if os.path.exists(CARPETA_FOTOS):
         archivos_guardados = os.listdir(CARPETA_FOTOS)
+        # Filtrar solo archivos de imagen válidos
+        fotos_validas = [f for f in archivos_guardados if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         
-        if archivos_guardados:
-            for archivo in archivos_guardados:
-                if archivo.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    with st.expander(f"Ver: {archivo}"):
-                        st.image(os.path.join(CARPETA_FOTOS, archivo), width=300)
+        if fotos_validas:
+            for archivo in fotos_validas:
+                with st.expander(f"Ver: {archivo}"):
+                    st.image(os.path.join(CARPETA_FOTOS, archivo), width=300)
         else:
-            st.write("Aún no hay fotografías guardadas.")
+            st.info("Aún no hay fotografías guardadas en el sistema.")
+    else:
+        st.info("Aún no hay fotografías guardadas en el sistema.")
