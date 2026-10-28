@@ -23,10 +23,12 @@ if "materiales" not in st.session_state:
         try:
             st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
         except:
-            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"])
+            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual","Ubicaciones"])
     else:
-        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"])
+        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual","Ubicaciones"])
 
+if "Ubicacion" not in st.session_state.materiales.columns:
+    st.session_state.materiales["Ubicacion"] = "A-00-0"
 if "movimientos" not in st.session_state:
     if os.path.exists(EXCEL_MOVIMIENTOS):
         try:
@@ -260,7 +262,36 @@ if menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
     
     tab_manual, tab_masivo = st.tabs(["➕ Registro Manual", "📂 Carga Masiva (Excel / CSV)"])
-    
+
+    # Dentro de tab_manual en el Módulo 1:
+with st.form("form_nuevo_material"):
+    col1, col2 = st.columns(2)
+    with col1:
+        sku = st.text_input("Código SKU / Material *").strip().upper()
+        nombre = st.text_input("Nombre / Descripción del Material *")
+        unidad = st.selectbox("Unidad de Medida", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
+    with col2:
+        ubicacion = st.text_input("Ubicación en Bodega (ej. A-01-2)", value="A-00-0").strip().upper()
+        valor_unitario = st.number_input("Valor / Precio Unitario ($)", min_value=0.0, value=0.0, step=100.0)
+        stock_inicial = st.number_input("Stock Inicial", min_value=0, value=0)
+
+    submitted = st.form_submit_button("Guardar Material")
+    if submitted:
+        if not sku or not nombre:
+            st.error("⚠️ Los campos SKU y Nombre son obligatorios.")
+        elif sku in st.session_state.materiales["SKU"].values:
+            st.error(f"El SKU '{sku}' ya se encuentra registrado.")
+        else:
+            nuevo_mat = pd.DataFrame([{
+                "SKU": sku,
+                "Nombre": nombre,
+                "Unidad": unidad,
+                "Ubicacion": ubicacion,
+                "Valor_Unitario": valor_unitario,
+                "Stock_Actual": stock_inicial
+            }])
+            st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_mat], ignore_index=True)
+            # ... resto de la lógica de stock inicial ...
     with tab_manual:
         with st.form("form_nuevo_material"):
             col1, col2 = st.columns(2)
@@ -376,27 +407,33 @@ elif menu == "2. Ingreso de Materiales":
 # ---------------------------------------------------------
 # MÓDULO 3: PICKING DE MATERIALES
 # ---------------------------------------------------------
-elif menu == "3. Picking de Materiales":
-    st.header("🛒 Generación y Preparación de Pedidos (Picking)")
-    if not st.session_state.materiales.empty:
-        with st.form("form_picking"):
-            cliente = st.text_input("Cliente / Destino")
-            sku_pick = st.selectbox("Material a Extraer", st.session_state.materiales["SKU"])
-            cant_pick = st.number_input("Cantidad a Preparar", min_value=1, value=1)
-            
-            if st.form_submit_button("Crear Orden de Picking"):
-                stock_disponible = st.session_state.materiales.loc[st.session_state.materiales["SKU"] == sku_pick, "Stock_Actual"].values[0]
-                if cant_pick > stock_disponible:
-                    st.error(f"Stock insuficiente. Disponible: {stock_disponible}")
-                else:
-                    id_ord = f"PICK-{len(st.session_state.ordenes_picking)+1:04d}"
-                    st.session_state.ordenes_picking.append({
-                        "ID_Picking": id_ord, "Cliente": cliente, "SKU": sku_pick, "Cantidad": cant_pick, "Estado": "Pendiente Despacho"
-                    })
-                    guardar_datos()
-                    st.success(f"Orden {id_ord} registrada.")
-        if st.session_state.ordenes_picking:
-            st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
+# En el Módulo 3: Picking de Materiales
+if not st.session_state.materiales.empty:
+    with st.form("form_picking"):
+        cliente = st.text_input("Cliente / Destino")
+        sku_pick = st.selectbox("Material a Extraer", st.session_state.materiales["SKU"])
+        
+        # Obtener y mostrar la ubicación del SKU seleccionado
+        mat_sel = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_pick].iloc[0]
+        st.info(f"📍 **Ubicación en Bodega:** {mat_sel.get('Ubicacion', 'Sin asignar')} | **Stock Disponible:** {mat_sel['Stock_Actual']}")
+        
+        cant_pick = st.number_input("Cantidad a Preparar", min_value=1, value=1)
+        
+        if st.form_submit_button("Crear Orden de Picking"):
+            if cant_pick > mat_sel['Stock_Actual']:
+                st.error("Stock insuficiente.")
+            else:
+                id_ord = f"PICK-{len(st.session_state.ordenes_picking)+1:04d}"
+                st.session_state.ordenes_picking.append({
+                    "ID_Picking": id_ord,
+                    "Cliente": cliente,
+                    "SKU": sku_pick,
+                    "Ubicacion": mat_sel.get('Ubicacion', 'N/A'),
+                    "Cantidad": cant_pick,
+                    "Estado": "Pendiente Despacho"
+                })
+                guardar_datos()
+                st.success(f"Orden {id_ord} creada con éxito.")
 
 # ---------------------------------------------------------
 # MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
@@ -482,7 +519,20 @@ elif menu == "6. Trazabilidad":
 # ---------------------------------------------------------
 elif menu == "7. Etiquetas":
     st.header("🏷️ Generación e Impresión de Etiquetas de Bodega")
-    
+    # Dentro del bucle de generación de etiquetas HTML en el Módulo 7:
+html_etiqueta = f"""
+<div class="etiqueta-box">
+    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
+    <hr style="border: 1px solid #000; margin: 5px 0;">
+    <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
+    <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
+    <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
+    <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
+    <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
+        ||||| | |||| ||| || ||||
+    </div>
+</div>
+"""
     if st.session_state.materiales.empty:
         st.info("No hay materiales registrados para etiquetar.")
     else:
