@@ -154,8 +154,3 @@ if not st.session_state.autenticado:
             else:
                 st.error("Usuario o contraseña incorrectos.")
     st.stop()
-
-# --------------------------------------------------------- #
-# MÓDULO 16: GESTIÓN DE USUARIOS                           #
-# --------------------------------------------------------- #
-# (Coloca aquí el resto de tus menús y el módulo 16 al final)
