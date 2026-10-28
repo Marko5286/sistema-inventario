@@ -577,7 +577,7 @@ elif menu == "9. Asistente IA":
             if st.button("Consultar IA") and pregunta:
                 resumen = st.session_state.materiales.to_string()
                 response = client.models.generate_content(
-                    model='gemini-3.8-flash',
+                    model='gemini-1.5-pro',
                     contents=f"Eres un experto en logística. Datos de bodega:\n{resumen}\nResponde a: {pregunta}"
                 )
                 st.success(response.text)
