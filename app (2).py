@@ -778,32 +778,44 @@ elif menu == "13. Auditoría y Logs":
         )
 
 # ---------------------------------------------------------
-# MÓDULO 14: REGISTRO FOTOGRÁFICO (Evidencias de Bodega)
+# MÓDULO 14: REGISTRO FOTOGRÁFICO Y DATOS ADJUNTOS
 # ---------------------------------------------------------
 elif menu == "14. Registro Fotográfico":
-    st.header("📸 Registro Fotográfico y Evidencias de Bodega")
-    st.markdown("Captura y almacena evidencias fotográficas asociadas a un SKU, recepción o incidencia operativa.")
+    st.header("📸 Registro Fotográfico y Datos Adjuntos")
+    st.markdown("Captura, visualiza y adjunta evidencias fotográficas vinculadas a la operación de la bodega.")
     
     # Inicializar base de datos de fotos en session_state si no existe
     if "registro_fotos" not in st.session_state:
         st.session_state.registro_fotos = []
 
-    with st.form("form_foto"):
+    with st.form("form_foto_adjunto"):
         c_f1, c_f2 = st.columns(2)
         with c_f1:
             sku_foto = st.selectbox("SKU Asociado (Opcional)", ["N/Ninguno"] + list(st.session_state.materiales["SKU"]))
-            tipo_evidencia = st.selectbox("Tipo de Evidencia", ["Recepción de Mercancía", "Producto Dañado / Mermas", "Evidencia de Despacho", "Control de Calidad", "Otro"])
+            tipo_evidencia = st.selectbox("Tipo de Evidencia", [
+                "Recepción de Mercancía", 
+                "Producto Dañado / Mermas", 
+                "Evidencia de Despacho", 
+                "Control de Calidad", 
+                "Documentación / Factura",
+                "Otro"
+            ])
         with c_f2:
             referencia_doc = st.text_input("N° de Documento / Guía / Lote (Opcional)")
-            observacion = st.text_area("Comentarios u Observaciones")
+            observacion = st.text_area("Comentarios u Observaciones Adicionales")
             
-        foto_capturada = st.camera_input("Tomar Fotografía con la Cámara")
+        # Opción 1: Capturar con la cámara web
+        foto_capturada = st.camera_input("Tomar Fotografía con la Cámara Web")
         
-        if st.form_submit_button("Guardar Registro Fotográfico"):
-            if foto_capturada is None:
-                st.error("⚠️ Debes tomar o cargar una fotografía antes de guardar.")
+        # Opción 2: Opcional para adjuntar archivo existente desde el computador
+        archivo_adjunto = st.file_uploader("O adjuntar imagen desde archivo (PNG, JPG)", type=["png", "jpg", "jpeg"])
+        
+        if st.form_submit_button("Guardar Evidencia con Datos Adjuntos"):
+            imagen_final = foto_capturada if foto_capturada is not None else archivo_adjunto
+            
+            if imagen_final is None:
+                st.error("⚠️ Debes capturar una foto con la cámara o adjuntar un archivo de imagen antes de guardar.")
             else:
-                # Guardar la foto en los registros de la sesión
                 nueva_foto = {
                     "ID_Foto": f"FOTO-{len(st.session_state.registro_fotos)+1:04d}",
                     "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -812,22 +824,22 @@ elif menu == "14. Registro Fotográfico":
                     "Tipo": tipo_evidencia,
                     "Referencia": referencia_doc or "S/R",
                     "Comentarios": observacion or "Sin comentarios",
-                    "Imagen": foto_capturada  # Objeto de imagen capturado por st.camera_input
+                    "Imagen": imagen_final
                 }
                 st.session_state.registro_fotos.append(nueva_foto)
-                st.success("¡Fotografía y evidencia guardadas correctamente en el sistema!")
+                st.success("¡Evidencia fotográfica y datos adjuntos registrados con éxito!")
                 st.rerun()
 
     if st.session_state.registro_fotos:
         st.markdown("---")
-        st.subheader("🖼️ Galería de Evidencias Registradas")
+        st.subheader("🖼️ Galería de Evidencias y Adjuntos")
         
-        # Mostrar las fotos en formato de cuadrícula o tabla limpia
+        # Mostrar el listado de evidencias fotográficas registradas
         for item in reversed(st.session_state.registro_fotos):
             with st.container():
                 col_img, col_info = st.columns([1, 2])
                 with col_img:
-                    st.image(item["Imagen"], caption=f"ID: {item['ID_Foto']}", width=250)
+                    st.image(item["Imagen"], caption=f"ID: {item['ID_Foto']}", use_column_width=True)
                 with col_info:
                     st.write(f"📅 **Fecha:** {item['Fecha']}")
                     st.write(f"👤 **Registrado por:** {item['Usuario']}")
@@ -835,5 +847,14 @@ elif menu == "14. Registro Fotográfico":
                     st.write(f"🏷️ **Tipo:** {item['Tipo']}")
                     st.write(f"📄 **Referencia:** {item['Referencia']}")
                     st.write(f"💬 **Notas:** {item['Comentarios']}")
+                    
+                    # Botón para descargar de forma individual la foto adjunta
+                    btn_bytes = item["Imagen"].getvalue()
+                    st.download_button(
+                        label=f"📥 Descargar Archivo {item['ID_Foto']}",
+                        data=btn_bytes,
+                        file_name=f"{item['ID_Foto']}_{item['SKU']}.jpg",
+                        mime="image/jpeg",
+                        key=f"dl_{item['ID_Foto']}"
+                    )
                 st.markdown("---")
-
