@@ -7,18 +7,19 @@ import smtplib
 from email.message import EmailMessage
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 from PIL import Image
 import sqlite3
+import bcrypt
 
-# ---------------------------------------------------------
-# 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
-# ---------------------------------------------------------
+st.set_page_config(page_title="WMS Marklogistic", layout="wide")
+
+# --------------------------------------------------------- #
+# 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos) #
+# --------------------------------------------------------- #
 EXCEL_MATERIALES = "db_materiales.xlsx"
 EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
 EXCEL_PICKING = "db_picking.xlsx"
@@ -77,12 +78,9 @@ def guardar_datos():
 DB_PATH = "usuarios_wms.db"
 
 def obtener_conexion():
-    """Crea la conexión a la base de datos SQLite."""
-    conn = sqlite3.connect(DB_PATH)
-    return conn
+    return sqlite3.connect(DB_PATH)
 
 def inicializar_bd_usuarios():
-    """Crea la tabla de usuarios y un usuario administrador por defecto si no existe."""
     conn = obtener_conexion()
     cursor = conn.cursor()
     cursor.execute("""
@@ -94,28 +92,21 @@ def inicializar_bd_usuarios():
         )
     """)
     conn.commit()
-    
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         salt = bcrypt.gensalt()
         pass_hash = bcrypt.hashpw("admin123".encode('utf-8'), salt)
-        cursor.execute(
-            "INSERT INTO usuarios (usuario, password_hash, rol) VALUES (?, ?, ?)",
-            ("admin", pass_hash, "Administrador")
-        )
+        cursor.execute("INSERT INTO usuarios (usuario, password_hash, rol) VALUES (?, ?, ?)", ("admin", pass_hash, "Administrador"))
         conn.commit()
         st.toast("🔑 Usuario inicial creado: admin / admin123")
-    
     conn.close()
 
 def verificar_credenciales_bd(usuario, password):
-    """Verifica si el usuario existe y si la contraseña coincide con el hash encriptado."""
     conn = obtener_conexion()
     cursor = conn.cursor()
     cursor.execute("SELECT password_hash, rol FROM usuarios WHERE usuario = ?", (usuario,))
     resultado = cursor.fetchone()
     conn.close()
-
     if resultado:
         hash_almacenado, rol = resultado
         if bcrypt.checkpw(password.encode('utf-8'), hash_almacenado):
@@ -123,17 +114,12 @@ def verificar_credenciales_bd(usuario, password):
     return False, None
 
 def registrar_nuevo_usuario(usuario, password, rol="Usuario"):
-    """Encripta la contraseña y guarda un nuevo usuario en la base de datos."""
     salt = bcrypt.gensalt()
     pass_hash = bcrypt.hashpw(password.encode('utf-8'), salt)
-    
     try:
         conn = obtener_conexion()
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO usuarios (usuario, password_hash, rol) VALUES (?, ?, ?)",
-            (usuario, pass_hash, rol)
-        )
+        cursor.execute("INSERT INTO usuarios (usuario, password_hash, rol) VALUES (?, ?, ?)", (usuario, pass_hash, rol))
         conn.commit()
         conn.close()
         return True, "Usuario registrado exitosamente."
@@ -142,25 +128,21 @@ def registrar_nuevo_usuario(usuario, password, rol="Usuario"):
     except Exception as e:
         return False, f"Error al registrar: {e}"
 
-# Inicializar la base de datos al arrancar
 inicializar_bd_usuarios()
 
 # --------------------------------------------------------- #
 # INTERFAZ DE LOGIN DE STREAMLIT                           #
 # --------------------------------------------------------- #
-
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
     st.title("🔐 Acceso al WMS Marklogistic")
     st.markdown("Por favor, introduce tus credenciales para continuar.")
-    
     with st.form("form_login"):
         user_input = st.text_input("Usuario").strip()
         pass_input = st.text_input("Contraseña", type="password")
         btn_login = st.form_submit_button("Iniciar Sesión")
-        
         if btn_login:
             es_valido, rol = verificar_credenciales_bd(user_input, pass_input)
             if es_valido:
@@ -172,6 +154,11 @@ if not st.session_state.autenticado:
             else:
                 st.error("Usuario o contraseña incorrectos.")
     st.stop()
+
+# --------------------------------------------------------- #
+# MÓDULO 16: GESTIÓN DE USUARIOS                           #
+# --------------------------------------------------------- #
+# (Asegúrate de tener tu barra lateral y menús previos aquí)
 
 # ---------------------------------------------------------
 # FUNCIONES DE AUTOMATIZACIÓN (PDF & CORREO)
