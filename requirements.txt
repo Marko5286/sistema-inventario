@@ -9,3 +9,5 @@ python-barcode
 Pillow
 streamlit
 bcrypt
+opencv-python-headless
+numpy
