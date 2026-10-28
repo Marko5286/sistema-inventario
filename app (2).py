@@ -187,7 +187,9 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "10. Asistente IA",
     "11. Escáner de SKU",
     "12. Gestión de Bodegas",
-    "13. Auditoría y Logs"
+    "13. Auditoría y Logs",
+    "14. Registro Fotográfico"
+    
 ])
 
 st.sidebar.markdown("---")
@@ -774,3 +776,64 @@ elif menu == "13. Auditoría y Logs":
             file_name=f"auditoria_wms_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
+# ---------------------------------------------------------
+# MÓDULO 14: REGISTRO FOTOGRÁFICO (Evidencias de Bodega)
+# ---------------------------------------------------------
+elif menu == "14. Registro Fotográfico":
+    st.header("📸 Registro Fotográfico y Evidencias de Bodega")
+    st.markdown("Captura y almacena evidencias fotográficas asociadas a un SKU, recepción o incidencia operativa.")
+    
+    # Inicializar base de datos de fotos en session_state si no existe
+    if "registro_fotos" not in st.session_state:
+        st.session_state.registro_fotos = []
+
+    with st.form("form_foto"):
+        c_f1, c_f2 = st.columns(2)
+        with c_f1:
+            sku_foto = st.selectbox("SKU Asociado (Opcional)", ["N/Ninguno"] + list(st.session_state.materiales["SKU"]))
+            tipo_evidencia = st.selectbox("Tipo de Evidencia", ["Recepción de Mercancía", "Producto Dañado / Mermas", "Evidencia de Despacho", "Control de Calidad", "Otro"])
+        with c_f2:
+            referencia_doc = st.text_input("N° de Documento / Guía / Lote (Opcional)")
+            observacion = st.text_area("Comentarios u Observaciones")
+            
+        foto_capturada = st.camera_input("Tomar Fotografía con la Cámara")
+        
+        if st.form_submit_button("Guardar Registro Fotográfico"):
+            if foto_capturada is None:
+                st.error("⚠️ Debes tomar o cargar una fotografía antes de guardar.")
+            else:
+                # Guardar la foto en los registros de la sesión
+                nueva_foto = {
+                    "ID_Foto": f"FOTO-{len(st.session_state.registro_fotos)+1:04d}",
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "Usuario": st.session_state.get('usuario_actual', 'admin'),
+                    "SKU": sku_foto if sku_foto != "N/Ninguno" else "GENERAL",
+                    "Tipo": tipo_evidencia,
+                    "Referencia": referencia_doc or "S/R",
+                    "Comentarios": observacion or "Sin comentarios",
+                    "Imagen": foto_capturada  # Objeto de imagen capturado por st.camera_input
+                }
+                st.session_state.registro_fotos.append(nueva_foto)
+                st.success("¡Fotografía y evidencia guardadas correctamente en el sistema!")
+                st.rerun()
+
+    if st.session_state.registro_fotos:
+        st.markdown("---")
+        st.subheader("🖼️ Galería de Evidencias Registradas")
+        
+        # Mostrar las fotos en formato de cuadrícula o tabla limpia
+        for item in reversed(st.session_state.registro_fotos):
+            with st.container():
+                col_img, col_info = st.columns([1, 2])
+                with col_img:
+                    st.image(item["Imagen"], caption=f"ID: {item['ID_Foto']}", width=250)
+                with col_info:
+                    st.write(f"📅 **Fecha:** {item['Fecha']}")
+                    st.write(f"👤 **Registrado por:** {item['Usuario']}")
+                    st.write(f"📦 **SKU / Ítem:** {item['SKU']}")
+                    st.write(f"🏷️ **Tipo:** {item['Tipo']}")
+                    st.write(f"📄 **Referencia:** {item['Referencia']}")
+                    st.write(f"💬 **Notas:** {item['Comentarios']}")
+                st.markdown("---")
+
