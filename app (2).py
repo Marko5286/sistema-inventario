@@ -177,7 +177,7 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "3. Picking de Materiales",
     "4. Despacho y Guía",
     "5. Inventario",
-    "6. Dashboard Gerencial"
+    "6. Dashboard Gerencial",
     "7. Trazabilidad",
     "8. Etiquetas",
     "9. Eliminar Transacciones",
