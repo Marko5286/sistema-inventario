@@ -258,58 +258,63 @@ if not st.session_state.materiales.empty:
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES
 # ---------------------------------------------------------
-if menu == "1. Creación de Materiales":
+elif menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
-    with tab_masivo:
-    st.subheader("Carga Masiva desde Archivo")
-    st.code("SKU | Nombre | Unidad | Valor_Unitario | Stock_Actual")
-    archivo_subido = st.file_uploader("Selecciona tu archivo de materiales", type=["csv", "xlsx"])
     
-    if archivo_subido is not None:
-        try:
-            if archivo_subido.name.endswith('.csv'):
-                df_carga = pd.read_csv(archivo_subido)
-            else:
-                df_carga = pd.read_excel(archivo_subido)
-            
-            df_carga.columns = df_carga.columns.str.strip()
-            columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"]
-            
-            if all(col in df_carga.columns for col in columnas_requeridas):
-                st.dataframe(df_carga.head(), use_container_width=True)
+    # 📌 Asegúrate de usar pestañas (tabs) o quita el 'with tab_masivo:' si no lo tienes definido arriba.
+    # Si tienes definidas pestañas arriba (ej: tab_manual, tab_masivo = st.tabs(...)), 
+    # todo el contenido de la pestaña debe llevar sangría (4 espacios):
+    
+    with tab_masivo:
+        st.subheader("Carga Masiva desde Archivo")
+        st.code("SKU | Nombre | Unidad | Valor_Unitario | Stock_Actual")
+        archivo_subido = st.file_uploader("Selecciona tu archivo de materiales", type=["csv", "xlsx"])
+        
+        if archivo_subido is not None:
+            try:
+                if archivo_subido.name.endswith('.csv'):
+                    df_carga = pd.read_csv(archivo_subido)
+                else:
+                    df_carga = pd.read_excel(archivo_subido)
                 
-                if st.button("Confirmar e Importar Materiales"):
-                    importados = 0
-                    for _, row in df_carga.iterrows():
-                        sku_val = str(row["SKU"]).strip().upper()
-                        if not sku_val or pd.isna(row["SKU"]):
-                            continue
-                        
-                        if sku_val in st.session_state.materiales["SKU"].values:
-                            idx_existente = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_val].tolist()[0]
-                            st.session_state.materiales.loc[idx_existente, "Stock_Actual"] += int(row["Stock_Actual"])
-                        else:
-                            nuevo_row = pd.DataFrame([{
-                                "SKU": sku_val,
-                                "Nombre": str(row["Nombre"]),
-                                "Unidad": str(row["Unidad"]),
-                                "Valor_Unitario": float(row["Valor_Unitario"]),
-                                "Stock_Actual": int(row["Stock_Actual"]),
-                                "Ubicacion": "A-00-0"
-                            }])
-                            st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_row], ignore_index=True)
-                            importados += 1
+                df_carga.columns = df_carga.columns.str.strip()
+                columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual"]
+                
+                if all(col in df_carga.columns for col in columnas_requeridas):
+                    st.dataframe(df_carga.head(), use_container_width=True)
+                    
+                    if st.button("Confirmar e Importar Materiales"):
+                        importados = 0
+                        for _, row in df_carga.iterrows():
+                            sku_val = str(row["SKU"]).strip().upper()
+                            if not sku_val or pd.isna(row["SKU"]):
+                                continue
                             
-                    guardar_datos()
-                    st.success(f"¡Se importaron {importados} materiales!")
-                    st.rerun()
-            else:
-                st.error("El archivo no contiene las columnas requeridas.")
-        except Exception as e:
-            st.error(f"Error al procesar el archivo: {e}")
+                            if sku_val in st.session_state.materiales["SKU"].values:
+                                idx_existente = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_val].tolist()[0]
+                                st.session_state.materiales.loc[idx_existente, "Stock_Actual"] += int(row["Stock_Actual"])
+                            else:
+                                nuevo_row = pd.DataFrame([{
+                                    "SKU": sku_val,
+                                    "Nombre": str(row["Nombre"]),
+                                    "Unidad": str(row["Unidad"]),
+                                    "Valor_Unitario": float(row["Valor_Unitario"]),
+                                    "Stock_Actual": int(row["Stock_Actual"]),
+                                    "Ubicacion": "A-00-0"
+                                }])
+                                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_row], ignore_index=True)
+                                importados += 1
+                                
+                        guardar_datos()
+                        st.success(f"¡Se importaron {importados} materiales!")
+                        st.rerun()
+                else:
+                    st.error("El archivo no contiene las columnas requeridas.")
+            except Exception as e:
+                st.error(f"Error al procesar el archivo: {e}")
 
-st.subheader("Maestro de Materiales Registrados")
-st.dataframe(st.session_state.materiales, use_container_width=True)
+    st.subheader("Maestro de Materiales Registrados")
+    st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
 # MÓDULO 2: INGRESO DE MATERIALES
