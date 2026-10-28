@@ -591,51 +591,38 @@ elif menu == "9. Asistente IA":
 # MÓDULO 10: FOTOGRAFÍAS DE RESPALDO
 # ---------------------------------------------------------
 elif menu == "10. Fotografías de Respaldo":
-    st.header("📸 Respaldo Fotográfico de Bodega")
+    st.markdown("## 📸 Respaldo Fotográfico de Bodega")
     st.write("Sube fotografías de productos, recepción de mercadería o evidencias de inventario.")
 
-    # Carpeta para almacenar las fotos
+    import os
     CARPETA_FOTOS = "respaldos_fotos"
+    
     if not os.path.exists(CARPETA_FOTOS):
         os.makedirs(CARPETA_FOTOS)
 
-    # Forzar limpieza de estado si la pantalla se queda en blanco
-    if st.button("🔄 Actualizar / Refrescar Vista"):
-        st.rerun()
-
-    # Widget para cargar archivos de imagen
-    archivo_subido = st.file_uploader("Elige una imagen...", type=["jpg", "jpeg", "png"], key="uploader_fotos_v2")
-    
-    descripcion_foto = st.text_input("Descripción o motivo de la fotografía (ej: Lote dañado, Recepción factura #123)", key="desc_foto_v2")
+    # Widgets de carga
+    archivo_subido = st.file_uploader("Elige una imagen...", type=["jpg", "jpeg", "png"], key="subir_foto_final")
+    descripcion_foto = st.text_input("Descripción o motivo (ej: Lote dañado, Factura #123)", key="desc_foto_final")
 
     if archivo_subido is not None:
-        try:
-            # Mostrar vista previa de la imagen
-            st.image(archivo_subido, caption="Vista previa de la imagen", use_column_width=True)
-
-            if st.button("Guardar Fotografía de Respaldo", key="btn_guardar_foto"):
-                # Guardar la imagen físicamente en la carpeta del servidor
-                ruta_archivo = os.path.join(CARPETA_FOTOS, archivo_subido.name)
-                with open(ruta_archivo, "wb") as f:
-                    f.write(archivo_subido.getbuffer())
-                
-                st.success(f"¡Fotografía guardada exitosamente como: {archivo_subido.name}!")
-                st.info(f"Detalle: {descripcion_foto}")
-        except Exception as e:
-            st.error(f"Error al procesar la imagen: {e}")
+        st.image(archivo_subido, caption="Vista previa", use_column_width=True)
+        
+        if st.button("Guardar Fotografía", key="btn_guardar_definitivo"):
+            ruta = os.path.join(CARPETA_FOTOS, archivo_subido.name)
+            with open(ruta, "wb") as f:
+                f.write(archivo_subido.getbuffer())
+            st.success(f"¡Imagen guardada como: {archivo_subido.name}!")
 
     st.markdown("---")
-    st.subheader("📁 Archivos de Respaldo Guardados")
+    st.markdown("### 📁 Galería de Respaldos")
     
     if os.path.exists(CARPETA_FOTOS):
-        archivos_guardados = os.listdir(CARPETA_FOTOS)
-        fotos_validas = [f for f in archivos_guardados if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-        
-        if fotos_validas:
-            for archivo in fotos_validas:
-                with st.expander(f"Ver: {archivo}"):
-                    st.image(os.path.join(CARPETA_FOTOS, archivo), width=300)
+        archivos = [f for f in os.listdir(CARPETA_FOTOS) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        if archivos:
+            for arq in archivos:
+                with st.expander(f"Ver: {arq}"):
+                    st.image(os.path.join(CARPETA_FOTOS, arq), width=300)
         else:
-            st.info("Aún no hay fotografías guardadas en el sistema.")
+            st.info("No hay fotografías guardadas todavía.")
     else:
-        st.info("Aún no hay fotografías guardadas en el sistema.")
+        st.info("No hay fotografías guardadas todavía.")
