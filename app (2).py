@@ -154,3 +154,53 @@ if not st.session_state.autenticado:
             else:
                 st.error("Usuario o contraseña incorrectos.")
     st.stop()
+
+# --------------------------------------------------------- #
+# MENÚ LATERAL Y NAVEGACIÓN PRINCIPAL                      #
+# --------------------------------------------------------- #
+st.sidebar.success(f"👤 Conectado como: **{st.session_state.usuario_actual}** ({st.session_state.rol_usuario})")
+
+if st.sidebar.button("🚪 Cerrar Sesión"):
+    st.session_state.autenticado = False
+    st.rerun()
+
+menu = st.sidebar.selectbox("Menú Principal", [
+    "1. Gestión de Materiales",
+    "2. Movimientos de Stock",
+    "3. Órdenes de Picking",
+    "4. Guías de Despacho",
+    "16. Gestión de Usuarios"
+])
+
+# --------------------------------------------------------- #
+# MÓDULO 16: GESTIÓN DE USUARIOS                           #
+# --------------------------------------------------------- #
+if menu == "16. Gestión de Usuarios":
+    st.header("👤 Administración y Registro de Usuarios")
+
+    if st.session_state.get("rol_usuario") != "Administrador":
+        st.warning("⚠️ No tienes permisos de administrador para acceder a este módulo.")
+    else:
+        with st.form("form_registro_usuario"):
+            st.subheader("➕ Crear Nuevo Usuario")
+            nuevo_user = st.text_input("Nuevo Usuario").strip()
+            nuevo_pass = st.text_input("Contraseña", type="password")
+            nuevo_rol = st.selectbox("Rol del Usuario", ["Bodeguero", "Logística", "Administrador"])
+            btn_crear = st.form_submit_button("Registrar Usuario")
+
+            if btn_crear:
+                if not nuevo_user or not nuevo_pass:
+                    st.error("Completa todos los campos obligatorios.")
+                else:
+                    exito, mensaje = registrar_nuevo_usuario(nuevo_user, nuevo_pass, nuevo_rol)
+                    if exito:
+                        st.success(mensaje)
+                    else:
+                        st.error(mensaje)
+
+        st.markdown("---")
+        st.subheader("📋 Usuarios Registrados")
+        conn = obtener_conexion()
+        df_users = pd.read_sql_query("SELECT id, usuario, rol FROM usuarios", conn)
+        conn.close()
+        st.dataframe(df_users, use_container_width=True)
