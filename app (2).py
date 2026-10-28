@@ -215,7 +215,8 @@ menu = st.sidebar.radio(
         "11. Alertas de Stock",
         "12. Kardex de Movimientos",
         "13. Generadores QR/Barras",
-        "14. Dashboard de Estadísticas"
+        "14. Dashboard de Estadísticas",
+        "15. Proveedores y Clientes"
     ]
 )
 
@@ -901,3 +902,83 @@ elif menu == "14. Dashboard de Estadísticas":
             st.bar_chart(conteo_movs)
         else:
             st.info("El Kardex está vacío, registra entradas o salidas para ver estadísticas de movimiento.")
+
+# ---------------------------------------------------------
+# MÓDULO 15: REGISTRO DE PROVEEDORES Y CLIENTES
+# ---------------------------------------------------------
+elif menu == "15. Proveedores y Clientes":
+    st.header("📇 Directorio de Proveedores y Clientes")
+    st.write("Gestiona la información de contacto de tus proveedores y clientes frecuentes.")
+
+    import pandas as pd
+    import os
+
+    ARCHIVO_CONTACTOS = "directorio_contactos.csv"
+
+    # Cargar o crear base de datos de contactos
+    if os.path.exists(ARCHIVO_CONTACTOS):
+        df_contactos = pd.read_csv(ARCHIVO_CONTACTOS)
+    else:
+        df_contactos = pd.DataFrame(columns=[
+            "Tipo", "Nombre / Razón Social", "Identificación / RUT", "Teléfono", "Correo", "Dirección"
+        ])
+
+    # Pestañas para separar el registro de la visualización
+    tab_reg, tab_ver = st.tabs(["➕ Registrar Nuevo Contacto", "📋 Ver Directorio"])
+
+    with tab_reg:
+        st.subheader("Registrar Proveedor o Cliente")
+        
+        with st.form("form_contacto"):
+            tipo_contacto = st.selectbox("Tipo de Contacto", ["Proveedor", "Cliente"])
+            nombre = st.text_input("Nombre / Razón Social")
+            rut = st.text_input("Identificación / RUT")
+            telefono = st.text_input("Teléfono de contacto")
+            correo = st.text_input("Correo electrónico")
+            direccion = st.text_area("Dirección comercial")
+
+            btn_guardar_contacto = st.form_submit_button("Guardar Contacto")
+
+            if btn_guardar_contacto:
+                if nombre and rut:
+                    nuevo_registro = pd.DataFrame([{
+                        "Tipo": tipo_contacto,
+                        "Nombre / Razón Social": nombre,
+                        "Identificación / RUT": rut,
+                        "Teléfono": telefono,
+                        "Correo": correo,
+                        "Dirección": direccion
+                    }])
+
+                    df_contactos = pd.concat([df_contactos, nuevo_registro], ignore_index=True)
+                    df_contactos.to_csv(ARCHIVO_CONTACTOS, index=False)
+
+                    st.success(f"¡{tipo_contacto} '{nombre}' guardado exitosamente!")
+                    st.rerun()
+                else:
+                    st.error("Por favor, completa al menos el Nombre y la Identificación/RUT.")
+
+    with tab_ver:
+        st.subheader("Directorio Comercial")
+
+        if not df_contactos.empty:
+            # Filtro por tipo
+            filtro_tipo_contacto = st.selectbox("Filtrar por categoría", ["Todos", "Proveedor", "Cliente"], key="filtro_contactos")
+            
+            if filtro_tipo_contacto != "Todos":
+                df_mostrar_contactos = df_contactos[df_contactos["Tipo"] == filtro_tipo_contacto]
+            else:
+                df_mostrar_contactos = df_contactos
+
+            st.dataframe(df_mostrar_contactos, use_container_width=True)
+
+            # Botón de descarga
+            csv_contactos = df_contactos.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Descargar Directorio Completo (CSV)",
+                data=csv_contactos,
+                file_name="directorio_proveedores_clientes.csv",
+                mime="text/csv",
+            )
+        else:
+            st.info("Aún no hay contactos registrados en el sistema.")
