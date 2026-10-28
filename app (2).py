@@ -625,4 +625,49 @@ elif menu == "10. Fotografías de Respaldo":
         else:
             st.info("No hay fotografías guardadas todavía.")
     else:
+
+        # ---------------------------------------------------------
+# MÓDULO: ALERTAS DE STOCK BAJO
+# ---------------------------------------------------------
+elif menu == "11. Alertas de Stock":
+    st.header("⚠️ Control de Stock Crítico")
+    st.write("Productos que se encuentran por debajo del mínimo establecido y necesitan reabastecimiento.")
+
+    # Supongamos que tu DataFrame principal de inventario se llama 'df_inventario'
+    # y contiene columnas como 'Producto', 'Stock Actual' y 'Stock Mínimo'.
+    # Si usas otro nombre para tus variables, asegúrate de adaptarlo aquí.
+    
+    try:
+        # Ejemplo de simulación o lectura de tu base de datos/dataframe actual
+        # Asegúrate de cambiar 'df_inventario' por la variable real donde guardas tus productos
+        if 'df_inventario' in locals() and not df_inventario.empty:
+            
+            # Verificar si existe la columna de stock mínimo, si no, crear una por defecto (ej: 5 unidades)
+            if 'Stock Mínimo' not in df_inventario.columns:
+                df_inventario['Stock Mínimo'] = 5  # Valor por defecto sugerido
+
+            # Filtrar productos cuyo stock actual sea menor o igual al stock mínimo
+            stock_critico = df_inventario[df_inventario['Stock Actual'] <= df_inventario['Stock Mínimo']]
+
+            if not stock_critico.empty:
+                st.error(f"¡Atención! Hay {len(stock_critico)} producto(s) con stock crítico.")
+                
+                # Mostrar tabla resaltada
+                st.dataframe(stock_critico, use_container_width=True)
+                
+                # Opción para exportar la lista de compras urgente
+                csv_criticos = stock_critico.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Descargar Lista de Reabastecimiento (CSV)",
+                    data=csv_criticos,
+                    file_name="compras_urgentes.csv",
+                    mime="text/csv",
+                )
+            else:
+                st.success("¡Excelente! Todos los productos tienen niveles de stock saludables.")
+        else:
+            st.info("No se encontró una tabla de inventario activa o está vacía. Asegúrate de registrar productos primero.")
+            
+    except Exception as e:
+        st.info("Para activar las alertas, asegúrate de que tu inventario tenga las columnas de cantidad actual y stock mínimo.")
         st.info("No hay fotografías guardadas todavía.")
