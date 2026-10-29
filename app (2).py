@@ -833,16 +833,15 @@ elif menu == "14. Registro Fotográfico":
                 st.session_state.registro_fotos.append(nueva_foto)
                 st.success("¡Evidencia fotográfica y datos adjuntos registrados con éxito!")
                 st.rerun()
+
 # ---------------------------------------------------------
-# MÓDULO 15:  ANULACIÓN Y ELIMINACIÓN DE INGRESOS ERRÓNEOS
+# MÓDULO 15: ANULAR INGRESOS ERRÓNEOS
 # ---------------------------------------------------------
-elif menu == "14. Anular Ingresos":  # O el número de módulo que prefieras en tu menú
+elif menu == "15. Anular Ingresos":
     st.header("Anulación y Eliminación de Ingresos Erróneos")
-    st.markdown("Este módulo permite eliminar un registro de ingreso que se haya realizado por error y revertir automáticamente el stock sumado en la bodega.")
+    st.markdown("Este módulo permite eliminar un registro de ingreso realizado por error y revertir automáticamente el stock sumado en la bodega.")
     
-    # Verificar si existen movimientos de tipo INGRESO registrados
     if "movimientos" in st.session_state and not st.session_state.movimientos.empty:
-        # Filtrar únicamente los movimientos que sean de tipo INGRESO
         df_ingresos = st.session_state.movimientos[st.session_state.movimientos["Tipo"] == "INGRESO"]
         
         if df_ingresos.empty:
@@ -854,34 +853,27 @@ elif menu == "14. Anular Ingresos":  # O el número de módulo que prefieras en 
             st.markdown("---")
             st.subheader("Seleccionar Ingreso a Anular")
             
-            # Crear una lista de opciones con el ID del movimiento y detalle para identificarlo fácilmente
             opciones_mov = [f"{row['ID_Mov']} - SKU: {row['SKU']} - Cantidad: {row['Cantidad']} - Fecha: {row['Fecha']}" for _, row in df_ingresos.iterrows()]
-            
             mov_seleccionado = st.selectbox("Seleccione el ingreso erróneo a eliminar", opciones_mov)
             
             if st.button("Anular Ingreso y Revertir Stock"):
-                # Extraer el ID del movimiento seleccionado (ej: MOV-0002)
                 id_mov_a_borrar = mov_seleccionado.split(" - ")[0]
-                
-                # Obtener los datos del movimiento antes de borrarlo
                 datos_mov = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] == id_mov_a_borrar].iloc[0]
                 sku_afectado = datos_mov["SKU"]
                 cantidad_afectada = datos_mov["Cantidad"]
                 
-                # 1. Revertir el stock en el Maestro de Materiales (restar lo que se había sumado por error)
+                # Revertir stock en materiales
                 idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_afectado].tolist()
                 if idx_mat:
                     stock_actual = st.session_state.materiales.loc[idx_mat[0], "Stock_Actual"]
                     nuevo_stock = max(0, stock_actual - cantidad_afectada)
                     st.session_state.materiales.loc[idx_mat[0], "Stock_Actual"] = nuevo_stock
                 
-                # 2. Eliminar el registro del DataFrame de movimientos
+                # Eliminar movimiento
                 st.session_state.movimientos = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] != id_mov_a_borrar].reset_index(drop=True)
-                
-                # 3. Guardar cambios en el almacenamiento persistente
                 guardar_datos()
                 
-                st.success(f"¡El ingreso `{id_mov_a_borrar}` ha sido anulado con éxito! Se descontaron `{cantidad_afectada}` unidades del SKU `{sku_afectado}` para corregir el inventario.")
+                st.success(f"El ingreso {id_mov_a_borrar} ha sido anulado con éxito. Se descontaron {cantidad_afectada} unidades del SKU {sku_afectado}.")
                 st.rerun()
     else:
         st.warning("No hay transacciones registradas en el sistema.")
