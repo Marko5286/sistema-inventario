@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -188,8 +189,7 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "11. Escáner de SKU",
     "12. Gestión de Bodegas",
     "13. Auditoría y Logs",
-    "14. Registro Fotográfico",
-    "15. Anular Ingresos"
+    "14. Registro Fotográfico"
     
 ])
 
@@ -227,78 +227,42 @@ if not st.session_state.materiales.empty:
         file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-# ---------------------------------------------------------
-# MÓDULO 1: CREACIÓN Y GESTIÓN DE MATERIALES
-# ---------------------------------------------------------
-elif menu == "1. Creación de Materiales":
-    st.header("Creación y Gestión de Materiales")
-    
-    # Inicializar la base de datos con registros por defecto si está vacía
-    if "materiales" not in st.session_state or st.session_state.materiales.empty:
-        st.session_state.materiales = pd.DataFrame([
-            {"SKU": "MAT-001", "Nombre": "Caja de Cartón Corrugado", "Categoría": "Embalaje", "Stock_Actual": 500, "Unidad": "Unidades", "Ubicación": "A-01-1"},
-            {"SKU": "MAT-002", "Nombre": "Cinta de Embalaje Transparente", "Categoría": "Embalaje", "Stock_Actual": 120, "Unidad": "Unidades", "Ubicación": "A-01-2"},
-            {"SKU": "PROD-001", "Nombre": "Pallet de Madera Standard", "Categoría": "Materia Prima", "Stock_Actual": 50, "Unidad": "Unidades", "Ubicación": "B-02-1"}
-        ])
-        guardar_datos()
 
-    with st.form("form_material"):
-        col1, col2 = st.columns(2)
-        with col1:
-            sku = st.text_input("SKU / Código Único")
-            nombre = st.text_input("Nombre del Material")
-            categoria = st.selectbox("Categoría", ["Materia Prima", "Producto Terminado", "Embalaje", "Repuestos"])
-        with col2:
-            stock_inicial = st.number_input("Stock Inicial", min_value=0, value=0)
-            unidad = st.selectbox("Unidad de Medida", ["Unidades", "Kilogramos", "Metros", "Litros", "Cajas"])
-            ubicacion = st.text_input("Ubicación en Bodega (Ej: A-01-1)")
+# ---------------------------------------------------------
+# MÓDULO 1: CREACIÓN DE MATERIALES
+# ---------------------------------------------------------
+if menu == "1. Creación de Materiales":
+    st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
+    with st.form("form_nuevo_mat"):
+        st.subheader("Registro Manual de Material")
+        c1, c2 = st.columns(2)
+        with c1:
+            sku_m = st.text_input("SKU").strip().upper()
+            nom_m = st.text_input("Nombre / Descripción")
+            uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
+        with c2:
+            ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
+            val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
+            stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
             
         if st.form_submit_button("Guardar Material"):
-            if not sku or not nombre:
-                st.error("El SKU y el Nombre son obligatorios.")
-            elif sku.upper() in st.session_state.materiales["SKU"].values:
-                st.error(f"El SKU '{sku}' ya existe en el sistema.")
+            if not sku_m or not nom_m:
+                st.error("SKU y Nombre son obligatorios.")
+            elif sku_m in st.session_state.materiales["SKU"].values:
+                st.error("El SKU ya existe.")
             else:
-                nuevo_mat = pd.DataFrame([{
-                    "SKU": sku.upper(),
-                    "Nombre": nombre,
-                    "Categoría": categoria,
-                    "Stock_Actual": stock_inicial,
-                    "Unidad": unidad,
-                    "Ubicación": ubicacion.upper()
+                nuevo = pd.DataFrame([{
+                    "SKU": sku_m, "Nombre": nom_m, "Unidad": uni_m,
+                    "Valor_Unitario": val_m, "Stock_Actual": stk_m, "Ubicacion": ubi_m, "Bodega": "Bodega Central Antofagasta"
                 }])
-                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_mat], ignore_index=True)
+                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
                 guardar_datos()
-                st.success(f"¡Material '{nombre}' creado con éxito!")
+                st.success(f"Material {sku_m} creado correctamente.")
                 st.rerun()
 
-    if not st.session_state.materiales.empty:
-        st.markdown("---")
-        st.subheader("Listado Actual de Materiales")
-        st.dataframe(st.session_state.materiales, use_container_width=True)
-        
-        st.markdown("---")
-        st.subheader("Corregir / Ajustar Stock Actual")
-        sku_ajuste = st.selectbox("Selecciona el SKU a corregir", st.session_state.materiales["SKU"], key="ajuste_sku_mat")
-        
-        stock_actual_val = int(st.session_state.materiales.loc[st.session_state.materiales["SKU"] == sku_ajuste, "Stock_Actual"].values[0])
-        nuevo_stock_val = st.number_input("Nuevo Stock Real en Bodega", min_value=0, value=stock_actual_val, key="input_nuevo_stock")
-        
-        if st.button("Actualizar Stock"):
-            st.session_state.materiales.loc[st.session_state.materiales["SKU"] == sku_ajuste, "Stock_Actual"] = nuevo_stock_val
-            guardar_datos()
-            st.success(f"¡Stock del SKU {sku_ajuste} actualizado correctamente a {nuevo_stock_val} unidades!")
-            st.rerun()
-            
-        st.markdown("---")
-        st.subheader("Eliminar Material Erróneo")
-        sku_a_borrar = st.selectbox("Selecciona el SKU a eliminar por completo", st.session_state.materiales["SKU"], key="del_sku_mat")
-        if st.button("Eliminar Material del Maestro"):
-            st.session_state.materiales = st.session_state.materiales[st.session_state.materiales["SKU"] != sku_a_borrar].reset_index(drop=True)
-            guardar_datos()
-            st.success(f"¡El SKU {sku_a_borrar} ha sido eliminado del sistema con éxito!")
-            st.rerun()
-
+    st.markdown("---")
+    st.subheader("Maestro de Materiales Registrados")
+    st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
 # MÓDULO 2: INGRESO DE MATERIALES
@@ -869,47 +833,3 @@ elif menu == "14. Registro Fotográfico":
                 st.session_state.registro_fotos.append(nueva_foto)
                 st.success("¡Evidencia fotográfica y datos adjuntos registrados con éxito!")
                 st.rerun()
-
-# ---------------------------------------------------------
-# MÓDULO 15: ANULAR INGRESOS ERRÓNEOS
-# ---------------------------------------------------------
-elif menu == "15. Anular Ingresos":
-    st.header("Anulación y Eliminación de Ingresos Erróneos")
-    st.markdown("Este módulo permite eliminar un registro de ingreso realizado por error y revertir automáticamente el stock sumado en la bodega.")
-    
-    if "movimientos" in st.session_state and not st.session_state.movimientos.empty:
-        df_ingresos = st.session_state.movimientos[st.session_state.movimientos["Tipo"] == "INGRESO"]
-        
-        if df_ingresos.empty:
-            st.info("No hay registros de ingresos de materiales en el historial.")
-        else:
-            st.subheader("Historial de Ingresos Registrados")
-            st.dataframe(df_ingresos, use_container_width=True)
-            
-            st.markdown("---")
-            st.subheader("Seleccionar Ingreso a Anular")
-            
-            opciones_mov = [f"{row['ID_Mov']} - SKU: {row['SKU']} - Cantidad: {row['Cantidad']} - Fecha: {row['Fecha']}" for _, row in df_ingresos.iterrows()]
-            mov_seleccionado = st.selectbox("Seleccione el ingreso erróneo a eliminar", opciones_mov)
-            
-            if st.button("Anular Ingreso y Revertir Stock"):
-                id_mov_a_borrar = mov_seleccionado.split(" - ")[0]
-                datos_mov = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] == id_mov_a_borrar].iloc[0]
-                sku_afectado = datos_mov["SKU"]
-                cantidad_afectada = datos_mov["Cantidad"]
-                
-                # Revertir stock en materiales
-                idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_afectado].tolist()
-                if idx_mat:
-                    stock_actual = st.session_state.materiales.loc[idx_mat[0], "Stock_Actual"]
-                    nuevo_stock = max(0, stock_actual - cantidad_afectada)
-                    st.session_state.materiales.loc[idx_mat[0], "Stock_Actual"] = nuevo_stock
-                
-                # Eliminar movimiento
-                st.session_state.movimientos = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] != id_mov_a_borrar].reset_index(drop=True)
-                guardar_datos()
-                
-                st.success(f"El ingreso {id_mov_a_borrar} ha sido anulado con éxito. Se descontaron {cantidad_afectada} unidades del SKU {sku_afectado}.")
-                st.rerun()
-    else:
-        st.warning("No hay transacciones registradas en el sistema.")
