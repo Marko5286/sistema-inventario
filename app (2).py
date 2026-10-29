@@ -226,12 +226,11 @@ if not st.session_state.materiales.empty:
         file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN Y GESTIÓN DE MATERIALES
 # ---------------------------------------------------------
 elif menu == "1. Creación de Materiales":
-    st.header("📦 Creación y Gestión de Materiales")
+    st.header("Creación y Gestión de Materiales")
     
     with st.form("form_material"):
         col1, col2 = st.columns(2)
@@ -246,9 +245,9 @@ elif menu == "1. Creación de Materiales":
             
         if st.form_submit_button("Guardar Material"):
             if not sku or not nombre:
-                st.error("⚠️ El SKU y el Nombre son obligatorios.")
+                st.error("El SKU y el Nombre son obligatorios.")
             elif sku in st.session_state.materiales["SKU"].values:
-                st.error(f"⚠️ El SKU '{sku}' ya existe en el sistema.")
+                st.error(f"El SKU '{sku}' ya existe en el sistema.")
             else:
                 nuevo_mat = pd.DataFrame([{
                     "SKU": sku.upper(),
@@ -265,34 +264,29 @@ elif menu == "1. Creación de Materiales":
 
     if not st.session_state.materiales.empty:
         st.markdown("---")
-        st.subheader("📋 Listado Actual de Materiales")
+        st.subheader("Listado Actual de Materiales")
         st.dataframe(st.session_state.materiales, use_container_width=True)
         
         st.markdown("---")
-        st.subheader("🛠️ Corregir / Ajustar Stock Actual (Método Directo)")
-        st.markdown("Si ingresaste mal la cantidad de un material, selecciónalo aquí y ajusta su stock real:")
-        
+        st.subheader("Corregir / Ajustar Stock Actual")
         sku_ajuste = st.selectbox("Selecciona el SKU a corregir", st.session_state.materiales["SKU"], key="ajuste_sku_mat")
         
-        # Obtener el stock actual de ese SKU
         stock_actual_val = int(st.session_state.materiales.loc[st.session_state.materiales["SKU"] == sku_ajuste, "Stock_Actual"].values[0])
-        
         nuevo_stock_val = st.number_input("Nuevo Stock Real en Bodega", min_value=0, value=stock_actual_val, key="input_nuevo_stock")
         
         if st.button("Actualizar Stock"):
-            # Actualizar el stock directamente en el DataFrame
             st.session_state.materiales.loc[st.session_state.materiales["SKU"] == sku_ajuste, "Stock_Actual"] = nuevo_stock_val
             guardar_datos()
-            st.success(f"¡Stock del SKU `{sku_ajuste}` actualizado correctamente a {nuevo_stock_val} unidades!")
+            st.success(f"¡Stock del SKU {sku_ajuste} actualizado correctamente a {nuevo_stock_val} unidades!")
             st.rerun()
             
         st.markdown("---")
-        st.subheader("🗑️ Eliminar Material Erróneo")
+        st.subheader("Eliminar Material Erróneo")
         sku_a_borrar = st.selectbox("Selecciona el SKU a eliminar por completo", st.session_state.materiales["SKU"], key="del_sku_mat")
         if st.button("Eliminar Material del Maestro"):
             st.session_state.materiales = st.session_state.materiales[st.session_state.materiales["SKU"] != sku_a_borrar].reset_index(drop=True)
             guardar_datos()
-            st.success(f"¡El SKU `{sku_a_borrar}` ha sido eliminado del sistema con éxito!")
+            st.success(f"¡El SKU {sku_a_borrar} ha sido eliminado del sistema con éxito!")
             st.rerun()
 
 # ---------------------------------------------------------
