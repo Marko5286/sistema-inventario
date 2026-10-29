@@ -190,7 +190,7 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "12. Gestión de Bodegas",
     "13. Auditoría y Logs",
     "14. Registro Fotográfico",
-    "15."Generar Guía PDF"
+    "15. Generar Guía PDF"
     
 ])
 
