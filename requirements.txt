@@ -8,9 +8,9 @@ qrcode
 python-barcode
 Pillow
 streamlit
-
 streamlit-drawable-canvas
 bcrypt
 opencv-python-headless
 numpy
 plotly
+reportlab
