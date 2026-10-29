@@ -230,46 +230,49 @@ if not st.session_state.materiales.empty:
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES
 # ---------------------------------------------------------
-if menu == "1. Creación de Materiales":
-    st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
-    with st.form("form_nuevo_mat"):
-        st.subheader("Registro Manual de Material")
-        c1, c2 = st.columns(2)
-        with c1:
-            sku_m = st.text_input("SKU").strip().upper()
-            nom_m = st.text_input("Nombre / Descripción")
-            uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
-        with c2:
-            ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
-            val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
-            stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
+elif menu == "1. Creación de Materiales":
+    st.header("📦 Creación y Gestión de Materiales")
+    
+    with st.form("form_material"):
+        col1, col2 = st.columns(2)
+        with col1:
+            sku = st.text_input("SKU / Código Único")
+            nombre = st.text_input("Nombre del Material")
+            categoria = st.selectbox("Categoría", ["Materia Prima", "Producto Terminado", "Embalaje", "Repuestos"])
+        with col2:
+            stock_inicial = st.number_input("Stock Inicial", min_value=0, value=0)
+            unidad = st.selectbox("Unidad de Medida", ["Unidades", "Kilogramos", "Metros", "Litros", "Cajas"])
+            ubicacion = st.text_input("Ubicación en Bodega (Ej: A-01-1)")
             
         if st.form_submit_button("Guardar Material"):
-            if not sku_m or not nom_m:
-                st.error("SKU y Nombre son obligatorios.")
-            elif sku_m in st.session_state.materiales["SKU"].values:
-                st.error("El SKU ya existe.")
+            if not sku or not nombre:
+                st.error("⚠️ El SKU y el Nombre son obligatorios.")
+            elif sku in st.session_state.materiales["SKU"].values:
+                st.error(f"⚠️ El SKU '{sku}' ya existe en el sistema.")
             else:
-                nuevo = pd.DataFrame([{
-                    "SKU": sku_m, "Nombre": nom_m, "Unidad": uni_m,
-                    "Valor_Unitario": val_m, "Stock_Actual": stk_m, "Ubicacion": ubi_m, "Bodega": "Bodega Central Antofagasta"
+                nuevo_mat = pd.DataFrame([{
+                    "SKU": sku.upper(),
+                    "Nombre": nombre,
+                    "Categoría": categoria,
+                    "Stock_Actual": stock_inicial,
+                    "Unidad": unidad,
+                    "Ubicación": ubicacion.upper()
                 }])
-                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
+                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_mat], ignore_index=True)
                 guardar_datos()
-                st.success(f"Material {sku_m} creado correctamente.")
+                st.success(f"¡Material '{nombre}' creado con éxito!")
                 st.rerun()
 
-    st.markdown("---")
-    st.subheader("Maestro de Materiales Registrados")
-    st.dataframe(st.session_state.materiales, use_container_width=True)
-st.markdown("---")
-    st.subheader("🗑️ Eliminar Material Erróneo")
     if not st.session_state.materiales.empty:
+        st.markdown("---")
+        st.subheader("📋 Listado Actual de Materiales")
+        st.dataframe(st.session_state.materiales, use_container_width=True)
+        
+        st.markdown("---")
+        st.subheader("🗑️ Eliminar Material Erróneo")
         sku_a_borrar = st.selectbox("Selecciona el SKU a eliminar", st.session_state.materiales["SKU"], key="del_sku_mat")
         if st.button("Eliminar Material del Maestro"):
-            # Eliminar el material del DataFrame de materiales
             st.session_state.materiales = st.session_state.materiales[st.session_state.materiales["SKU"] != sku_a_borrar].reset_index(drop=True)
-            # Guardar los cambios en el archivo Excel de persistencia
             guardar_datos()
             st.success(f"¡El SKU `{sku_a_borrar}` ha sido eliminado del sistema con éxito!")
             st.rerun()
