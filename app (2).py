@@ -835,9 +835,9 @@ elif menu == "14. Registro Fotográfico":
                 st.success("¡Evidencia fotográfica y datos adjuntos registrados con éxito!")
                 st.rerun()
 # ---------------------------------------------------------
-# MÓDULO 16: GENERACIÓN DE GUÍAS DE DESPACHO EN PDF
+# MÓDULO 15: GENERACIÓN DE GUÍAS DE DESPACHO EN PDF
 # ---------------------------------------------------------
-elif menu == "16. Generar Guía PDF":
+elif menu == "15. Generar Guía PDF":
     st.header("Generación de Guías de Despacho en PDF")
     st.markdown("Selecciona una transacción de salida o despacho registrada para generar su documento formal en PDF.")
     
