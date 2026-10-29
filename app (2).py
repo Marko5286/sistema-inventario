@@ -262,6 +262,17 @@ if menu == "1. Creación de Materiales":
     st.markdown("---")
     st.subheader("Maestro de Materiales Registrados")
     st.dataframe(st.session_state.materiales, use_container_width=True)
+st.markdown("---")
+    st.subheader("🗑️ Eliminar Material Erróneo")
+    if not st.session_state.materiales.empty:
+        sku_a_borrar = st.selectbox("Selecciona el SKU a eliminar", st.session_state.materiales["SKU"], key="del_sku_mat")
+        if st.button("Eliminar Material del Maestro"):
+            # Eliminar el material del DataFrame de materiales
+            st.session_state.materiales = st.session_state.materiales[st.session_state.materiales["SKU"] != sku_a_borrar].reset_index(drop=True)
+            # Guardar los cambios en el archivo Excel de persistencia
+            guardar_datos()
+            st.success(f"¡El SKU `{sku_a_borrar}` ha sido eliminado del sistema con éxito!")
+            st.rerun()
 
 # ---------------------------------------------------------
 # MÓDULO 2: INGRESO DE MATERIALES
