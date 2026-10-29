@@ -14,4 +14,4 @@ opencv-python-headless
 numpy
 plotly
 reportlab
-pip install streamlit-drawable-canvas
+
