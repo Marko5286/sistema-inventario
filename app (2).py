@@ -189,7 +189,8 @@ menu = st.sidebar.radio("Módulos del Sistema", [
     "11. Escáner de SKU",
     "12. Gestión de Bodegas",
     "13. Auditoría y Logs",
-    "14. Registro Fotográfico"
+    "14. Registro Fotográfico",
+    "15. Generar Guía PDF"
     
 ])
 
@@ -833,3 +834,124 @@ elif menu == "14. Registro Fotográfico":
                 st.session_state.registro_fotos.append(nueva_foto)
                 st.success("¡Evidencia fotográfica y datos adjuntos registrados con éxito!")
                 st.rerun()
+# ---------------------------------------------------------
+# MÓDULO 16: GENERACIÓN DE GUÍAS DE DESPACHO EN PDF
+# ---------------------------------------------------------
+elif menu == "16. Generar Guía PDF":
+    st.header("Generación de Guías de Despacho en PDF")
+    st.markdown("Selecciona una transacción de salida o despacho registrada para generar su documento formal en PDF.")
+    
+    if "movimientos" in st.session_state and not st.session_state.movimientos.empty:
+        # Filtrar los movimientos que sean de tipo SALIDA o DESPACHO
+        df_salidas = st.session_state.movimientos[st.session_state.movimientos["Tipo"].isin(["SALIDA", "DESPACHO"])]
+        
+        if df_salidas.empty:
+            st.info("No hay registros de salidas o despachos en el historial para generar guías.")
+        else:
+            st.subheader("Historial de Despachos")
+            st.dataframe(df_salidas, use_container_width=True)
+            
+            st.markdown("---")
+            opciones_despacho = [f"{row['ID_Mov']} - SKU: {row['SKU']} - Cantidad: {row['Cantidad']} - Fecha: {row['Fecha']}" for _, row in df_salidas.iterrows()]
+            despacho_elegido = st.selectbox("Seleccione el despacho para emitir la Guía", opciones_despacho)
+            
+            # Datos adicionales para la guía
+            col_a, col_b = st.columns(2)
+            with col_a:
+                cliente_transporte = st.text_input("Nombre del Cliente / Transportista", value="Cliente General")
+                rut_cliente = st.text_input("RUT / Identificación", value="76.543.210-K")
+            with col_b:
+                patente_vehiculo = st.text_input("Patente del Vehículo / Conductor", value="ABCD-12")
+                observaciones = st.text_input("Observaciones", value="Entrega conforme en bodega de destino.")
+            
+            if st.button("Generar y Descargar PDF de Guía"):
+                id_sel = despacho_elegido.split(" - ")[0]
+                datos_trans = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] == id_sel].iloc[0]
+                
+                # Creación del PDF usando ReportLab
+                from reportlab.lib.pagesizes import letter
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib import colors
+                import io
+                
+                buffer = io.BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+                elementos = []
+                
+                styles = getSampleStyleSheet()
+                estilo_titulo = ParagraphStyle('TituloGuia', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#1E293B'), alignment=1)
+                estilo_normal = ParagraphStyle('TextoNormal', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#334155'))
+                
+                # Encabezado de la Empresa
+                elementos.append(Paragraph("<b>WMS MARKLOGISTIC</b>", estilo_titulo))
+                elementos.append(Paragraph("Sistema de Gestión y Control de Bodega - Antofagasta", ParagraphStyle('Sub', parent=estilo_normal, alignment=1, fontSize=9, textColor=colors.HexColor('#64748B'))))
+                elementos.append(Spacer(1, 15))
+                
+                # Datos del Documento
+                elementos.append(Paragraph(f"<b>GUÍA DE DESPACHO / SALIDA</b>", ParagraphStyle('DocTitle', parent=estilo_normal, fontSize=12, textColor=colors.HexColor('#0F172A'))))
+                elementos.append(Spacer(1, 10))
+                
+                info_data = [
+                    [Paragraph(f"<b>ID Movimiento:</b> {datos_trans['ID_Mov']}", estilo_normal), Paragraph(f"<b>Fecha:</b> {datos_trans['Fecha']}", estilo_normal)],
+                    [Paragraph(f"<b>Cliente / Destino:</b> {cliente_transporte}", estilo_normal), Paragraph(f"<b>RUT:</b> {rut_cliente}", estilo_normal)],
+                    [Paragraph(f"<b>Vehículo / Patente:</b> {patente_vehiculo}", estilo_normal), Paragraph(f"<b>Bodega:</b> {datos_trans.get('Bodega', 'Principal')}", estilo_normal)]
+                ]
+                t_info = Table(info_data, colWidths=[270, 270])
+                t_info.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+                    ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+                    ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+                    ('PADDING', (0,0), (-1,-1), 6),
+                ]))
+                elementos.append(t_info)
+                elementos.append(Spacer(1, 15))
+                
+                # Tabla de Detalle de Productos
+                detalle_data = [
+                    ["SKU", "Descripción del Material", "Cantidad", "Unidad"],
+                    [str(datos_trans['SKU']), str(datos_trans.get('Nombre', 'Material de Bodega')), str(datos_trans['Cantidad']), str(datos_trans.get('Unidad', 'Unidades'))]
+                ]
+                t_detalle = Table(detalle_data, colWidths=[100, 260, 80, 100])
+                t_detalle.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2563EB')),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('BOTTOMPADDING', (0,0), (-1,0), 8),
+                    ('BACKGROUND', (0,1), (-1,-1), colors.white),
+                    ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#2563EB')),
+                    ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+                    ('PADDING', (0,0), (-1,-1), 6),
+                ]))
+                elementos.append(t_detalle)
+                elementos.append(Spacer(1, 15))
+                
+                # Observaciones
+                elementos.append(Paragraph(f"<b>Observaciones:</b> {observaciones}", estilo_normal))
+                elementos.append(Spacer(1, 40))
+                
+                # Espacio para Firmas
+                firma_data = [
+                    [Paragraph("____________________________<br/><b>Entregado por (Bodega)</b>", estilo_normal),
+                     Paragraph("____________________________<br/><b>Recibido Conforme (Cliente)</b>", estilo_normal)]
+                ]
+                t_firma = Table(firma_data, colWidths=[270, 270])
+                t_firma.setStyle(TableStyle([
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                    ('TOPPADDING', (0,0), (-1,-1), 20),
+                ]))
+                elementos.append(t_firma)
+                
+                doc.build(elementos)
+                buffer.seek(0)
+                
+                st.success("¡Guía de Despacho generada con éxito!")
+                st.download_button(
+                    label="📥 Descargar Guía de Despacho en PDF",
+                    data=buffer,
+                    file_name=f"Guia_Despacho_{datos_trans['ID_Mov']}.pdf",
+                    mime="application/pdf"
+                )
+    else:
+        st.warning("No hay transacciones de salida registradas para generar guías.")
