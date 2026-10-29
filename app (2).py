@@ -8,6 +8,8 @@ import smtplib
 from email.message import EmailMessage
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from streamlit_drawable_canvas import st_canvas
+from PIL import Image
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
@@ -336,11 +338,13 @@ elif menu == "3. Picking de Materiales":
         st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
+# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO CON FIRMA DIGITAL
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
     st.header("🚚 Despacho y Emisión de Guía de Traslado")
+    
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
+    
     if not pendientes:
         st.info("No hay órdenes de picking pendientes.")
     else:
@@ -357,47 +361,66 @@ elif menu == "4. Despacho y Guía":
         with col_d2:
             rut_cliente = st.text_input("R.U.T. del Cliente")
             motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
-            
-        if st.button("Confirmar Despacho y Generar Guía"):
-            idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
-            st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
-            datos_orden["Estado"] = "Despachado"
-            
-            mov = pd.DataFrame([{
-                "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                "Tipo": "DESPACHO",
-                "SKU": datos_orden["SKU"],
-                "Cantidad": datos_orden["Cantidad"],
-                "Origen/Destino": datos_orden["Cliente"],
-                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }])
-            st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-            
-            num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
-            guia_data = {
-                "Numero_Guia": num_guia, "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "Cliente": datos_orden["Cliente"], "Rut": rut_cliente, "SKU": datos_orden["SKU"],
-                "Cantidad": datos_orden["Cantidad"], "Transporte": transporte, "Conductor": nombre_conductor,
-                "Rut_Conductor": rut_conductor, "Patente": patente, "Motivo": motivo
-            }
-            st.session_state.guias_despacho.append(guia_data)
-            guardar_datos()
-            st.success(f"¡Despacho realizado! Guía N° **{num_guia}**")
-            st.session_state.ultima_guia = guia_data
-            st.rerun()
 
-    if "ultima_guia" in st.session_state:
         st.markdown("---")
-        guia = st.session_state.ultima_guia
-        st.subheader(f"📄 Descarga Directa: Guía N° {guia['Numero_Guia']}")
-        pdf_buffer = generar_pdf_guia(guia)
-        st.download_button(
-            label="📥 Descargar Guía Oficial en PDF",
-            data=pdf_buffer,
-            file_name=f"Guia_{guia['Numero_Guia']}.pdf",
-            mime="application/pdf"
+        st.subheader("✍️ Firma Digital del Receptor / Transportista")
+        st.caption("Dibuja tu firma a continuación dentro del recuadro:")
+
+        # Lienzo táctil interactivo para capturar la firma
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)",
+            stroke_width=2,
+            stroke_color="#000000",
+            background_color="#f0f2f6",
+            height=150,
+            width=400,
+            drawing_mode="freedraw",
+            key="canvas_firma",
         )
 
+        if st.button("Confirmar Despacho y Generar Guía"):
+            # Validar que se haya dibujado algo en el lienzo
+            if canvas_result.image_data is None or not (canvas_result.image_data[:, :, 3] > 0).any():
+                st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
+            else:
+                # 1. Actualizar Stock y Estado
+                idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
+                st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
+                datos_orden["Estado"] = "Despachado"
+
+                # 2. Registrar Movimiento
+                mov = pd.DataFrame([{
+                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                    "Tipo": "DESPACHO",
+                    "SKU": datos_orden["SKU"],
+                    "Cantidad": datos_orden["Cantidad"],
+                    "Origen/Destino": datos_orden["Cliente"],
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }])
+                st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+
+                # 3. Guardar Guía con Firma en session_state
+                num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
+                guia_data = {
+                    "Numero_Guia": num_guia,
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "Cliente": datos_orden["Cliente"],
+                    "Rut": rut_cliente,
+                    "SKU": datos_orden["SKU"],
+                    "Cantidad": datos_orden["Cantidad"],
+                    "Transporte": transporte,
+                    "Conductor": nombre_conductor,
+                    "Rut_Conductor": rut_conductor,
+                    "Patente": patente,
+                    "Motivo": motivo,
+                    "Firma_Img": canvas_result.image_data  # Array PNG de la firma
+                }
+                
+                st.session_state.guias_despacho.append(guia_data)
+                guardar_datos()
+                st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}**")
+                st.session_state.ultima_guia = guia_data
+                st.rerun()
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
