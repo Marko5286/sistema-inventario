@@ -232,37 +232,101 @@ if not st.session_state.materiales.empty:
     )
 
 # ---------------------------------------------------------
-# MÓDULO 1: CREACIÓN DE MATERIALES
+# MÓDULO 1: CREACIÓN DE MATERIALES Y CARGA MASIVA
 # ---------------------------------------------------------
-if menu == "1. Creación de Materiales":
+elif menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
-    with st.form("form_nuevo_mat"):
-        st.subheader("Registro Manual de Material")
-        c1, c2 = st.columns(2)
-        with c1:
-            sku_m = st.text_input("SKU").strip().upper()
-            nom_m = st.text_input("Nombre / Descripción")
-            uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
-        with c2:
-            ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
-            val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
-            stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
+    
+    # Creamos dos pestañas para organizar la interfaz
+    tab_manual, tab_masivo = st.tabs(["✍️ Registro Manual", "📂 Carga Masiva (Excel)"])
+    
+    # --- PESTAÑA 1: REGISTRO MANUAL ---
+    with tab_manual:
+        with st.form("form_nuevo_mat"):
+            st.subheader("Registro Manual de Material")
+            c1, c2 = st.columns(2)
+            with c1:
+                sku_m = st.text_input("SKU").strip().upper()
+                nom_m = st.text_input("Nombre / Descripción")
+                uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
+            with c2:
+                ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
+                val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
+                stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
             
-        if st.form_submit_button("Guardar Material"):
-            if not sku_m or not nom_m:
-                st.error("SKU y Nombre son obligatorios.")
-            elif sku_m in st.session_state.materiales["SKU"].values:
-                st.error("El SKU ya existe.")
-            else:
-                nuevo = pd.DataFrame([{
-                    "SKU": sku_m, "Nombre": nom_m, "Unidad": uni_m,
-                    "Valor_Unitario": val_m, "Stock_Actual": stk_m, "Ubicacion": ubi_m, "Bodega": "Bodega Central Antofagasta"
-                }])
-                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
-                guardar_datos()
-                st.success(f"Material {sku_m} creado correctamente.")
-                st.rerun()
+            if st.form_submit_button("Guardar Material"):
+                if not sku_m or not nom_m:
+                    st.error("SKU y Nombre son obligatorios.")
+                elif sku_m in st.session_state.materiales["SKU"].values:
+                    st.error("El SKU ya existe.")
+                else:
+                    nuevo = pd.DataFrame([{
+                        "SKU": sku_m,
+                        "Nombre": nom_m,
+                        "Unidad": uni_m,
+                        "Valor_Unitario": val_m,
+                        "Stock_Actual": stk_m,
+                        "Ubicacion": ubi_m,
+                        "Bodega": "Bodega Central Antofagasta"
+                    }])
+                    st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
+                    guardar_datos()
+                    st.success(f"Material {sku_m} creado correctamente.")
+                    st.rerun()
 
+    # --- PESTAÑA 2: CARGA MASIVA DESDE EXCEL ---
+    with tab_masivo:
+        st.subheader("Subir Planilla Excel de Materiales")
+        st.info("💡 **Formato requerido del Excel:** La primera fila debe contener exactamente los siguientes encabezados de columna:\n\n `SKU`, `Nombre`, `Unidad`, `Valor_Unitario`, `Stock_Actual`, `Ubicacion`, `Bodega`")
+        
+        archivo_excel = st.file_uploader("Selecciona el archivo Excel (.xlsx)", type=["xlsx", "xls"])
+        
+        if archivo_excel is not None:
+            try:
+                # Leer el Excel subido
+                df_cargado = pd.read_excel(archivo_excel)
+                
+                # Columnas obligatorias que debe tener el Excel
+                columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"]
+                
+                # Verificar que el Excel tenga las columnas mínimas
+                if not all(col in df_cargado.columns for col in ["SKU", "Nombre"]):
+                    st.error("⚠️ El archivo subido debe contener al menos las columnas 'SKU' y 'Nombre'.")
+                else:
+                    # Rellenar valores faltantes por defecto si alguna columna opcional no viene
+                    if "Unidad" not in df_cargado.columns: df_cargado["Unidad"] = "Unidades"
+                    if "Valor_Unitario" not in df_cargado.columns: df_cargado["Valor_Unitario"] = 0
+                    if "Stock_Actual" not in df_cargado.columns: df_cargado["Stock_Actual"] = 0
+                    if "Ubicacion" not in df_cargado.columns: df_cargado["Ubicacion"] = "A-00-0"
+                    if "Bodega" not in df_cargado.columns: df_cargado["Bodega"] = "Bodega Central Antofagasta"
+                    
+                    # Dar formato a los SKU y limpiar espacios
+                    df_cargado["SKU"] = df_cargado["SKU"].astype(str).str.strip().str.upper()
+                    
+                    st.write("🔍 **Vista previa de los datos a cargar:**")
+                    st.dataframe(df_cargado[columnas_requeridas].head(10))
+                    
+                    if st.button("🚀 Confirmar e Importar Datos"):
+                        # Filtrar para no duplicar SKUs que ya existen en el sistema
+                        skus_existentes = set(st.session_state.materiales["SKU"].tolist())
+                        df_nuevos = df_cargado[~df_cargado["SKU"].isin(skus_existentes)][columnas_requeridas]
+                        
+                        cant_duplicados = len(df_cargado) - len(df_nuevos)
+                        
+                        if df_nuevos.empty:
+                            st.warning("⚠️ Todos los SKU del archivo ya existen en la base de datos.")
+                        else:
+                            # Concatenar con la base de datos actual
+                            st.session_state.materiales = pd.concat([st.session_state.materiales, df_nuevos], ignore_index=True)
+                            guardar_datos()
+                            st.success(f"¡Carga completada! Se importaron **{len(df_nuevos)}** nuevos materiales.")
+                            if cant_duplicados > 0:
+                                st.warning(f"Se omitieron **{cant_duplicados}** registros porque sus SKUs ya existían.")
+                            st.rerun()
+            except Exception as e:
+                st.error(f"Error al procesar el archivo Excel: {e}")
+
+    # --- TABLA GENERAL DE MATERIALES ---
     st.markdown("---")
     st.subheader("Maestro de Materiales Registrados")
     st.dataframe(st.session_state.materiales, use_container_width=True)
