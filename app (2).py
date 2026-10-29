@@ -226,7 +226,6 @@ if not st.session_state.materiales.empty:
         file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES
 # ---------------------------------------------------------
