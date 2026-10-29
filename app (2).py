@@ -226,55 +226,42 @@ if not st.session_state.materiales.empty:
         file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES
 # ---------------------------------------------------------
-elif menu == "1. Creación de Materiales":
-    st.header("📦 Creación y Gestión de Materiales")
-    
-    with st.form("form_material"):
-        col1, col2 = st.columns(2)
-        with col1:
-            sku = st.text_input("SKU / Código Único")
-            nombre = st.text_input("Nombre del Material")
-            categoria = st.selectbox("Categoría", ["Materia Prima", "Producto Terminado", "Embalaje", "Repuestos"])
-        with col2:
-            stock_inicial = st.number_input("Stock Inicial", min_value=0, value=0)
-            unidad = st.selectbox("Unidad de Medida", ["Unidades", "Kilogramos", "Metros", "Litros", "Cajas"])
-            ubicacion = st.text_input("Ubicación en Bodega (Ej: A-01-1)")
+if menu == "1. Creación de Materiales":
+    st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
+    with st.form("form_nuevo_mat"):
+        st.subheader("Registro Manual de Material")
+        c1, c2 = st.columns(2)
+        with c1:
+            sku_m = st.text_input("SKU").strip().upper()
+            nom_m = st.text_input("Nombre / Descripción")
+            uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
+        with c2:
+            ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
+            val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
+            stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
             
         if st.form_submit_button("Guardar Material"):
-            if not sku or not nombre:
-                st.error("⚠️ El SKU y el Nombre son obligatorios.")
-            elif sku in st.session_state.materiales["SKU"].values:
-                st.error(f"⚠️ El SKU '{sku}' ya existe en el sistema.")
+            if not sku_m or not nom_m:
+                st.error("SKU y Nombre son obligatorios.")
+            elif sku_m in st.session_state.materiales["SKU"].values:
+                st.error("El SKU ya existe.")
             else:
-                nuevo_mat = pd.DataFrame([{
-                    "SKU": sku.upper(),
-                    "Nombre": nombre,
-                    "Categoría": categoria,
-                    "Stock_Actual": stock_inicial,
-                    "Unidad": unidad,
-                    "Ubicación": ubicacion.upper()
+                nuevo = pd.DataFrame([{
+                    "SKU": sku_m, "Nombre": nom_m, "Unidad": uni_m,
+                    "Valor_Unitario": val_m, "Stock_Actual": stk_m, "Ubicacion": ubi_m, "Bodega": "Bodega Central Antofagasta"
                 }])
-                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo_mat], ignore_index=True)
+                st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
                 guardar_datos()
-                st.success(f"¡Material '{nombre}' creado con éxito!")
+                st.success(f"Material {sku_m} creado correctamente.")
                 st.rerun()
 
-    if not st.session_state.materiales.empty:
-        st.markdown("---")
-        st.subheader("📋 Listado Actual de Materiales")
-        st.dataframe(st.session_state.materiales, use_container_width=True)
-        
-        st.markdown("---")
-        st.subheader("🗑️ Eliminar Material Erróneo")
-        sku_a_borrar = st.selectbox("Selecciona el SKU a eliminar", st.session_state.materiales["SKU"], key="del_sku_mat")
-        if st.button("Eliminar Material del Maestro"):
-            st.session_state.materiales = st.session_state.materiales[st.session_state.materiales["SKU"] != sku_a_borrar].reset_index(drop=True)
-            guardar_datos()
-            st.success(f"¡El SKU `{sku_a_borrar}` ha sido eliminado del sistema con éxito!")
-            st.rerun()
+    st.markdown("---")
+    st.subheader("Maestro de Materiales Registrados")
+    st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
 # MÓDULO 2: INGRESO DE MATERIALES
@@ -345,14 +332,15 @@ elif menu == "3. Picking de Materiales":
         st.markdown("---")
         st.subheader("Historial de Órdenes de Picking")
         st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
+
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO CON FIRMA DIGITAL
+# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Traslado con Firma Digital")
+    st.header("🚚 Despacho y Emisión de Guía de Traslado")
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
     if not pendientes:
-        st.info("No hay órdenes de picking pendientes de despacho.")
+        st.info("No hay órdenes de picking pendientes.")
     else:
         df_pendientes = pd.DataFrame(pendientes)
         orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
@@ -368,39 +356,10 @@ elif menu == "4. Despacho y Guía":
             rut_cliente = st.text_input("R.U.T. del Cliente")
             motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
             
-        st.markdown("---")
-        st.subheader("✍️ Firma Digital de Recepción (Check-in Cliente)")
-        st.markdown("Dibuja la firma del cliente o receptor en el recuadro inferior:")
-        
-        from streamlit_drawable_canvas import st_canvas
-        
-        # Crear el lienzo de firma digital
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)",
-            stroke_width=3,
-            stroke_color="#000000",
-            background_color="#FFFFFF",
-            height=150,
-            width=400,
-            drawing_mode="freedraw",
-            key=f"canvas_firma_{orden_sel}",
-        )
-        
-        if st.button("Confirmar Despacho y Generar Guía Oficial"):
+        if st.button("Confirmar Despacho y Generar Guía"):
             idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
             st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
             datos_orden["Estado"] = "Despachado"
-            
-            # Procesar la imagen de la firma si el usuario dibujó algo
-            imagen_firma_io = None
-            if canvas_result.image_data is not None:
-                from PIL import Image
-                import numpy as np
-                img_data = canvas_result.image_data.astype(np.uint8)
-                img = Image.fromarray(img_data)
-                imagen_firma_io = BytesIO()
-                img.save(imagen_firma_io, format="PNG")
-                imagen_firma_io.seek(0)
             
             mov = pd.DataFrame([{
                 "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
@@ -408,7 +367,6 @@ elif menu == "4. Despacho y Guía":
                 "SKU": datos_orden["SKU"],
                 "Cantidad": datos_orden["Cantidad"],
                 "Origen/Destino": datos_orden["Cliente"],
-                "Usuario": st.session_state.get('usuario_actual', 'admin'),
                 "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }])
             st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
@@ -418,12 +376,11 @@ elif menu == "4. Despacho y Guía":
                 "Numero_Guia": num_guia, "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "Cliente": datos_orden["Cliente"], "Rut": rut_cliente, "SKU": datos_orden["SKU"],
                 "Cantidad": datos_orden["Cantidad"], "Transporte": transporte, "Conductor": nombre_conductor,
-                "Rut_Conductor": rut_conductor, "Patente": patente, "Motivo": motivo,
-                "Firma": imagen_firma_io
+                "Rut_Conductor": rut_conductor, "Patente": patente, "Motivo": motivo
             }
             st.session_state.guias_despacho.append(guia_data)
             guardar_datos()
-            st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}** generada con firma digital.")
+            st.success(f"¡Despacho realizado! Guía N° **{num_guia}**")
             st.session_state.ultima_guia = guia_data
             st.rerun()
 
@@ -431,14 +388,14 @@ elif menu == "4. Despacho y Guía":
         st.markdown("---")
         guia = st.session_state.ultima_guia
         st.subheader(f"📄 Descarga Directa: Guía N° {guia['Numero_Guia']}")
-        pdf_buffer = generar_pdf_guia(guia, guia.get("Firma"))
+        pdf_buffer = generar_pdf_guia(guia)
         st.download_button(
-            label="📥 Descargar Guía Oficial en PDF con Firma",
+            label="📥 Descargar Guía Oficial en PDF",
             data=pdf_buffer,
             file_name=f"Guia_{guia['Numero_Guia']}.pdf",
             mime="application/pdf"
         )
-        
+
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
@@ -607,32 +564,13 @@ elif menu == "10. Asistente IA":
             from google import genai
             client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
             pregunta = st.text_input("Consulta al ERP (Ej: ¿Qué productos tienen bajo stock?)")
-            
             if st.button("Consultar IA") and pregunta:
                 resumen = st.session_state.materiales.to_string()
-                prompt_sistema = f"Eres un experto en logística. Datos de bodega:\n{resumen}\nResponde a: {pregunta}"
-                
-                response = None
-                # Intentar primero con el modelo principal y respaldar si hay saturación
-                modelos_a_probar = ['gemini-3.8-flash', 'gemini-2.5-flash']
-                
-                with st.spinner("Consultando al asistente de bodega..."):
-                    for mod in modelos_a_probar:
-                        try:
-                            response = client.models.generate_content(
-                                model=mod,
-                                contents=prompt_sistema
-                            )
-                            break # Si sale bien, rompemos el ciclo
-                        except Exception as ex:
-                            # Si da error de servidor ocupado, prueba con el siguiente modelo
-                            continue
-                
-                if response and hasattr(response, 'text'):
-                    st.success(response.text)
-                else:
-                    st.warning("⚠️ Los servidores de IA están experimentando alta demanda en este momento. Por favor, intenta hacer tu consulta nuevamente en unos segundos.")
-                    
+                response = client.models.generate_content(
+                    model='gemini-1.5-pro',
+                    contents=f"Eres un experto en logística. Datos de bodega:\n{resumen}\nResponde a: {pregunta}"
+                )
+                st.success(response.text)
         except Exception as e:
             st.error(f"Error IA: {e}")
     else:
