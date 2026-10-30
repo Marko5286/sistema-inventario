@@ -551,63 +551,22 @@ elif menu == "8. Etiquetas":
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
         
         st.markdown("---")
-        
-        # 1. ESTILOS CSS PARA OCULTAR EL MENÚ Y MOSTRAR SOLO LAS ETIQUETAS AL IMPRIMIR
-        st.markdown("""
-            <style>
-                @media print {
-                    /* Ocultar elementos de la interfaz de Streamlit */
-                    [data-testid="stSidebar"], header, footer, .stButton, .stSelectbox, .stNumberInput, hr {
-                        display: none !important;
-                    }
-                    /* Ocultar el título principal de Streamlit al imprimir */
-                    h1 {
-                        display: none !important;
-                    }
-                    /* Asegurar fondo blanco y limpiar márgenes */
-                    body {
-                        background-color: white !important;
-                    }
-                    .main {
-                        background-color: white !important;
-                    }
-                    /* Permitir que las etiquetas se distribuyan correctamente */
-                    .etiqueta-print-container {
-                        display: block !important;
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                    }
-                }
-                
-                .etiqueta-box {
-                    border: 2px dashed #000;
-                    width: 320px;
-                    padding: 15px;
-                    font-family: Arial, sans-serif;
-                    background: white;
-                    color: black;
-                    margin-bottom: 20px;
-                    border-radius: 8px;
-                }
-            </style>
-        """, unsafe_allow_html=True)
-        
-        # 2. BOTÓN DE IMPRESIÓN DIRECTA QUE ABRE EL DIÁLOGO DEL NAVEGADOR
-        if st.button("🖨️ Imprimir Etiquetas Ahora", type="primary"):
-            st.markdown("""
-                <script>
-                    window.print();
-                </script>
-            """, unsafe_allow_html=True)
-            
         st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
         
-        # 3. RENDERIZAR LAS ETIQUETAS EN LA PÁGINA PRINCIPAL
-        st.markdown('<div class="etiqueta-print-container">', unsafe_allow_html=True)
+        # 1. GENERAR EL HTML DE LAS ETIQUETAS
+        html_etiquetas = ""
         for i in range(cantidad_copias):
-            html_etiqueta = f"""
-            <div class="etiqueta-box">
+            html_etiquetas += f"""
+            <div style="
+                border: 2px dashed #000;
+                width: 320px;
+                padding: 15px;
+                font-family: Arial, sans-serif;
+                background: white;
+                color: black;
+                margin: 0 auto 20px auto;
+                border-radius: 8px;
+            ">
                 <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px; color: black;">WMS MARKLOGISTIC</h4>
                 <hr style="border: 1px solid #000; margin: 5px 0;">
                 <p style="margin: 5px 0; font-size: 14px; color: black;"><b>SKU:</b> {mat_info['SKU']}</p>
@@ -621,8 +580,53 @@ elif menu == "8. Etiquetas":
                 </div>
             </div>
             """
-            st.markdown(html_etiqueta, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+
+        # 2. RENDERIZAR VISTA PREVIA NORMAL EN LA APP
+        st.markdown(html_etiquetas, unsafe_allow_html=True)
+
+        # 3. BOTÓN CON COMPONENTE HTML AISLADO (ABRE VENTANA AISLADA DE IMPRESIÓN)
+        import streamlit.components.v1 as components
+        
+        script_impresion = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <script>
+                function imprimirEtiquetas() {{
+                    var ventana = window.open('', '_blank', 'width=450,height=600');
+                    ventana.document.write('<html><head><title>Imprimir Etiquetas</title></head><body style="margin:20px;">');
+                    ventana.document.write(`{html_etiquetas}`);
+                    ventana.document.write('</body></html>');
+                    ventana.document.close();
+                    ventana.focus();
+                    setTimeout(function() {{
+                        ventana.print();
+                        ventana.close();
+                    }}, 250);
+                }}
+            </script>
+        </head>
+        <body style="margin:0; padding:0; background:transparent;">
+            <button onclick="imprimirEtiquetas()" style="
+                background-color: #ff4b4b;
+                color: white;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                font-family: Arial, sans-serif;
+            ">
+                🖨️ Imprimir Etiquetas Ahora
+            </button>
+        </body>
+        </html>
+        """
+        
+        components.html(script_impresion, height=60)
 
 # ---------------------------------------------------------
 # MÓDULO 9: ELIMINAR TRANSACCIONES
