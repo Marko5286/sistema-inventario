@@ -241,12 +241,8 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
         return False
 
 # ---------------------------------------------------------
-# 2. PANEL LATERAL / NAVEGACIÓN Y PERMISOS
-# ---------------------------------------------------------
-st.sidebar.title("📦 WMS Marklogistic")
-st.sidebar.write(f"Usuario: **{usuario_actual}**")
-    
-    # ---> PEGA EL RESUMEN RÁPIDO AQUÍ <---
+    # RESUMEN RÁPIDO EN BARRA LATERAL (UX)
+    # ---------------------------------------------------------
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📊 Estado Rápido")
     if "materiales" in st.session_state and not st.session_state.materiales.empty:
@@ -262,49 +258,6 @@ st.sidebar.write(f"Usuario: **{usuario_actual}**")
         else:
             st.sidebar.metric("✅ Alertas Stock", 0)
     st.sidebar.markdown("---")
-    # ---------------------------------------
-
-    # El menú principal que ya tienes
-    menu = st.sidebar.selectbox("Seleccione Módulo", [
-        "1. Creación de Materiales",
-        "2. Ingresos de Stock",
-        "3. Picking y Salidas",
-        ...
-    ])
-
-# Mostrar el logo local si el archivo existe en el repositorio
-if os.path.exists("logo.jpg.jpg"):
-    st.sidebar.image("logo.jpg.jpg", width=200)
-
-usuario_actual = st.session_state.get('usuario_actual', 'bodega')
-st.sidebar.write(f"👤 Conectado como: **{usuario_actual}**")
-if st.sidebar.button("Cerrar Sesión"):
-    st.session_state.autenticado = False
-    st.rerun()
-
-st.sidebar.markdown("---")
-modulos_permitidos = PERMISOS_USUARIOS.get(usuario_actual, ["5. Inventario"])
-menu = st.sidebar.radio("Módulos del Sistema", modulos_permitidos)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("📧 Envío Automático de Reportes")
-correo_remitente = st.sidebar.text_input("Correo Remitente (Gmail)", value="marco.inostroza63.mi@gmail.com")
-pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="password")
-correo_destino = st.sidebar.text_input("Correo Destino (Gerencia)", value="marco.inostroza63.mi@gmail.com")
-
-if st.sidebar.button("Enviar Respaldo por Email"):
-    if not correo_remitente or not pass_remitente or not correo_destino:
-        st.sidebar.error("Completa todos los campos de correo.")
-    else:
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
-            st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
-        excel_bytes = output.getvalue()
-        if enviar_correo_respaldo(correo_remitente, pass_remitente, correo_destino, excel_bytes):
-            st.sidebar.success("¡Correo de respaldo enviado con éxito!")
-        else:
-            st.sidebar.error("Error al enviar. Revisa tus credenciales.")
 
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES Y CARGA MASIVA
