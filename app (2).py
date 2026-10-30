@@ -250,73 +250,35 @@ if menu == "1. Creación de Materiales":
         # (Aquí continúa el código de tu módulo 1)
 
 # ---------------------------------------------------------
-# FUNCIONES DE AUTOMATIZACIÓN (PDF CON FIRMA & CORREO)
+# FUNCIÓN PARA GENERAR EL PDF DE LA GUÍA DE DESPACHO
 # ---------------------------------------------------------
 def generar_pdf_guia(guia):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, 750, "WMS MARKLOGISTIC S.A.")
-    c.setFont("Helvetica", 10)
-    c.drawString(50, 735, "R.U.T.: 76.543.210-K | Giro: Logística y Distribución")
-    c.setFont("Helvetica-Bold", 14)
-    c.drawRightString(550, 750, "GUÍA DE TRASLADO")
-    c.setFont("Helvetica-Bold", 12)
-    c.drawRightString(550, 735, f"N° {guia['Numero_Guia']}")
-    c.line(50, 720, 550, 720)
-    c.setFont("Helvetica", 11)
-    c.drawString(50, 690, f"Fecha de Emisión: {guia['Fecha']}")
-    c.drawString(50, 670, f"Señor(es): {guia['Cliente']}")
-    c.drawString(350, 670, f"R.U.T.: {guia.get('Rut', 'N/A')}")
-    c.drawString(50, 650, f"Transportista: {guia['Transporte']} ({guia.get('Conductor', '')})")
-    c.drawString(350, 650, f"Patente: {guia['Patente']}")
-    c.drawString(50, 630, f"Motivo de Traslado: {guia['Motivo']}")
-    c.line(50, 610, 550, 610)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(60, 595, "SKU")
-    c.drawString(150, 595, "CANTIDAD")
-    c.drawString(250, 595, "DESCRIPCIÓN / DETALLE")
-    c.line(50, 585, 550, 585)
-    c.setFont("Helvetica", 10)
-    c.drawString(60, 565, str(guia['SKU']))
-    c.drawString(150, 565, str(guia['Cantidad']))
-    c.drawString(250, 565, "Despacho operativo según orden de picking")
+    width, height = letter
     
-    c.line(50, 180, 220, 180)
-    c.drawString(70, 165, "Firma Chofer / Transportista")
-    c.line(380, 180, 550, 180)
-    c.drawString(400, 165, "Firma Recinto / Cliente")
+    # Dibujar contenido de la guía en el PDF
+    c.drawString(50, height - 50, f"GUÍA DE DESPACHO: {guia['Numero_Guia']}")
+    c.drawString(50, height - 70, f"Fecha: {guia['Fecha']}")
+    c.drawString(50, height - 90, f"Cliente: {guia['Cliente']} (RUT: {guia['Rut']})")
+    c.drawString(50, height - 110, f"SKU: {guia['SKU']} | Cantidad: {guia['Cantidad']}")
+    c.drawString(50, height - 130, f"Transporte: {guia['Transporte']} | Patente: {guia['Patente']}")
+    c.drawString(50, height - 150, f"Conductor: {guia['Conductor']} (RUT: {guia['Rut_Conductor']})")
+    c.drawString(50, height - 170, f"Motivo: {guia['Motivo']}")
     
+    # Si incluye firma
     if "Firma_Img" in guia and guia["Firma_Img"] is not None:
         try:
-            img_array = guia["Firma_Img"]
-            img_pil = Image.fromarray(img_array.astype('uint8'), 'RGBA')
-            img_buffer = BytesIO()
-            img_pil.save(img_buffer, format='PNG')
-            img_buffer.seek(0)
-            c.drawImage(ImageReader(img_buffer), 380, 190, width=150, height=50, mask='auto')
-        except:
+            img = Image.fromarray(guia["Firma_Img"].astype('uint8'), 'RGBA')
+            img_reader = ImageReader(img)
+            c.drawImage(img_reader, 50, height - 320, width=200, height=100)
+        except Exception as e:
             pass
-
+            
+    c.showPage()
     c.save()
     buffer.seek(0)
     return buffer
-
-def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_bytes):
-    msg = EmailMessage()
-    msg['Subject'] = f"📊 Respaldo Automático WMS Marklogistic - {datetime.now().strftime('%Y-%m-%d')}"
-    msg['From'] = remitente
-    msg['To'] = destinatario
-    msg.set_content("Adjunto encontrarás el reporte y respaldo automático con los movimientos y stock actual de la bodega.")
-    msg.add_attachment(archivo_excel_bytes, maintype='application', subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(remitente, password_app)
-            smtp.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"Error al enviar correo: {e}")
-        return False
 
 # ---------------------------------------------------------
     # BARRA LATERAL Y MENÚ PRINCIPAL
