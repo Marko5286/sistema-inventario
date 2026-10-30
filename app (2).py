@@ -551,53 +551,22 @@ elif menu == "8. Etiquetas":
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
         
         st.markdown("---")
-        
-        # 1. BOTÓN DE IMPRESIÓN DIRECTA CON JAVASCRIPT
-        st.markdown("""
-            <style>
-                @media print {
-                    [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput {
-                        display: none !important;
-                    }
-                    body {
-                        background-color: white !important;
-                    }
-                }
-                .etiqueta-box {
-                    border: 2px dashed #000;
-                    width: 320px;
-                    padding: 15px;
-                    font-family: Arial, sans-serif;
-                    background: white;
-                    color: black;
-                    margin-bottom: 20px;
-                    border-radius: 8px;
-                }
-            </style>
-            
-            <div style="margin-bottom: 20px;">
-                <button onclick="window.print()" style="
-                    background-color: #ff4b4b;
-                    color: white;
-                    padding: 10px 20px;
-                    border: none;
-                    border-radius: 5px;
-                    font-size: 16px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                ">
-                    🖨️ Imprimir Etiquetas Ahora
-                </button>
-            </div>
-        """, unsafe_allow_html=True)
-        
         st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
         
-        # 2. RENDERIZAR LAS ETIQUETAS
+        # Generar el HTML de las etiquetas que se van a mostrar e imprimir
+        html_etiquetas = ""
         for i in range(cantidad_copias):
-            html_etiqueta = f"""
-            <div class="etiqueta-box">
+            html_etiquetas += f"""
+            <div style="
+                border: 2px dashed #000;
+                width: 320px;
+                padding: 15px;
+                font-family: Arial, sans-serif;
+                background: white;
+                color: black;
+                margin-bottom: 20px;
+                border-radius: 8px;
+            ">
                 <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
                 <hr style="border: 1px solid #000; margin: 5px 0;">
                 <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
@@ -611,7 +580,33 @@ elif menu == "8. Etiquetas":
                 </div>
             </div>
             """
-            st.markdown(html_etiqueta, unsafe_allow_html=True)
+
+        # Inyectar botón funcional mediante un componente seguro de Streamlit
+        import streamlit.components.v1 as components
+        
+        componente_html = f"""
+        <div>
+            <button onclick="parent.window.print()" style="
+                background-color: #ff4b4b;
+                color: white;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                margin-bottom: 20px;
+            ">
+                🖨️ Imprimir Etiquetas Ahora
+            </button>
+            <div>
+                {html_etiquetas}
+            </div>
+        </div>
+        """
+        
+        components.html(componente_html, height=(250 * cantidad_copias) + 80, scrolling=True)
 
 # ---------------------------------------------------------
 # MÓDULO 9: ELIMINAR TRANSACCIONES
