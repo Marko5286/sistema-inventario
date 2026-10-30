@@ -383,93 +383,136 @@ elif menu == "3. Picking de Materiales":
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA
+# MÓDULO 4: DESPACHO, GUÍA Y HISTORIAL
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
-    st.header("🚚 Despacho y Emisión de Guía de Traslado")
-    pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
+    st.header("🚚 Despacho y Emisión de Guías de Traslado")
     
-    if not pendientes:
-        st.info("No hay órdenes de picking pendientes.")
-    else:
-        df_pendientes = pd.DataFrame(pendientes)
-        orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
-        datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
+    # Creamos dos pestañas: una para procesar despachos y otra para consultar el historial
+    tab_despacho, tab_historial_guias = st.tabs(["📦 Emitir Nuevo Despacho", "📚 Historial de Guías Emitidas"])
+    
+    with tab_despacho:
+        pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
         
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            transporte = st.text_input("Empresa de Transporte")
-            patente = st.text_input("Patente Vehículo")
-            nombre_conductor = st.text_input("Nombre Conductor")
-            rut_conductor = st.text_input("R.U.T. Conductor")
-        with col_d2:
-            rut_cliente = st.text_input("R.U.T. del Cliente")
-            motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
+        if not pendientes:
+            st.info("No hay órdenes de picking pendientes de despacho.")
+        else:
+            df_pendientes = pd.DataFrame(pendientes)
+            orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
+            datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
+            
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                transporte = st.text_input("Empresa de Transporte")
+                patente = st.text_input("Patente Vehículo")
+                nombre_conductor = st.text_input("Nombre Conductor")
+                rut_conductor = st.text_input("R.U.T. Conductor")
+            with col_d2:
+                rut_cliente = st.text_input("R.U.T. del Cliente")
+                motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
 
-        st.markdown("---")
-        st.subheader("✍️ Firma Digital del Receptor / Transportista")
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)",
-            stroke_width=2,
-            stroke_color="#000000",
-            background_color="#f0f2f6",
-            height=150,
-            width=400,
-            drawing_mode="freedraw",
-            key="canvas_firma",
-        )
+            st.markdown("---")
+            st.subheader("✍️ Firma Digital del Receptor / Transportista")
+            canvas_result = st_canvas(
+                fill_color="rgba(255, 255, 255, 0)",
+                stroke_width=2,
+                stroke_color="#000000",
+                background_color="#f0f2f6",
+                height=150,
+                width=400,
+                drawing_mode="freedraw",
+                key="canvas_firma",
+            )
 
-        if st.button("Confirmar Despacho y Generar Guía"):
-            if canvas_result.image_data is None or not (canvas_result.image_data[:, :, 3] > 0).any():
-                st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
-            else:
-                idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
-                st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
-                datos_orden["Estado"] = "Despachado"
+            if st.button("Confirmar Despacho y Generar Guía"):
+                if canvas_result.image_data is None or not (canvas_result.image_data[:, :, 3] > 0).any():
+                    st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
+                else:
+                    idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
+                    st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
+                    datos_orden["Estado"] = "Despachado"
 
-                mov = pd.DataFrame([{
-                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                    "Tipo": "DESPACHO",
-                    "SKU": datos_orden["SKU"],
-                    "Cantidad": datos_orden["Cantidad"],
-                    "Origen/Destino": datos_orden["Cliente"],
-                    "Usuario": usuario_actual,
-                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }])
-                st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+                    mov = pd.DataFrame([{
+                        "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                        "Tipo": "DESPACHO",
+                        "SKU": datos_orden["SKU"],
+                        "Cantidad": datos_orden["Cantidad"],
+                        "Origen/Destino": datos_orden["Cliente"],
+                        "Usuario": usuario_actual,
+                        "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }])
+                    st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
 
-                num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
-                guia_data = {
-                    "Numero_Guia": num_guia,
-                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "Cliente": datos_orden["Cliente"],
-                    "Rut": rut_cliente,
-                    "SKU": datos_orden["SKU"],
-                    "Cantidad": datos_orden["Cantidad"],
-                    "Transporte": transporte,
-                    "Conductor": nombre_conductor,
-                    "Rut_Conductor": rut_conductor,
-                    "Patente": patente,
-                    "Motivo": motivo,
-                    "Firma_Img": canvas_result.image_data
-                }
-                
-                st.session_state.guias_despacho.append(guia_data)
-                guardar_datos()
-                st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}**")
-                st.session_state.ultima_guia = guia_data
-                st.rerun()
+                    num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
+                    guia_data = {
+                        "Numero_Guia": num_guia,
+                        "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        "Cliente": datos_orden["Cliente"],
+                        "Rut": rut_cliente,
+                        "SKU": datos_orden["SKU"],
+                        "Cantidad": datos_orden["Cantidad"],
+                        "Transporte": transporte,
+                        "Conductor": nombre_conductor,
+                        "Rut_Conductor": rut_conductor,
+                        "Patente": patente,
+                        "Motivo": motivo,
+                        "Firma_Img": canvas_result.image_data
+                    }
+                    
+                    st.session_state.guias_despacho.append(guia_data)
+                    guardar_datos()
+                    st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}**")
+                    st.session_state.ultima_guia = guia_data
+                    st.rerun()
 
-    if "ultima_guia" in st.session_state:
-        st.markdown("---")
-        st.subheader("📥 Descargar Guía de Traslado")
-        pdf_buffer = generar_pdf_guia(st.session_state.ultima_guia)
-        st.download_button(
-            label="📄 Descargar Guía de Despacho en PDF",
-            data=pdf_buffer,
-            file_name=f"Guia_{st.session_state.ultima_guia['Numero_Guia']}.pdf",
-            mime="application/pdf"
-        )
+        if "ultima_guia" in st.session_state:
+            st.markdown("---")
+            st.subheader("📥 Descargar Última Guía Generada")
+            pdf_buffer = generar_pdf_guia(st.session_state.ultima_guia)
+            st.download_button(
+                label=f"📄 Descargar Guía {st.session_state.ultima_guia['Numero_Guia']} en PDF",
+                data=pdf_buffer,
+                file_name=f"Guia_{st.session_state.ultima_guia['Numero_Guia']}.pdf",
+                mime="application/pdf"
+            )
+
+    # --- PESTAÑA 2: HISTORIAL DE GUÍAS EMITIDAS ---
+    with tab_historial_guias:
+        st.subheader("📚 Consulta y Reemisión de Guías Anteriores")
+        if not st.session_state.guias_despacho:
+            st.info("No hay guías de despacho emitidas en el sistema todavía.")
+        else:
+            # Convertir la lista de diccionarios a DataFrame para facilitar filtros
+            df_guias = pd.DataFrame(st.session_state.guias_despacho)
+            
+            # Ocultar la columna de matriz de imagen para que la tabla se vea limpia
+            df_mostrar = df_guias.drop(columns=["Firma_Img"], errors="ignore")
+            
+            # Barra de búsqueda por número de guía o cliente
+            busqueda = st.text_input("🔍 Buscar por N° de Guía o Cliente").strip().upper()
+            if busqueda:
+                df_mostrar = df_mostrar[
+                    df_mostrar["Numero_Guia"].str.upper().str.contains(busqueda) | 
+                    df_mostrar["Cliente"].str.upper().str.contains(busqueda)
+                ]
+            
+            st.dataframe(df_mostrar, use_container_width=True)
+            
+            st.markdown("---")
+            st.subheader("📥 Volver a Descargar Guía en PDF")
+            lista_num_guias = [g["Numero_Guia"] for g in st.session_state.guias_despacho]
+            guia_a_descargar = st.selectbox("Selecciona el N° de Guía a descargar", lista_num_guias)
+            
+            if guia_a_descargar:
+                # Buscar los datos completos de la guía seleccionada
+                guia_seleccionada = next(g for g in st.session_state.guias_despacho if g["Numero_Guia"] == guia_a_descargar)
+                pdf_hist_buffer = generar_pdf_guia(guia_seleccionada)
+                st.download_button(
+                    label=f"📄 Descargar {guia_a_descargar} en PDF",
+                    data=pdf_hist_buffer,
+                    file_name=f"Guia_{guia_a_descargar}.pdf",
+                    mime="application/pdf"
+                )
 
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
