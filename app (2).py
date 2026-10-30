@@ -493,6 +493,7 @@ elif menu == "6. Dashboard Gerencial":
         st.info("No hay suficientes datos de materiales para generar el dashboard.")
     else:
         import plotly.express as px
+        
         total_skus = len(st.session_state.materiales)
         stock_total = int(st.session_state.materiales["Stock_Actual"].sum())
         val_inventario = (st.session_state.materiales["Stock_Actual"] * st.session_state.materiales["Valor_Unitario"]).sum()
@@ -501,6 +502,43 @@ elif menu == "6. Dashboard Gerencial":
         col_kpi1.metric("📦 Total de SKUs", total_skus)
         col_kpi2.metric("📊 Unidades en Stock", f"{stock_total:,.0f}")
         col_kpi3.metric("💰 Valorización Total Inventario", f"${val_inventario:,.0f}")
+        
+        st.markdown("---")
+        col_g1, col_g2 = st.columns(2)
+        
+        with col_g1:
+            st.subheader("Top Productos con Mayor Stock")
+            df_top_stock = st.session_state.materiales.sort_values(by="Stock_Actual", ascending=False).head(10)
+            if df_top_stock.empty or df_top_stock["Stock_Actual"].sum() == 0:
+                st.info("No hay stock registrado para mostrar en el gráfico.")
+            else:
+                fig_stock = px.bar(
+                    df_top_stock, 
+                    x="SKU", 
+                    y="Stock_Actual", 
+                    text="Stock_Actual", 
+                    color="Stock_Actual", 
+                    color_continuous_scale="Blues", 
+                    title="Top 10 SKUs con Mayor Cantidad en Bodega"
+                )
+                st.plotly_chart(fig_stock, use_container_width=True)
+                
+        with col_g2:
+            st.subheader("Valorización por Producto")
+            df_val = st.session_state.materiales.copy()
+            df_val["Valor_Total"] = df_val["Stock_Actual"] * df_val["Valor_Unitario"]
+            df_top_val = df_val.sort_values(by="Valor_Total", ascending=False).head(10)
+            if df_top_val.empty or df_top_val["Valor_Total"].sum() == 0:
+                st.info("No hay valorización registrada para mostrar en el gráfico.")
+            else:
+                fig_val = px.pie(
+                    df_top_val, 
+                    names="SKU", 
+                    values="Valor_Total", 
+                    title="Distribución del Valor en Inventario (Top SKU)", 
+                    hole=0.4
+                )
+                st.plotly_chart(fig_val, use_container_width=True)
 
 # ---------------------------------------------------------
 # MÓDULO 7: TRAZABILIDAD
