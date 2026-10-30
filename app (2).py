@@ -567,52 +567,91 @@ elif menu == "8. Etiquetas":
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
         st.markdown("---")
         
-        # Botón de impresión directa mediante JavaScript
-        st.markdown("""
-        <style>
-        @media print {
-            [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput, footer { display: none !important; }
-            body { background-color: white !important; }
-            .etiqueta-box { border: 2px solid #000 !important; break-inside: avoid; }
-        }
-        .etiqueta-box { 
-            border: 2px dashed #000; 
-            width: 320px; 
-            padding: 15px; 
-            font-family: Arial, sans-serif; 
-            background: white; 
-            color: black; 
-            margin-bottom: 20px; 
-            border-radius: 8px; 
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-        if st.button("🖨️ Imprimir Etiquetas"):
-            st.markdown("""
-                <script>
-                    window.print();
-                </script>
-            """, unsafe_allow_html=True)
-
-        st.subheader("Vista Previa de Etiqueta")
+        st.subheader("Vista Previa e Impresión")
+        
+        # Generar el HTML con las etiquetas y el botón de impresión embebido mediante componente seguro
+        html_etiquetas = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    background-color: #f8f9fa;
+                    padding: 10px;
+                }}
+                .etiqueta-box {{
+                    border: 2px dashed #000;
+                    width: 320px;
+                    padding: 15px;
+                    background: white;
+                    color: black;
+                    margin-bottom: 20px;
+                    border-radius: 8px;
+                }}
+                .btn-imprimir {{
+                    background-color: #ff4b4b;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    margin-bottom: 20px;
+                }}
+                .btn-imprimir:hover {{
+                    background-color: #e03e3e;
+                }}
+                @media print {{
+                    body {{
+                        background-color: white !important;
+                    }}
+                    .btn-imprimir {{
+                        display: none !important;
+                    }}
+                    .etiqueta-box {{
+                        border: 2px solid #000 !important;
+                        break-inside: avoid;
+                        margin: 0 auto 20px auto;
+                    }}
+                }}
+            </style>
+        </head>
+        <body>
+            <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir Etiquetas Ahora</button>
+            
+            <div id="area-impresion">
+        """
+        
+        # Agregar tantas etiquetas como copias haya seleccionado el usuario
         for i in range(cantidad_copias):
-            html_etiqueta = f"""
-            <div class="etiqueta-box">
-                <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
-                <hr style="border: 1px solid #000; margin: 5px 0;">
-                <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
-                <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
-                    ||||| | |||| ||| || ||||
+            html_etiquetas += f"""
+                <div class="etiqueta-box">
+                    <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
+                    <hr style="border: 1px solid #000; margin: 5px 0;">
+                    <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
+                    <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
+                    <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
+                    <p style="margin: 5px 0; font-size: 14px;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
+                    <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
+                    <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
+                    <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
+                        ||||| | |||| ||| || ||||
+                    </div>
                 </div>
-            </div>
             """
-            st.markdown(html_etiqueta, unsafe_allow_html=True)
+            
+        html_etiquetas += """
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Renderizar el componente HTML interactivo con altura dinámica según la cantidad de etiquetas
+        import streamlit.components.v1 as components
+        altura_dinamica = 150 + (cantidad_copias * 240)
+        components.html(html_etiquetas, height=altura_dinamica, scrolling=True)
 
 # ---------------------------------------------------------
 # MÓDULO 9: ELIMINAR TRANSACCIONES
