@@ -13,70 +13,117 @@ from PIL import Image
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
-# ---------------------------------------------------------
-# 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
-# ---------------------------------------------------------
-EXCEL_MATERIALES = "db_materiales.xlsx"
-EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
-EXCEL_PICKING = "db_picking.xlsx"
-EXCEL_GUIAS = "db_guias.xlsx"
+import sqlite3
 
+# ---------------------------------------------------------
+# 0. CONFIGURACIÓN DE BASE DE DATOS SQLITE (Persistencia Robusta)
+# ---------------------------------------------------------
+DB_FILE = "wms_marklogistic.db"
+
+def inicializar_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # Tabla de Materiales (con Stock_Minimo incluido)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS materiales (
+            SKU TEXT PRIMARY KEY,
+            Nombre TEXT,
+            Unidad TEXT,
+            Valor_Unitario REAL,
+            Stock_Actual INTEGER,
+            Stock_Minimo INTEGER,
+            Ubicacion TEXT,
+            Bodega TEXT
+        )
+    ''')
+    
+    # Tabla de Movimientos
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS movimientos (
+            ID_Mov TEXT PRIMARY KEY,
+            Tipo TEXT,
+            SKU TEXT,
+            Cantidad INTEGER,
+            Origen_Destino TEXT,
+            Fecha TEXT,
+            Usuario TEXT
+        )
+    ''')
+    
+    # Tabla de Órdenes de Picking
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS picking (
+            ID_Picking TEXT PRIMARY KEY,
+            Cliente TEXT,
+            SKU TEXT,
+            Ubicacion TEXT,
+            Cantidad INTEGER,
+            Estado TEXT
+        )
+    ''')
+    
+    # Tabla de Guías de Despacho
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS guias (
+            Numero_Guia TEXT PRIMARY KEY,
+            Fecha TEXT,
+            Cliente TEXT,
+            Rut TEXT,
+            SKU TEXT,
+            Cantidad INTEGER,
+            Transporte TEXT,
+            Conductor TEXT,
+            Rut_Conductor TEXT,
+            Patente TEXT,
+            Motivo TEXT
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+# Ejecutar inicialización al arrancar la app
+inicializar_db()
+
+# Cargar datos desde SQLite a st.session_state al iniciar
 if "materiales" not in st.session_state:
-    if os.path.exists(EXCEL_MATERIALES):
-        try:
-            st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
-        except:
-            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
-    else:
-        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
+    conn = sqlite3.connect(DB_FILE)
+    st.session_state.materiales = pd.read_sql("SELECT * FROM materiales", conn)
+    st.session_state.movimientos = pd.read_sql("SELECT * FROM movimientos", conn)
+    
+    df_pick = pd.read_sql("SELECT * FROM picking", conn)
+    st.session_state.ordenes_picking = df_pick.to_dict('records') if not df_pick.empty else []
+    
+    df_guias = pd.read_sql("SELECT * FROM guias", conn)
+    st.session_state.guias_despacho = df_guias.to_dict('records') if not df_guias.empty else []
+    conn.close()
 
-if "Stock_Minimo" not in st.session_state.materiales.columns:
-    st.session_state.materiales["Stock_Minimo"] = 5  # Valor por defecto
-if "Bodega" not in st.session_state.materiales.columns:
-    st.session_state.materiales["Bodega"] = "Bodega Central Antofagasta"
-if "Ubicacion" not in st.session_state.materiales.columns:
-    st.session_state.materiales["Ubicacion"] = "A-00-0"
-
-if "movimientos" not in st.session_state:
-    if os.path.exists(EXCEL_MOVIMIENTOS):
-        try:
-            st.session_state.movimientos = pd.read_excel(EXCEL_MOVIMIENTOS)
-        except:
-            st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
-    else:
-        st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
-
-if "Usuario" not in st.session_state.movimientos.columns:
-    st.session_state.movimientos["Usuario"] = "admin"
-
-if "ordenes_picking" not in st.session_state:
-    if os.path.exists(EXCEL_PICKING):
-        try:
-            df_pick = pd.read_excel(EXCEL_PICKING)
-            st.session_state.ordenes_picking = df_pick.to_dict('records')
-        except:
-            st.session_state.ordenes_picking = []
-    else:
-        st.session_state.ordenes_picking = []
-
-if "guias_despacho" not in st.session_state:
-    if os.path.exists(EXCEL_GUIAS):
-        try:
-            df_guias = pd.read_excel(EXCEL_GUIAS)
-            st.session_state.guias_despacho = df_guias.to_dict('records')
-        except:
-            st.session_state.guias_despacho = []
-    else:
-        st.session_state.guias_despacho = []
-
+# Función de guardado optimizada con SQLite
 def guardar_datos():
     try:
-        st.session_state.materiales.to_excel(EXCEL_MATERIALES, index=False)
-        st.session_state.movimientos.to_excel(EXCEL_MOVIMIENTOS, index=False)
-        pd.DataFrame(st.session_state.ordenes_picking).to_excel(EXCEL_PICKING, index=False)
-        pd.DataFrame(st.session_state.guias_despacho).to_excel(EXCEL_GUIAS, index=False)
+        conn = sqlite3.connect(DB_FILE)
+        
+        # Guardar DataFrames directamente a las tablas SQL
+        st.session_state.materiales.to_sql("materiales", conn, if_exists="replace", index=False)
+        st.session_state.movimientos.to_sql("movimientos", conn, if_exists="replace", index=False)
+        
+        if st.session_state.ordenes_picking:
+            pd.DataFrame(st.session_state.ordenes_picking).to_sql("picking", conn, if_exists="replace", index=False)
+        else:
+            pd.DataFrame(columns=["ID_Picking", "Cliente", "SKU", "Ubicacion", "Cantidad", "Estado"]).to_sql("picking", conn, if_exists="replace", index=False)
+            
+        if st.session_state.guias_despacho:
+            # Quitamos la imagen de la firma de la tabla SQL para evitar errores de tipo binario
+            df_g_sql = pd.DataFrame(st.session_state.guias_despacho).drop(columns=["Firma_Img"], errors="ignore")
+            df_g_sql.to_sql("guias", conn, if_exists="replace", index=False)
+        else:
+            pd.DataFrame(columns=["Numero_Guia", "Fecha", "Cliente", "Rut", "SKU", "Cantidad", "Transporte", "Conductor", "Rut_Conductor", "Patente", "Motivo"]).to_sql("guias", conn, if_exists="replace", index=False)
+            
+        conn.commit()
+        conn.close()
     except Exception as e:
-        st.error(f"Error al guardar datos: {e}")
+        st.error(f"Error al guardar en la base de datos: {e}")
 
 # ---------------------------------------------------------
 # 0.1 AUTENTICACIÓN Y PERMISOS DE USUARIOS
