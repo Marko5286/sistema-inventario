@@ -538,6 +538,7 @@ elif menu == "7. Trazabilidad":
 # ---------------------------------------------------------
 elif menu == "8. Etiquetas":
     st.header("🏷️ Generación e Impresión de Etiquetas de Bodega")
+    
     if st.session_state.materiales.empty:
         st.info("No hay materiales registrados para etiquetar.")
     else:
@@ -546,20 +547,54 @@ elif menu == "8. Etiquetas":
             sku_etiqueta = st.selectbox("Seleccionar Material para Etiquetar", st.session_state.materiales["SKU"])
         with col_e2:
             cantidad_copias = st.number_input("Número de etiquetas a imprimir", min_value=1, value=1)
-        
+            
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
+        
         st.markdown("---")
-        st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
+        
+        # 1. BOTÓN DE IMPRESIÓN DIRECTA CON JAVASCRIPT
         st.markdown("""
-        <style>
-        @media print {
-            [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput { display: none !important; }
-            body { background-color: white !important; }
-        }
-        .etiqueta-box { border: 2px dashed #000; width: 320px; padding: 15px; font-family: Arial, sans-serif; background: white; color: black; margin-bottom: 20px; border-radius: 8px; }
-        </style>
+            <style>
+                @media print {
+                    [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput {
+                        display: none !important;
+                    }
+                    body {
+                        background-color: white !important;
+                    }
+                }
+                .etiqueta-box {
+                    border: 2px dashed #000;
+                    width: 320px;
+                    padding: 15px;
+                    font-family: Arial, sans-serif;
+                    background: white;
+                    color: black;
+                    margin-bottom: 20px;
+                    border-radius: 8px;
+                }
+            </style>
+            
+            <div style="margin-bottom: 20px;">
+                <button onclick="window.print()" style="
+                    background-color: #ff4b4b;
+                    color: white;
+                    padding: 10px 20px;
+                    border: none;
+                    border-radius: 5px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                ">
+                    🖨️ Imprimir Etiquetas Ahora
+                </button>
+            </div>
         """, unsafe_allow_html=True)
-
+        
+        st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
+        
+        # 2. RENDERIZAR LAS ETIQUETAS
         for i in range(cantidad_copias):
             html_etiqueta = f"""
             <div class="etiqueta-box">
@@ -577,7 +612,6 @@ elif menu == "8. Etiquetas":
             </div>
             """
             st.markdown(html_etiqueta, unsafe_allow_html=True)
-        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado.")
 
 # ---------------------------------------------------------
 # MÓDULO 9: ELIMINAR TRANSACCIONES
