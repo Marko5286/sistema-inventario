@@ -30,6 +30,8 @@ if "materiales" not in st.session_state:
     else:
         st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
 
+if "Stock_Minimo" not in st.session_state.materiales.columns:
+    st.session_state.materiales["Stock_Minimo"] = 5  # Valor por defecto
 if "Bodega" not in st.session_state.materiales.columns:
     st.session_state.materiales["Bodega"] = "Bodega Central Antofagasta"
 if "Ubicacion" not in st.session_state.materiales.columns:
@@ -252,6 +254,40 @@ if menu == "1. Creación de Materiales":
                 ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
                 val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
                 stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
+                with tab_manual:
+        with st.form("form_nuevo_mat"):
+            st.subheader("Registro Manual de Material")
+            c1, c2 = st.columns(2)
+            with c1:
+                sku_m = st.text_input("SKU").strip().upper()
+                nom_m = st.text_input("Nombre / Descripción")
+                uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
+            with c2:
+                ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
+                val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
+                stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
+                stk_min_m = st.number_input("Stock Mínimo de Alerta", min_value=0, value=5) # <--- AQUÍ SE AGREGA
+            
+            if st.form_submit_button("Guardar Material"):
+                if not sku_m or not nom_m:
+                    st.error("SKU y Nombre son obligatorios.")
+                elif sku_m in st.session_state.materiales["SKU"].values:
+                    st.error("El SKU ya existe.")
+                else:
+                    nuevo = pd.DataFrame([{
+                        "SKU": sku_m,
+                        "Nombre": nom_m,
+                        "Unidad": uni_m,
+                        "Valor_Unitario": val_m,
+                        "Stock_Actual": stk_m,
+                        "Stock_Minimo": stk_min_m, # <--- Y AQUÍ SE INCLUYE EN EL DICCIONARIO
+                        "Ubicacion": ubi_m,
+                        "Bodega": "Bodega Central Antofagasta"
+                    }])
+                    st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
+                    guardar_datos()
+                    st.success(f"Material {sku_m} creado correctamente.")
+                    st.rerun()
             
             if st.form_submit_button("Guardar Material"):
                 if not sku_m or not nom_m:
