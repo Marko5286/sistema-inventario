@@ -254,19 +254,7 @@ if menu == "1. Creación de Materiales":
                 ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
                 val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
                 stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
-                with tab_manual:
-        with st.form("form_nuevo_mat"):
-            st.subheader("Registro Manual de Material")
-            c1, c2 = st.columns(2)
-            with c1:
-                sku_m = st.text_input("SKU").strip().upper()
-                nom_m = st.text_input("Nombre / Descripción")
-                uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
-            with c2:
-                ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
-                val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
-                stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
-                stk_min_m = st.number_input("Stock Mínimo de Alerta", min_value=0, value=5) # <--- AQUÍ SE AGREGA
+                stk_min_m = st.number_input("Stock Mínimo de Alerta", min_value=0, value=5)
             
             if st.form_submit_button("Guardar Material"):
                 if not sku_m or not nom_m:
@@ -280,27 +268,7 @@ if menu == "1. Creación de Materiales":
                         "Unidad": uni_m,
                         "Valor_Unitario": val_m,
                         "Stock_Actual": stk_m,
-                        "Stock_Minimo": stk_min_m, # <--- Y AQUÍ SE INCLUYE EN EL DICCIONARIO
-                        "Ubicacion": ubi_m,
-                        "Bodega": "Bodega Central Antofagasta"
-                    }])
-                    st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
-                    guardar_datos()
-                    st.success(f"Material {sku_m} creado correctamente.")
-                    st.rerun()
-            
-            if st.form_submit_button("Guardar Material"):
-                if not sku_m or not nom_m:
-                    st.error("SKU y Nombre son obligatorios.")
-                elif sku_m in st.session_state.materiales["SKU"].values:
-                    st.error("El SKU ya existe.")
-                else:
-                    nuevo = pd.DataFrame([{
-                        "SKU": sku_m,
-                        "Nombre": nom_m,
-                        "Unidad": uni_m,
-                        "Valor_Unitario": val_m,
-                        "Stock_Actual": stk_m,
+                        "Stock_Minimo": stk_min_m,
                         "Ubicacion": ubi_m,
                         "Bodega": "Bodega Central Antofagasta"
                     }])
@@ -311,14 +279,14 @@ if menu == "1. Creación de Materiales":
 
     with tab_masivo:
         st.subheader("Subir Planilla Excel de Materiales")
-        st.info("💡 **Formato requerido del Excel:** La primera fila debe contener exactamente:\n\n `SKU`, `Nombre`, `Unidad`, `Valor_Unitario`, `Stock_Actual`, `Ubicacion`, `Bodega`")
+        st.info("💡 **Formato requerido del Excel:** La primera fila debe contener exactamente:\n\n `SKU`, `Nombre`, `Unidad`, `Valor_Unitario`, `Stock_Actual`, `Stock_Minimo`, `Ubicacion`, `Bodega`")
         
         archivo_excel = st.file_uploader("Selecciona el archivo Excel (.xlsx)", type=["xlsx", "xls"])
         
         if archivo_excel is not None:
             try:
                 df_cargado = pd.read_excel(archivo_excel)
-                columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"]
+                columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Stock_Minimo", "Ubicacion", "Bodega"]
                 
                 if not all(col in df_cargado.columns for col in ["SKU", "Nombre"]):
                     st.error("⚠️ El archivo subido debe contener al menos las columnas 'SKU' y 'Nombre'.")
@@ -326,6 +294,7 @@ if menu == "1. Creación de Materiales":
                     if "Unidad" not in df_cargado.columns: df_cargado["Unidad"] = "Unidades"
                     if "Valor_Unitario" not in df_cargado.columns: df_cargado["Valor_Unitario"] = 0
                     if "Stock_Actual" not in df_cargado.columns: df_cargado["Stock_Actual"] = 0
+                    if "Stock_Minimo" not in df_cargado.columns: df_cargado["Stock_Minimo"] = 5
                     if "Ubicacion" not in df_cargado.columns: df_cargado["Ubicacion"] = "A-00-0"
                     if "Bodega" not in df_cargado.columns: df_cargado["Bodega"] = "Bodega Central Antofagasta"
                     
