@@ -77,7 +77,7 @@ def guardar_datos():
         st.error(f"Error al guardar datos: {e}")
 
 # ---------------------------------------------------------
-# 0.1 AUTENTICACIÓN DE USUARIOS
+# 0.1 AUTENTICACIÓN Y PERMISOS DE USUARIOS
 # ---------------------------------------------------------
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -91,6 +91,24 @@ def verificar_credenciales(usuario, clave):
     if usuario in usuarios_permitidos and usuarios_permitidos[usuario] == clave:
         return True
     return False
+
+# Definir qué módulos puede ver cada rol
+PERMISOS_USUARIOS = {
+    "admin": [
+        "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
+        "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
+        "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
+        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico", "15. Gestión de Permisos"
+    ],
+    "bodega": [
+        "2. Ingreso de Materiales", "3. Picking de Materiales", "4. Despacho y Guía", 
+        "5. Inventario", "8. Etiquetas", "11. Escáner de SKU", "14. Registro Fotográfico"
+    ],
+    "logistica": [
+        "3. Picking de Materiales", "4. Despacho y Guía", "5. Inventario", 
+        "6. Dashboard Gerencial", "7. Trazabilidad", "12. Gestión de Bodegas"
+    ]
+}
 
 if not st.session_state.autenticado:
     st.title("🔐 Acceso al WMS Marklogistic")
@@ -147,7 +165,6 @@ def generar_pdf_guia(guia):
     c.line(380, 180, 550, 180)
     c.drawString(400, 165, "Firma Recinto / Cliente")
     
-    # Estampar firma digital si existe
     if "Firma_Img" in guia and guia["Firma_Img"] is not None:
         try:
             img_array = guia["Firma_Img"]
@@ -180,7 +197,7 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
         return False
 
 # ---------------------------------------------------------
-# 2. PANEL LATERAL / NAVEGACIÓN Y RESPALDO
+# 2. PANEL LATERAL / NAVEGACIÓN Y PERMISOS
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS Marklogistic")
 try:
@@ -188,18 +205,17 @@ try:
 except:
     pass
 
-st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
+usuario_actual = st.session_state.get('usuario_actual', 'bodega')
+st.sidebar.write(f"👤 Conectado como: **{usuario_actual}**")
 if st.sidebar.button("Cerrar Sesión"):
     st.session_state.autenticado = False
     st.rerun()
 
 st.sidebar.markdown("---")
-menu = st.sidebar.radio("Módulos del Sistema", [
-    "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
-    "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
-    "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
-    "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico"
-])
+
+# Obtener módulos permitidos para este usuario
+modulos_permitidos = PERMISOS_USUARIOS.get(usuario_actual, ["5. Inventario"])
+menu = st.sidebar.radio("Módulos del Sistema", modulos_permitidos)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📧 Envío Automático de Reportes")
@@ -221,27 +237,11 @@ if st.sidebar.button("Enviar Respaldo por Email"):
         else:
             st.sidebar.error("Error al enviar. Revisa tus credenciales.")
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("💾 Descarga Manual Respaldo")
-if not st.session_state.materiales.empty:
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
-        st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
-    excel_data = output.getvalue()
-    st.sidebar.download_button(
-        label="📥 Descargar Respaldo BD",
-        data=excel_data,
-        file_name=f"respaldo_erp_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES Y CARGA MASIVA
 # ---------------------------------------------------------
 if menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
-    
     tab_manual, tab_masivo = st.tabs(["✍️ Registro Manual", "📂 Carga Masiva (Excel)"])
     
     with tab_manual:
@@ -343,7 +343,7 @@ elif menu == "2. Ingreso de Materiales":
                     "SKU": sku_ingreso,
                     "Cantidad": cant_ingreso,
                     "Origen/Destino": proveedor_origen or "Recepción General",
-                    "Usuario": st.session_state.get('usuario_actual', 'admin'),
+                    "Usuario": usuario_actual,
                     "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }])
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
@@ -387,7 +387,7 @@ elif menu == "3. Picking de Materiales":
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA CON FIRMA DIGITAL Y PDF
+# MÓDULO 4: DESPACHO Y GUÍA
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
     st.header("🚚 Despacho y Emisión de Guía de Traslado")
@@ -412,8 +412,6 @@ elif menu == "4. Despacho y Guía":
 
         st.markdown("---")
         st.subheader("✍️ Firma Digital del Receptor / Transportista")
-        st.caption("Dibuja tu firma a continuación dentro del recuadro:")
-
         canvas_result = st_canvas(
             fill_color="rgba(255, 255, 255, 0)",
             stroke_width=2,
@@ -439,7 +437,7 @@ elif menu == "4. Despacho y Guía":
                     "SKU": datos_orden["SKU"],
                     "Cantidad": datos_orden["Cantidad"],
                     "Origen/Destino": datos_orden["Cliente"],
-                    "Usuario": st.session_state.get('usuario_actual', 'admin'),
+                    "Usuario": usuario_actual,
                     "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }])
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
@@ -507,21 +505,6 @@ elif menu == "6. Dashboard Gerencial":
         col_kpi1.metric("📦 Total de SKUs", total_skus)
         col_kpi2.metric("📊 Unidades en Stock", f"{stock_total:,.0f}")
         col_kpi3.metric("💰 Valorización Total Inventario", f"${val_inventario:,.0f}")
-        
-        st.markdown("---")
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.subheader("Top Productos con Mayor Stock")
-            df_top_stock = st.session_state.materiales.sort_values(by="Stock_Actual", ascending=False).head(10)
-            fig_stock = px.bar(df_top_stock, x="SKU", y="Stock_Actual", text="Stock_Actual", color="Stock_Actual", color_continuous_scale="Blues", title="Top 10 SKUs con Mayor Cantidad en Bodega")
-            st.plotly_chart(fig_stock, use_container_width=True)
-        with col_g2:
-            st.subheader("Valorización por Producto")
-            df_val = st.session_state.materiales.copy()
-            df_val["Valor_Total"] = df_val["Stock_Actual"] * df_val["Valor_Unitario"]
-            df_top_val = df_val.sort_values(by="Valor_Total", ascending=False).head(10)
-            fig_val = px.pie(df_top_val, names="SKU", values="Valor_Total", title="Distribución del Valor en Inventario (Top SKU)", hole=0.4)
-            st.plotly_chart(fig_val, use_container_width=True)
 
 # ---------------------------------------------------------
 # MÓDULO 7: TRAZABILIDAD
@@ -549,35 +532,18 @@ elif menu == "8. Etiquetas":
         
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
         st.markdown("---")
-        st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
-        st.markdown("""
-        <style>
-        @media print {
-            [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput { display: none !important; }
-            body { background-color: white !important; }
-        }
-        .etiqueta-box { border: 2px dashed #000; width: 320px; padding: 15px; font-family: Arial, sans-serif; background: white; color: black; margin-bottom: 20px; border-radius: 8px; }
-        </style>
-        """, unsafe_allow_html=True)
-
+        st.subheader("Vista Previa de Etiqueta")
         for i in range(cantidad_copias):
             html_etiqueta = f"""
-            <div class="etiqueta-box">
-                <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
-                <hr style="border: 1px solid #000; margin: 5px 0;">
-                <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
-                <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
-                    ||||| | |||| ||| || ||||
-                </div>
+            <div style="border: 2px dashed #000; width: 320px; padding: 15px; font-family: Arial; background: white; color: black; margin-bottom: 20px; border-radius: 8px;">
+                <h4 style="text-align: center; margin: 0 0 10px 0;">WMS MARKLOGISTIC</h4>
+                <p style="margin: 5px 0;"><b>SKU:</b> {mat_info['SKU']}</p>
+                <p style="margin: 5px 0;"><b>Descripción:</b> {mat_info['Nombre']}</p>
+                <p style="margin: 5px 0;"><b>Ubicación:</b> {mat_info.get('Ubicacion', 'N/A')}</p>
+                <p style="margin: 5px 0;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
             </div>
             """
             st.markdown(html_etiqueta, unsafe_allow_html=True)
-        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado.")
 
 # ---------------------------------------------------------
 # MÓDULO 9: ELIMINAR TRANSACCIONES
@@ -633,165 +599,22 @@ elif menu == "10. Asistente IA":
 # MÓDULO 11: ESCÁNER DE SKU
 # ---------------------------------------------------------
 elif menu == "11. Escáner de SKU":
-    st.header("📷 Escáner de SKU (Cámara Web o USB)")
-    tipo_escaneo = st.radio("Selecciona el método de lectura:", ["Pistola / Lector USB", "Cámara Web (QR / Barras)"])
-    sku_detectado = None
-    
-    if tipo_escaneo == "Pistola / Lector USB":
-        st.info("💡 Haz clic en el campo de abajo y dispara con tu pistola lectora.")
-        sku_input = st.text_input("Esperando lectura de pistola USB...").strip().upper()
-        if sku_input:
-            sku_detectado = sku_input
-    else:
-        st.info("📸 Enfoca el código QR del producto con la cámara.")
-        imagen_camara = st.camera_input("Capturar Código")
-        if imagen_camara is not None:
-            try:
-                import cv2
-                import numpy as np
-                bytes_data = imagen_camara.getvalue()
-                np_arr = np.frombuffer(bytes_data, np.uint8)
-                img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-                detector = cv2.QRCodeDetector()
-                data, bbox, _ = detector.detectAndDecode(img)
-                if data:
-                    sku_detectado = data.strip().upper()
-                    st.success(f"¡Código detectado: **{sku_detectado}**!")
-            except Exception as e:
-                st.error(f"Error al procesar la cámara: {e}")
-
-    if sku_detectado:
-        st.markdown("---")
-        st.subheader(f"🔍 Resultado para SKU: `{sku_detectado}`")
-        if sku_detectado in st.session_state.materiales["SKU"].values:
-            mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_detectado].iloc[0]
+    st.header("📷 Escáner de SKU")
+    sku_input = st.text_input("Ingresa o escanea el SKU").strip().upper()
+    if sku_input:
+        if sku_input in st.session_state.materiales["SKU"].values:
+            mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_input].iloc[0]
             st.success(f"**Material Encontrado:** {mat_info['Nombre']}")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Stock Actual", mat_info['Stock_Actual'])
-            c2.metric("Ubicación", mat_info.get('Ubicacion', 'N/A'))
-            c3.metric("Valor Unitario", f"${mat_info['Valor_Unitario']:,.0f}")
+            st.metric("Stock Actual", mat_info['Stock_Actual'])
         else:
-            st.error(f"⚠️ El SKU `{sku_detectado}` no se encuentra registrado.")
+            st.error(f"⚠️ El SKU `{sku_input}` no se encuentra registrado.")
 
 # ---------------------------------------------------------
-# MÓDULO 12: GESTIÓN DE MÚLTIPLES BODEGAS
+# MÓDULO 12: GESTIÓN DE BODEGAS
 # ---------------------------------------------------------
 elif menu == "12. Gestión de Bodegas":
-    st.header("🏢 Gestión de Múltiples Centros de Distribución y Transferencias")
+    st.header("🏢 Gestión de Múltiples Bodegas y Transferencias")
     bodegas_disponibles = ["Bodega Central Antofagasta", "Bodega Norte", "Bodega Tránsito", "Centro de Acopio Sur"]
-    tab_crear_mat_bodega, tab_transferencias = st.tabs(["📝 Materiales por Bodega", "🔄 Transferencia Interna entre Bodegas"])
     
-    with tab_crear_mat_bodega:
-        if st.session_state.materiales.empty:
-            st.info("No hay materiales creados.")
-        else:
-            with st.form("form_mat_bodega"):
-                sku_asig = st.selectbox("Seleccionar SKU", st.session_state.materiales["SKU"])
-                bodega_sel = st.selectbox("Seleccionar Bodega", bodegas_disponibles)
-                if st.form_submit_button("Actualizar Bodega"):
-                    idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_asig].tolist()[0]
-                    st.session_state.materiales.loc[idx, "Bodega"] = bodega_sel
-                    guardar_datos()
-                    st.success(f"SKU `{sku_asig}` asignado a **{bodega_sel}**.")
-                    st.rerun()
-            st.dataframe(st.session_state.materiales, use_container_width=True)
-
-    with tab_transferencias:
-        if st.session_state.materiales.empty:
-            st.info("No hay inventario disponible.")
-        else:
-            with st.form("form_transferencia"):
-                sku_trans = st.selectbox("SKU a Transferir", st.session_state.materiales["SKU"])
-                mat_row = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_trans].iloc[0]
-                bodega_origen = mat_row.get("Bodega", "Bodega Central Antofagasta")
-                stock_actual_origen = mat_row["Stock_Actual"]
-                st.info(f"📍 **Origen:** `{bodega_origen}` | **Stock:** `{stock_actual_origen}`")
-                bodega_destino = st.selectbox("Bodega de Destino", [b for b in bodegas_disponibles if b != bodega_origen])
-                cant_transferir = st.number_input("Cantidad a Transferir", min_value=1, value=1)
-                if st.form_submit_button("Ejecutar Transferencia"):
-                    if cant_transferir > stock_actual_origen:
-                        st.error("Supera el stock disponible.")
-                    else:
-                        idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_trans].tolist()[0]
-                        st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cant_transferir
-                        st.session_state.materiales.loc[idx_mat, "Bodega"] = bodega_destino
-                        
-                        mov = pd.DataFrame([{
-                            "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                            "Tipo": "TRANSFERENCIA",
-                            "SKU": sku_trans,
-                            "Cantidad": cant_transferir,
-                            "Origen/Destino": f"De {bodega_origen} a {bodega_destino}",
-                            "Usuario": st.session_state.get('usuario_actual', 'admin'),
-                            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        }])
-                        st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                        guardar_datos()
-                        st.success("¡Transferencia exitosa!")
-                        st.rerun()
-
-# ---------------------------------------------------------
-# MÓDULO 13: AUDITORÍA Y LOGS
-# ---------------------------------------------------------
-elif menu == "13. Auditoría y Logs":
-    st.header("📋 Auditoría y Registro de Actividad por Usuario")
-    if st.session_state.movimientos.empty:
-        st.info("No hay registros de actividad.")
-    else:
-        df_logs = st.session_state.movimientos.copy()
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            usuarios_unicos = ["Todos"] + list(df_logs["Usuario"].dropna().unique())
-            filtro_usuario = st.selectbox("Filtrar por Usuario", usuarios_unicos)
-        with col_f2:
-            tipos_unicos = ["Todos"] + list(df_logs["Tipo"].dropna().unique())
-            filtro_tipo = st.selectbox("Filtrar por Tipo de Transacción", tipos_unicos)
-            
-        if filtro_usuario != "Todos":
-            df_logs = df_logs[df_logs["Usuario"] == filtro_usuario]
-        if filtro_tipo != "Todos":
-            df_logs = df_logs[df_logs["Tipo"] == filtro_tipo]
-            
-        st.markdown("---")
-        st.metric("Total de Acciones Registradas", len(df_logs))
-        st.dataframe(df_logs.sort_values(by="Fecha", ascending=False), use_container_width=True)
-
-# ---------------------------------------------------------
-# MÓDULO 14: REGISTRO FOTOGRÁFICO
-# ---------------------------------------------------------
-elif menu == "14. Registro Fotográfico":
-    st.header("📸 Registro Fotográfico y Datos Adjuntos")
-    if "registro_fotos" not in st.session_state:
-        st.session_state.registro_fotos = []
-        
-    with st.form("form_foto_adjunto"):
-        c_f1, c_f2 = st.columns(2)
-        with c_f1:
-            sku_foto = st.selectbox("SKU Asociado (Opcional)", ["N/Ninguno"] + list(st.session_state.materiales["SKU"]))
-            tipo_evidencia = st.selectbox("Tipo de Evidencia", ["Recepción", "Merma", "Despacho", "Calidad", "Factura", "Otro"])
-        with c_f2:
-            referencia_doc = st.text_input("N° de Documento / Lote (Opcional)")
-            observacion = st.text_area("Comentarios u Observaciones")
-            
-        usar_camara = st.checkbox("🟢 Activar la cámara web para tomar foto")
-        foto_capturada = st.camera_input("Capturar Evidencia") if usar_camara else None
-        archivo_adjunto = st.file_uploader("O adjuntar imagen (PNG, JPG)", type=["png", "jpg", "jpeg"])
-        
-        if st.form_submit_button("Guardar Evidencia"):
-            imagen_final = foto_capturada if foto_capturada is not None else archivo_adjunto
-            if imagen_final is None:
-                st.error("⚠️ Debes capturar una foto o adjuntar un archivo.")
-            else:
-                nueva_foto = {
-                    "ID_Foto": f"FOTO-{len(st.session_state.registro_fotos)+1:04d}",
-                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Usuario": st.session_state.get('usuario_actual', 'admin'),
-                    "SKU": sku_foto if sku_foto != "N/Ninguno" else "GENERAL",
-                    "Tipo": tipo_evidencia,
-                    "Referencia": referencia_doc or "S/R",
-                    "Comentarios": observacion or "Sin comentarios",
-                    "Imagen": imagen_final
-                }
-                st.session_state.registro_fotos.append(nueva_foto)
-                st.success("¡Evidencia registrada con éxito!")
-                st.rerun()
+    with st.form("form_mat_bodega"):
+        sku_asig = st.selectbox("Seleccionar SKU",
