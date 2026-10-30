@@ -123,7 +123,7 @@ def guardar_datos():
         st.error(f"Error al guardar en la base de datos: {e}")
 
 # ---------------------------------------------------------
-# SISTEMA DE AUTENTICACIÓN
+# SISTEMA DE AUTENTICACIÓN Y BARRA LATERAL
 # ---------------------------------------------------------
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -144,12 +144,8 @@ if not st.session_state.autenticado:
         else:
             st.error("Usuario o contraseña incorrectos")
 else:
-    # Obtener el usuario actual
     usuario_actual = st.session_state.get("usuario_actual", "bodega")
 
-    # ---------------------------------------------------------
-    # BARRA LATERAL Y MENÚ PRINCIPAL
-    # ---------------------------------------------------------
     st.sidebar.title("📦 WMS Marklogistic")
     st.sidebar.write(f"Usuario: **{usuario_actual}**")
     
@@ -170,7 +166,6 @@ else:
             st.sidebar.metric("✅ Alertas Stock", 0)
     st.sidebar.markdown("---")
     
-    # Definición de opciones del menú
     opciones_menu = [
         "1. Creación de Materiales",
         "2. Ingresos de Stock",
@@ -182,7 +177,6 @@ else:
         "8. Etiquetas"
     ]
     
-    # Módulo 9 solo visible para admin
     if usuario_actual == "admin":
         opciones_menu.append("9. Eliminar Transacciones")
         
@@ -191,6 +185,11 @@ else:
     if st.sidebar.button("Cerrar Sesión"):
         st.session_state.autenticado = False
         st.rerun()
+
+# ---------------------------------------------------------
+# INICIO DE LOS MÓDULOS
+# ---------------------------------------------------------
+if menu == "1. Creación de Materiales":
 
 # ---------------------------------------------------------
 # INICIO DE LOS MÓDULOS (Alineados al margen izquierdo)
