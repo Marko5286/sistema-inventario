@@ -551,62 +551,78 @@ elif menu == "8. Etiquetas":
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
         
         st.markdown("---")
+        
+        # 1. ESTILOS CSS PARA OCULTAR EL MENÚ Y MOSTRAR SOLO LAS ETIQUETAS AL IMPRIMIR
+        st.markdown("""
+            <style>
+                @media print {
+                    /* Ocultar elementos de la interfaz de Streamlit */
+                    [data-testid="stSidebar"], header, footer, .stButton, .stSelectbox, .stNumberInput, hr {
+                        display: none !important;
+                    }
+                    /* Ocultar el título principal de Streamlit al imprimir */
+                    h1 {
+                        display: none !important;
+                    }
+                    /* Asegurar fondo blanco y limpiar márgenes */
+                    body {
+                        background-color: white !important;
+                    }
+                    .main {
+                        background-color: white !important;
+                    }
+                    /* Permitir que las etiquetas se distribuyan correctamente */
+                    .etiqueta-print-container {
+                        display: block !important;
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                    }
+                }
+                
+                .etiqueta-box {
+                    border: 2px dashed #000;
+                    width: 320px;
+                    padding: 15px;
+                    font-family: Arial, sans-serif;
+                    background: white;
+                    color: black;
+                    margin-bottom: 20px;
+                    border-radius: 8px;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        # 2. BOTÓN DE IMPRESIÓN DIRECTA QUE ABRE EL DIÁLOGO DEL NAVEGADOR
+        if st.button("🖨️ Imprimir Etiquetas Ahora", type="primary"):
+            st.markdown("""
+                <script>
+                    window.print();
+                </script>
+            """, unsafe_allow_html=True)
+            
         st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
         
-        # Generar el HTML de las etiquetas que se van a mostrar e imprimir
-        html_etiquetas = ""
+        # 3. RENDERIZAR LAS ETIQUETAS EN LA PÁGINA PRINCIPAL
+        st.markdown('<div class="etiqueta-print-container">', unsafe_allow_html=True)
         for i in range(cantidad_copias):
-            html_etiquetas += f"""
-            <div style="
-                border: 2px dashed #000;
-                width: 320px;
-                padding: 15px;
-                font-family: Arial, sans-serif;
-                background: white;
-                color: black;
-                margin-bottom: 20px;
-                border-radius: 8px;
-            ">
-                <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
+            html_etiqueta = f"""
+            <div class="etiqueta-box">
+                <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px; color: black;">WMS MARKLOGISTIC</h4>
                 <hr style="border: 1px solid #000; margin: 5px 0;">
-                <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
-                <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
+                <p style="margin: 5px 0; font-size: 14px; color: black;"><b>SKU:</b> {mat_info['SKU']}</p>
+                <p style="margin: 5px 0; font-size: 14px; color: black;"><b>Descripción:</b> {mat_info['Nombre']}</p>
+                <p style="margin: 5px 0; font-size: 14px; color: black;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
+                <p style="margin: 5px 0; font-size: 14px; color: black;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
+                <p style="margin: 5px 0; font-size: 14px; color: black;"><b>Unidad:</b> {mat_info['Unidad']}</p>
+                <p style="margin: 5px 0; font-size: 14px; color: black;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
+                <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace; color: black;">
                     ||||| | |||| ||| || ||||
                 </div>
             </div>
             """
-
-        # Inyectar botón funcional mediante un componente seguro de Streamlit
-        import streamlit.components.v1 as components
-        
-        componente_html = f"""
-        <div>
-            <button onclick="parent.window.print()" style="
-                background-color: #ff4b4b;
-                color: white;
-                padding: 12px 24px;
-                border: none;
-                border-radius: 5px;
-                font-size: 16px;
-                font-weight: bold;
-                cursor: pointer;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                margin-bottom: 20px;
-            ">
-                🖨️ Imprimir Etiquetas Ahora
-            </button>
-            <div>
-                {html_etiquetas}
-            </div>
-        </div>
-        """
-        
-        components.html(componente_html, height=(250 * cantidad_copias) + 80, scrolling=True)
+            st.markdown(html_etiqueta, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # MÓDULO 9: ELIMINAR TRANSACCIONES
