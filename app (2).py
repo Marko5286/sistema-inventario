@@ -215,7 +215,7 @@ else:
 if st.session_state.get("autenticado", False) and menu:
 
     # ---------------------------------------------------------
-    # MÓDULO 1: CREACIÓN DE MATERIALES Y CARGA MASIVA
+    # MÓDULO 1: CREACIÓN DE MATERIALES
     # ---------------------------------------------------------
     if menu == "1. Creación de Materiales":
         st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
@@ -258,15 +258,11 @@ if st.session_state.get("autenticado", False) and menu:
 
         with tab_masivo:
             st.subheader("Subir Planilla Excel de Materiales")
-            st.info("💡 **Formato requerido del Excel:** La primera fila debe contener:\n\n `SKU`, `Nombre`, `Unidad`, `Valor_Unitario`, `Stock_Actual`, `Stock_Minimo`, `Ubicacion`, `Bodega`")
-            
             archivo_excel = st.file_uploader("Selecciona el archivo Excel (.xlsx)", type=["xlsx", "xls"])
-            
             if archivo_excel is not None:
                 try:
                     df_cargado = pd.read_excel(archivo_excel)
                     columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Stock_Minimo", "Ubicacion", "Bodega"]
-                    
                     if not all(col in df_cargado.columns for col in ["SKU", "Nombre"]):
                         st.error("⚠️ El archivo subido debe contener al menos las columnas 'SKU' y 'Nombre'.")
                     else:
@@ -278,36 +274,168 @@ if st.session_state.get("autenticado", False) and menu:
                         if "Bodega" not in df_cargado.columns: df_cargado["Bodega"] = "Bodega Central Antofagasta"
                         
                         df_cargado["SKU"] = df_cargado["SKU"].astype(str).str.strip().str.upper()
-                        st.write("🔍 **Vista previa de los datos a cargar:**")
                         st.dataframe(df_cargado[columnas_requeridas].head(10))
                         
                         if st.button("🚀 Confirmar e Importar Datos"):
                             skus_existentes = set(st.session_state.materiales["SKU"].tolist())
                             df_nuevos = df_cargado[~df_cargado["SKU"].isin(skus_existentes)][columnas_requeridas]
-                            cant_duplicados = len(df_cargado) - len(df_nuevos)
-                            
-                            if df_nuevos.empty:
-                                st.warning("⚠️ Todos los SKU del archivo ya existen en la base de datos.")
-                            else:
+                            if not df_nuevos.empty:
                                 st.session_state.materiales = pd.concat([st.session_state.materiales, df_nuevos], ignore_index=True)
                                 guardar_datos()
-                                st.success(f"¡Carga completada! Se importaron **{len(df_nuevos)}** nuevos materiales.")
-                                if cant_duplicados > 0:
-                                    st.warning(f"Se omitieron **{cant_duplicados}** registros porque sus SKUs ya existían.")
+                                st.success(f"¡Carga completada! Se importaron **{len(df_nuevos)}** materiales.")
                                 st.rerun()
                 except Exception as e:
-                    st.error(f"Error al procesar el archivo Excel: {e}")
+                    st.error(f"Error: {e}")
 
         st.markdown("---")
         st.subheader("Maestro de Materiales Registrados")
         st.dataframe(st.session_state.materiales, use_container_width=True)
 
     # ---------------------------------------------------------
-    # MÓDULO 5: INVENTARIO Y FILTROS AVANZADOS
+    # MÓDULO 2: INGRESOS DE STOCK
+    # ---------------------------------------------------------
+    elif menu == "2. Ingresos de Stock":
+        st.header("📥 Ingresos de Stock a Bodega")
+        if st.session_state.materiales.empty:
+            st.warning("Primero debes registrar materiales en el Módulo 1.")
+        else:
+            with st.form("form_ingreso"):
+                sku_ing = st.selectbox("Seleccione SKU", st.session_state.materiales["SKU"].tolist())
+                cant_ing = st.number_input("Cantidad a Ingresar", min_value=1, value=1)
+                origen_ing = st.text_input("Proveedor / Origen", value="Compra Proveedor")
+                
+                if st.form_submit_button("Registrar Ingreso"):
+                    idx = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_ing].index[0]
+                    st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_ing
+                    
+                    nuevo_mov = pd.DataFrame([{
+                        "ID_Mov": f"ING-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                        "Tipo": "Ingreso",
+                        "SKU": sku_ing,
+                        "Cantidad": cant_ing,
+                        "Origen_Destino": origen_ing,
+                        "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Usuario": usuario_actual
+                    }])
+                    st.session_state.movimientos = pd.concat([st.session_state.movimientos, nuevo_mov], ignore_index=True)
+                    guardar_datos()
+                    st.success(f"¡Ingreso registrado con éxito! Stock actualizado para {sku_ing}.")
+                    st.rerun()
+
+    # ---------------------------------------------------------
+    # MÓDULO 3: PICKING Y SALIDAS
+    # ---------------------------------------------------------
+    elif menu == "3. Picking y Salidas":
+        st.header("📦 Órdenes de Picking y Salidas de Material")
+        if st.session_state.materiales.empty:
+            st.warning("No hay materiales en el inventario.")
+        else:
+            with st.form("form_picking"):
+                cliente_pk = st.text_input("Cliente / Destino")
+                sku_pk = st.selectbox("SKU a Despachar", st.session_state.materiales["SKU"].tolist())
+                cant_pk = st.number_input("Cantidad Requerida", min_value=1, value=1)
+                
+                if st.form_submit_button("Generar Orden de Picking"):
+                    stock_disp = int(st.session_state.materiales.loc[st.session_state.materiales["SKU"] == sku_pk, "Stock_Actual"].values[0])
+                    if cant_pk > stock_disp:
+                        st.error(f"Stock insuficiente. Disponible actual: {stock_disp}")
+                    else:
+                        ubicacion_sku = st.session_state.materiales.loc[st.session_state.materiales["SKU"] == sku_pk, "Ubicacion"].values[0]
+                        nueva_orden = {
+                            "ID_Picking": f"PK-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                            "Cliente": cliente_pk,
+                            "SKU": sku_pk,
+                            "Ubicacion": ubicacion_sku,
+                            "Cantidad": cant_pk,
+                            "Estado": "Pendiente"
+                        }
+                        st.session_state.ordenes_picking.append(nueva_orden)
+                        guardar_datos()
+                        st.success("Orden de Picking generada correctamente.")
+                        st.rerun()
+
+            st.markdown("---")
+            st.subheader("Órdenes de Picking Registradas")
+            if st.session_state.ordenes_picking:
+                df_pk = pd.DataFrame(st.session_state.ordenes_picking)
+                st.dataframe(df_pk, use_container_width=True)
+            else:
+                st.info("No hay órdenes de picking creadas.")
+
+    # ---------------------------------------------------------
+    # MÓDULO 4: DESPACHO Y GUÍA
+    # ---------------------------------------------------------
+    elif menu == "4. Despacho y Guía":
+        st.header("🚚 Emisión de Guías de Despacho y Documentación")
+        if not st.session_state.ordenes_picking:
+            st.warning("No hay órdenes de picking disponibles para despachar.")
+        else:
+            pendientes = [o["ID_Picking"] for o in st.session_state.ordenes_picking if o["Estado"] == "Pendiente"]
+            if not pendientes:
+                st.info("No hay órdenes pendientes de despacho.")
+            else:
+                pk_sel = st.selectbox("Seleccionar Orden de Picking", pendientes)
+                orden_act = next(o for o in st.session_state.ordenes_picking if o["ID_Picking"] == pk_sel)
+                
+                with st.form("form_guia"):
+                    st.write(f"**Cliente:** {orden_act['Cliente']} | **SKU:** {orden_act['SKU']} | **Cant:** {orden_act['Cantidad']}")
+                    num_guia = st.text_input("Número de Guía de Despacho", value=f"GD-{datetime.now().strftime('%Y%m%d%H%M')}")
+                    rut_cli = st.text_input("RUT Cliente")
+                    transporte = st.text_input("Empresa de Transporte")
+                    conductor = st.text_input("Nombre Conductor")
+                    rut_cond = st.text_input("RUT Conductor")
+                    patente = st.text_input("Patente Vehículo")
+                    motivo = st.selectbox("Motivo del Despacho", ["Venta", "Traslado", "Devolución", "Muestras"])
+                    
+                    if st.form_submit_button("Emitir Guía y Descontar Stock"):
+                        sku_g = orden_act["SKU"]
+                        cant_g = orden_act["Cantidad"]
+                        
+                        # Descontar stock
+                        idx = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_g].index[0]
+                        st.session_state.materiales.loc[idx, "Stock_Actual"] -= cant_g
+                        
+                        # Actualizar estado picking
+                        for o in st.session_state.ordenes_picking:
+                            if o["ID_Picking"] == pk_sel:
+                                o["Estado"] = "Completado"
+                                
+                        # Registrar movimiento salida
+                        nuevo_mov = pd.DataFrame([{
+                            "ID_Mov": f"SAL-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                            "Tipo": "Salida/Despacho",
+                            "SKU": sku_g,
+                            "Cantidad": cant_g,
+                            "Origen_Destino": orden_act["Cliente"],
+                            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Usuario": usuario_actual
+                        }])
+                        st.session_state.movimientos = pd.concat([st.session_state.movimientos, nuevo_mov], ignore_index=True)
+                        
+                        # Registrar guía
+                        nueva_g = {
+                            "Numero_Guia": num_guia,
+                            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Cliente": orden_act["Cliente"],
+                            "Rut": rut_cli,
+                            "SKU": sku_g,
+                            "Cantidad": cant_g,
+                            "Transporte": transporte,
+                            "Conductor": conductor,
+                            "Rut_Conductor": rut_cond,
+                            "Patente": patente,
+                            "Motivo": motivo
+                        }
+                        st.session_state.guias_despacho.append(nueva_g)
+                        guardar_datos()
+                        st.success("¡Guía emitida con éxito y stock descontado!")
+                        st.rerun()
+
+    # ---------------------------------------------------------
+    # MÓDULO 5: INVENTARIO
     # ---------------------------------------------------------
     elif menu == "5. Inventario":
         st.header("📊 Control de Inventario y Alertas de Stock")
-        
         if st.session_state.materiales.empty:
             st.info("No hay materiales registrados en el inventario.")
         else:
@@ -323,12 +451,11 @@ if st.session_state.get("autenticado", False) and menu:
                 st.metric("⚠️ SKUs en Stock Crítico", len(quiebres), delta=-len(quiebres) if len(quiebres) > 0 else 0, delta_color="inverse")
             
             if not quiebres.empty:
-                st.warning("⚠️ **Atención:** Los siguientes productos se encuentran en o por debajo de su stock mínimo de seguridad:")
+                st.warning("⚠️ **Atención:** Productos en o por debajo de su stock mínimo:")
                 st.dataframe(quiebres[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Ubicacion"]], use_container_width=True)
             
             st.markdown("---")
             st.subheader("🔍 Filtros y Búsqueda Avanzada")
-            
             col_f1, col_f2 = st.columns(2)
             with col_f1:
                 busqueda_texto = st.text_input("Filtrar por SKU o Nombre").strip().upper()
@@ -345,7 +472,65 @@ if st.session_state.get("autenticado", False) and menu:
             if filtro_bodega != "Todas":
                 df_filtrado = df_filtrado[df_filtrado["Bodega"] == filtro_bodega]
                 
-            st.subheader(f"📋 Maestro de Materiales ({len(df_filtrado)} resultados)")
             st.dataframe(df_filtrado, use_container_width=True)
 
-    # (Nota: Puedes mantener tus demás módulos 2, 3, 4, 6, 7, 8 y 9 intactos debajo de este bloque).
+    # ---------------------------------------------------------
+    # MÓDULO 6: DASHBOARD GERENCIAL
+    # ---------------------------------------------------------
+    elif menu == "6. Dashboard Gerencial":
+        st.header("📈 Dashboard Gerencial y Kpis de Bodega")
+        if st.session_state.materiales.empty:
+            st.info("No hay datos suficientes para mostrar el dashboard.")
+        else:
+            df_m = st.session_state.materiales
+            valor_total_inv = (df_m["Stock_Actual"] * df_m["Valor_Unitario"]).sum()
+            
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("Valorización Total Inventario", f"${valor_total_inv:,.0f}")
+            with c2:
+                st.metric("Total Movimientos Registrados", len(st.session_state.movimientos))
+            with c3:
+                st.metric("Guías Emitidas", len(st.session_state.guias_despacho))
+
+    # ---------------------------------------------------------
+    # MÓDULO 7: TRAZABILIDAD
+    # ---------------------------------------------------------
+    elif menu == "7. Trazabilidad":
+        st.header("🔎 Trazabilidad de Movimientos por SKU")
+        if st.session_state.movimientos.empty:
+            st.info("No hay movimientos registrados.")
+        else:
+            sku_traza = st.selectbox("Seleccione SKU para Auditar", st.session_state.materiales["SKU"].tolist())
+            df_movs = st.session_state.movimientos
+            df_filtrado_mov = df_movs[df_movs["SKU"] == sku_traza]
+            st.dataframe(df_filtrado_mov, use_container_width=True)
+
+    # ---------------------------------------------------------
+    # MÓDULO 8: ETIQUETAS
+    # ---------------------------------------------------------
+    elif menu == "8. Etiquetas":
+        st.header("🏷️ Generación de Etiquetas de SKU y Ubicación")
+        if st.session_state.materiales.empty:
+            st.info("No hay materiales para etiquetar.")
+        else:
+            sku_etiq = st.selectbox("Seleccione SKU", st.session_state.materiales["SKU"].tolist())
+            mat_sel = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiq].iloc[0]
+            st.markdown(f"""
+            ### Etiqueta de Bodega
+            * **SKU:** {mat_sel['SKU']}
+            * **Nombre:** {mat_sel['Nombre']}
+            * **Ubicación:** {mat_sel['Ubicacion']}
+            * **Bodega:** {mat_sel['Bodega']}
+            """)
+
+    # ---------------------------------------------------------
+    # MÓDULO 9: ELIMINAR TRANSACCIONES (ADMIN)
+    # ---------------------------------------------------------
+    elif menu == "9. Eliminar Transacciones" and usuario_actual == "admin":
+        st.header("⚙️ Panel de Administración - Resetear o Eliminar Datos")
+        if st.button("⚠️ Borrar Todos los Movimientos"):
+            st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen_Destino", "Fecha", "Usuario"])
+            guardar_datos()
+            st.success("Movimientos eliminados.")
+            st.rerun()
