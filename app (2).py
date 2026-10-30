@@ -244,6 +244,33 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
 # 2. PANEL LATERAL / NAVEGACIÓN Y PERMISOS
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS Marklogistic")
+st.sidebar.write(f"Usuario: **{usuario_actual}**")
+    
+    # ---> PEGA EL RESUMEN RÁPIDO AQUÍ <---
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📊 Estado Rápido")
+    if "materiales" in st.session_state and not st.session_state.materiales.empty:
+        total_items = len(st.session_state.materiales)
+        if "Stock_Minimo" in st.session_state.materiales.columns:
+            criticos = len(st.session_state.materiales[st.session_state.materiales["Stock_Actual"] <= st.session_state.materiales["Stock_Minimo"]])
+        else:
+            criticos = 0
+            
+        st.sidebar.metric("📦 SKUs Totales", total_items)
+        if criticos > 0:
+            st.sidebar.metric("⚠️ Alertas Stock", criticos, delta=-criticos, delta_color="inverse")
+        else:
+            st.sidebar.metric("✅ Alertas Stock", 0)
+    st.sidebar.markdown("---")
+    # ---------------------------------------
+
+    # El menú principal que ya tienes
+    menu = st.sidebar.selectbox("Seleccione Módulo", [
+        "1. Creación de Materiales",
+        "2. Ingresos de Stock",
+        "3. Picking y Salidas",
+        ...
+    ])
 
 # Mostrar el logo local si el archivo existe en el repositorio
 if os.path.exists("logo.jpg.jpg"):
