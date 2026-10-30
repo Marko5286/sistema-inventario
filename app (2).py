@@ -189,13 +189,18 @@ else:
 # ---------------------------------------------------------
 # INICIO DE LOS MÓDULOS
 # ---------------------------------------------------------
-if menu == "1. Creación de Materiales":
+menu = st.sidebar.selectbox("Seleccione Módulo", opciones_menu)
+    
+    if st.sidebar.button("Cerrar Sesión"):
+        st.session_state.autenticado = False
+        st.rerun()
 
 # ---------------------------------------------------------
-# INICIO DE LOS MÓDULOS (Alineados al margen izquierdo)
+# INICIO DE LOS MÓDULOS (Alineado al margen izquierdo)
 # ---------------------------------------------------------
-if menu == "1. Creación de Materiales":
-    # (Aquí continúa el código de tu módulo 1)
+if "menu" in locals() or "menu" in globals():
+    if menu == "1. Creación de Materiales":
+        # (Aquí continúa el código de tu módulo 1)
 
     # ---------------------------------------------------------
     # BARRA LATERAL Y MENÚ PRINCIPAL
