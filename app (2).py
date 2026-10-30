@@ -123,53 +123,80 @@ def guardar_datos():
         st.error(f"Error al guardar en la base de datos: {e}")
 
 # ---------------------------------------------------------
-# 0.1 AUTENTICACIÓN Y PERMISOS DE USUARIOS
+# SISTEMA DE AUTENTICACIÓN
 # ---------------------------------------------------------
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
-def verificar_credenciales(usuario, clave):
-    usuarios_permitidos = {
-        "admin": "admin123",
-        "bodega": "bodega2026",
-        "logistica": "marko2026"
-    }
-    if usuario in usuarios_permitidos and usuarios_permitidos[usuario] == clave:
-        return True
-    return False
-
-PERMISOS_USUARIOS = {
-    "admin": [
-        "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
-        "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
-        "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
-        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico", "15. Gestión de Permisos"
-    ],
-    "bodega": [
-        "2. Ingreso de Materiales", "3. Picking de Materiales", "4. Despacho y Guía", 
-        "5. Inventario", "8. Etiquetas", "11. Escáner de SKU", "14. Registro Fotográfico"
-    ],
-    "logistica": [
-        "3. Picking de Materiales", "4. Despacho y Guía", "5. Inventario", 
-        "6. Dashboard Gerencial", "7. Trazabilidad", "12. Gestión de Bodegas"
-    ]
-}
-
 if not st.session_state.autenticado:
-    st.title("🔐 Acceso al WMS Marklogistic")
-    st.markdown("Por favor, introduce tus credenciales para continuar.")
-    with st.form("form_login"):
-        user_input = st.text_input("Usuario")
-        pass_input = st.text_input("Contraseña", type="password")
-        btn_login = st.form_submit_button("Iniciar Sesión")
-        if btn_login:
-            if verificar_credenciales(user_input, pass_input):
-                st.session_state.autenticado = True
-                st.session_state.usuario_actual = user_input
-                st.rerun()
-            else:
-                st.error("Usuario o contraseña incorrectos.")
-    st.stop()
+    st.title("🔐 WMS Marklogistic - Iniciar Sesión")
+    usuario_ingresado = st.text_input("Usuario")
+    password_ingresado = st.text_input("Contraseña", type="password")
+    
+    if st.button("Ingresar"):
+        if (usuario_ingresado == "admin" and password_ingresado == "admin123") or \
+           (usuario_ingresado == "bodega" and password_ingresado == "bodega123") or \
+           (usuario_ingresado == "logistica" and password_ingresado == "logistica123"):
+            st.session_state.autenticado = True
+            st.session_state.usuario_actual = usuario_ingresado
+            st.success("¡Bienvenido!")
+            st.rerun()
+        else:
+            st.error("Usuario o contraseña incorrectos")
+else:
+    # Obtener el usuario actual
+    usuario_actual = st.session_state.get("usuario_actual", "bodega")
+
+    # ---------------------------------------------------------
+    # BARRA LATERAL Y MENÚ PRINCIPAL
+    # ---------------------------------------------------------
+    st.sidebar.title("📦 WMS Marklogistic")
+    st.sidebar.write(f"Usuario: **{usuario_actual}**")
+    
+    # Resumen Rápido en Barra Lateral (UX)
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📊 Estado Rápido")
+    if "materiales" in st.session_state and not st.session_state.materiales.empty:
+        total_items = len(st.session_state.materiales)
+        if "Stock_Minimo" in st.session_state.materiales.columns:
+            criticos = len(st.session_state.materiales[st.session_state.materiales["Stock_Actual"] <= st.session_state.materiales["Stock_Minimo"]])
+        else:
+            criticos = 0
+            
+        st.sidebar.metric("📦 SKUs Totales", total_items)
+        if criticos > 0:
+            st.sidebar.metric("⚠️ Alertas Stock", criticos, delta=-criticos, delta_color="inverse")
+        else:
+            st.sidebar.metric("✅ Alertas Stock", 0)
+    st.sidebar.markdown("---")
+    
+    # Definición de opciones del menú
+    opciones_menu = [
+        "1. Creación de Materiales",
+        "2. Ingresos de Stock",
+        "3. Picking y Salidas",
+        "4. Despacho y Guía",
+        "5. Inventario",
+        "6. Dashboard Gerencial",
+        "7. Trazabilidad",
+        "8. Etiquetas"
+    ]
+    
+    # Módulo 9 solo visible para admin
+    if usuario_actual == "admin":
+        opciones_menu.append("9. Eliminar Transacciones")
+        
+    menu = st.sidebar.selectbox("Seleccione Módulo", opciones_menu)
+    
+    if st.sidebar.button("Cerrar Sesión"):
+        st.session_state.autenticado = False
+        st.rerun()
+
+    # ---------------------------------------------------------
+    # INICIO DE LOS MÓDULOS (Alineados correctamente)
+    # ---------------------------------------------------------
+    if menu == "1. Creación de Materiales":
+        # (Aquí continúa el código de tu módulo 1)
 
 # ---------------------------------------------------------
 # FUNCIONES DE AUTOMATIZACIÓN (PDF CON FIRMA & CORREO)
