@@ -491,37 +491,111 @@ elif menu == "5. Inventario":
     st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 6: DASHBOARD GERENCIAL
-# ---------------------------------------------------------
-elif menu == "6. Dashboard Gerencial":
-    st.header("📈 Dashboard Gerencial y Analítica de Bodega")
-    if st.session_state.materiales.empty:
-        st.info("No hay suficientes datos de materiales para generar el dashboard.")
-    else:
-        import plotly.express as px
-        total_skus = len(st.session_state.materiales)
-        stock_total = int(st.session_state.materiales["Stock_Actual"].sum())
-        val_inventario = (st.session_state.materiales["Stock_Actual"] * st.session_state.materiales["Valor_Unitario"]).sum()
-        
-        col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
-        col_kpi1.metric("📦 Total de SKUs", total_skus)
-        col_kpi2.metric("📊 Unidades en Stock", f"{stock_total:,.0f}")
-        col_kpi3.metric("💰 Valorización Total Inventario", f"${val_inventario:,.0f}")
-        
-        st.markdown("---")
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.subheader("Top Productos con Mayor Stock")
-            df_top_stock = st.session_state.materiales.sort_values(by="Stock_Actual", ascending=False).head(10)
-            fig_stock = px.bar(df_top_stock, x="SKU", y="Stock_Actual", text="Stock_Actual", color="Stock_Actual", color_continuous_scale="Blues", title="Top 10 SKUs con Mayor Cantidad en Bodega")
-            st.plotly_chart(fig_stock, use_container_width=True)
-        with col_g2:
-            st.subheader("Valorización por Producto")
-            df_val = st.session_state.materiales.copy()
-            df_val["Valor_Total"] = df_val["Stock_Actual"] * df_val["Valor_Unitario"]
-            df_top_val = df_val.sort_values(by="Valor_Total", ascending=False).head(10)
-            fig_val = px.pie(df_top_val, names="SKU", values="Valor_Total", title="Distribución del Valor en Inventario (Top SKU)", hole=0.4)
-            st.plotly_chart(fig_val, use_container_width=True)
+    # MÓDULO 6: DASHBOARD GERENCIAL
+    # ---------------------------------------------------------
+    elif menu == "6. Dashboard Gerencial":
+        st.header("📈 Dashboard Gerencial y Kpis de Bodega")
+        if st.session_state.materiales.empty:
+            st.info("No hay datos suficientes para mostrar el dashboard.")
+        else:
+            df_m = st.session_state.materiales
+            valor_total_inv = (df_m["Stock_Actual"] * df_m["Valor_Unitario"]).sum()
+            
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("Valorización Total Inventario", f"${valor_total_inv:,.0f}")
+            with c2:
+                st.metric("Total Movimientos Registrados", len(st.session_state.movimientos))
+            with c3:
+                st.metric("Guías Emitidas", len(st.session_state.guias_despacho))
+
+    # ---------------------------------------------------------
+    # MÓDULO 7: TRAZABILIDAD
+    # ---------------------------------------------------------
+    elif menu == "7. Trazabilidad":
+        st.header("🔎 Trazabilidad de Movimientos por SKU")
+        if st.session_state.movimientos.empty:
+            st.info("No hay movimientos registrados.")
+        else:
+            sku_traza = st.selectbox("Seleccione SKU para Auditar", st.session_state.materiales["SKU"].tolist())
+            df_movs = st.session_state.movimientos
+            df_filtrado_mov = df_movs[df_movs["SKU"] == sku_traza]
+            st.dataframe(df_filtrado_mov, use_container_width=True)
+
+    # ---------------------------------------------------------
+    # MÓDULO 8: ETIQUETAS
+    # ---------------------------------------------------------
+    elif menu == "8. Etiquetas":
+        st.header("🏷️ Generación e Impresión de Etiquetas de SKU y Ubicación")
+        if st.session_state.materiales.empty:
+            st.info("No hay materiales para etiquetar.")
+        else:
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                sku_etiq = st.selectbox("Seleccione SKU para Etiqueta", st.session_state.materiales["SKU"].tolist())
+            with col_e2:
+                copias = st.number_input("Cantidad de copias", min_value=1, value=1)
+                
+            mat_sel = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiq].iloc[0]
+            
+            st.markdown("---")
+            st.subheader("👁️ Vista Previa de la Etiqueta")
+            
+            st.markdown(f"""
+            <div style="border: 3px dashed #333; padding: 20px; border-radius: 10px; background-color: white; color: black; max-width: 400px; font-family: monospace;">
+                <h3 style="margin: 0; color: #000;">📦 WMS MARKLOGISTIC</h3>
+                <hr style="border: 1px solid #333;">
+                <p style="font-size: 18px; margin: 5px 0;"><b>SKU:</b> {mat_sel['SKU']}</p>
+                <p style="font-size: 16px; margin: 5px 0;"><b>Descripción:</b> {mat_sel['Nombre']}</p>
+                <p style="font-size: 16px; margin: 5px 0;"><b>Ubicación:</b> <span style="background-color: #eee; padding: 2px 6px; border-radius: 4px;"><b>{mat_sel['Ubicacion']}</b></span></p>
+                <p style="font-size: 14px; margin: 5px 0; color: #555;">Bodega: {mat_sel['Bodega']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            def generar_pdf_etiqueta(mat, n_copias):
+                buffer = BytesIO()
+                c = canvas.Canvas(buffer, pagesize=(300, 200))
+                for i in range(n_copias):
+                    if i > 0:
+                        c.showPage()
+                    c.setFont("Helvetica-Bold", 12)
+                    c.drawString(15, 175, "WMS MARKLOGISTIC - ETIQUETA")
+                    c.line(15, 165, 285, 165)
+                    c.setFont("Helvetica-Bold", 14)
+                    c.drawString(15, 135, f"SKU: {mat['SKU']}")
+                    c.setFont("Helvetica", 11)
+                    c.drawString(15, 110, f"Nombre: {str(mat['Nombre'])[:35]}")
+                    c.setFont("Helvetica-Bold", 13)
+                    c.drawString(15, 80, f"UBICACIÓN: {mat['Ubicacion']}")
+                    c.setFont("Helvetica", 9)
+                    c.drawString(15, 50, f"Bodega: {mat['Bodega']}")
+                    c.drawString(15, 35, f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+                c.save()
+                buffer.seek(0)
+                return buffer
+
+            pdf_buffer = generar_pdf_etiqueta(mat_sel, copias)
+            
+            st.download_button(
+                label="🖨️ Descargar Etiqueta en PDF (Lista para Imprimir)",
+                data=pdf_buffer,
+                file_name=f"etiqueta_{mat_sel['SKU']}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+
+    # ---------------------------------------------------------
+    # MÓDULO 9: ELIMINAR TRANSACCIONES (ADMIN)
+    # ---------------------------------------------------------
+    elif menu == "9. Eliminar Transacciones" and usuario_actual == "admin":
+        st.header("⚙️ Panel de Administración - Resetear o Eliminar Datos")
+        if st.button("⚠️ Borrar Todos los Movimientos"):
+            st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen_Destino", "Fecha", "Usuario"])
+            guardar_datos()
+            st.success("Movimientos eliminados.")
+            st.rerun()
 
 # ---------------------------------------------------------
 # MÓDULO 7: TRAZABILIDAD
