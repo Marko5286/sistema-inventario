@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -8,6 +7,7 @@ import smtplib
 from email.message import EmailMessage
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
 
@@ -32,7 +32,6 @@ if "materiales" not in st.session_state:
 
 if "Bodega" not in st.session_state.materiales.columns:
     st.session_state.materiales["Bodega"] = "Bodega Central Antofagasta"
-
 if "Ubicacion" not in st.session_state.materiales.columns:
     st.session_state.materiales["Ubicacion"] = "A-00-0"
 
@@ -41,9 +40,12 @@ if "movimientos" not in st.session_state:
         try:
             st.session_state.movimientos = pd.read_excel(EXCEL_MOVIMIENTOS)
         except:
-            st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha"])
+            st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
     else:
-        st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha"])
+        st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
+
+if "Usuario" not in st.session_state.movimientos.columns:
+    st.session_state.movimientos["Usuario"] = "admin"
 
 if "ordenes_picking" not in st.session_state:
     if os.path.exists(EXCEL_PICKING):
@@ -107,7 +109,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ---------------------------------------------------------
-# FUNCIONES DE AUTOMATIZACIÓN (PDF & CORREO)
+# FUNCIONES DE AUTOMATIZACIÓN (PDF CON FIRMA & CORREO)
 # ---------------------------------------------------------
 def generar_pdf_guia(guia):
     buffer = BytesIO()
@@ -117,7 +119,7 @@ def generar_pdf_guia(guia):
     c.setFont("Helvetica", 10)
     c.drawString(50, 735, "R.U.T.: 76.543.210-K | Giro: Logística y Distribución")
     c.setFont("Helvetica-Bold", 14)
-    c.drawRightString(550, 750, "GUÍA DE TRASLADO ")
+    c.drawRightString(550, 750, "GUÍA DE TRASLADO")
     c.setFont("Helvetica-Bold", 12)
     c.drawRightString(550, 735, f"N° {guia['Numero_Guia']}")
     c.line(50, 720, 550, 720)
@@ -138,10 +140,25 @@ def generar_pdf_guia(guia):
     c.drawString(60, 565, str(guia['SKU']))
     c.drawString(150, 565, str(guia['Cantidad']))
     c.drawString(250, 565, "Despacho operativo según orden de picking")
-    c.line(50, 150, 220, 150)
-    c.drawString(70, 135, "Firma Chofer / Transportista")
-    c.line(380, 150, 550, 150)
-    c.drawString(400, 135, "Firma Recinto / Cliente")
+    
+    # Firmas
+    c.line(50, 180, 220, 180)
+    c.drawString(70, 165, "Firma Chofer / Transportista")
+    c.line(380, 180, 550, 180)
+    c.drawString(400, 165, "Firma Recinto / Cliente")
+    
+    # Estampar firma digital si existe
+    if "Firma_Img" in guia and guia["Firma_Img"] is not None:
+        try:
+            img_array = guia["Firma_Img"]
+            img_pil = Image.fromarray(img_array.astype('uint8'), 'RGBA')
+            img_buffer = BytesIO()
+            img_pil.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+            c.drawImage(ImageReader(img_buffer), 380, 190, width=150, height=50, mask='auto')
+        except:
+            pass
+
     c.save()
     buffer.seek(0)
     return buffer
@@ -178,22 +195,10 @@ if st.sidebar.button("Cerrar Sesión"):
 
 st.sidebar.markdown("---")
 menu = st.sidebar.radio("Módulos del Sistema", [
-    "1. Creación de Materiales",
-    "2. Ingreso de Materiales",
-    "3. Picking de Materiales",
-    "4. Despacho y Guía",
-    "5. Inventario",
-    "6. Dashboard Gerencial",
-    "7. Trazabilidad",
-    "8. Etiquetas",
-    "9. Eliminar Transacciones",
-    "10. Asistente IA",
-    "11. Escáner de SKU",
-    "12. Gestión de Bodegas",
-    "13. Auditoría y Logs",
-    "14. Registro Fotográfico",
-    
-    
+    "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
+    "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
+    "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
+    "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico"
 ])
 
 st.sidebar.markdown("---")
@@ -234,13 +239,11 @@ if not st.session_state.materiales.empty:
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES Y CARGA MASIVA
 # ---------------------------------------------------------
-elif menu == "1. Creación de Materiales":
+if menu == "1. Creación de Materiales":
     st.header("📋 Registro y Carga Masiva de Materiales / Maestro de SKU")
     
-    # Creamos dos pestañas para organizar la interfaz
     tab_manual, tab_masivo = st.tabs(["✍️ Registro Manual", "📂 Carga Masiva (Excel)"])
     
-    # --- PESTAÑA 1: REGISTRO MANUAL ---
     with tab_manual:
         with st.form("form_nuevo_mat"):
             st.subheader("Registro Manual de Material")
@@ -274,49 +277,38 @@ elif menu == "1. Creación de Materiales":
                     st.success(f"Material {sku_m} creado correctamente.")
                     st.rerun()
 
-    # --- PESTAÑA 2: CARGA MASIVA DESDE EXCEL ---
     with tab_masivo:
         st.subheader("Subir Planilla Excel de Materiales")
-        st.info("💡 **Formato requerido del Excel:** La primera fila debe contener exactamente los siguientes encabezados de columna:\n\n `SKU`, `Nombre`, `Unidad`, `Valor_Unitario`, `Stock_Actual`, `Ubicacion`, `Bodega`")
+        st.info("💡 **Formato requerido del Excel:** La primera fila debe contener exactamente:\n\n `SKU`, `Nombre`, `Unidad`, `Valor_Unitario`, `Stock_Actual`, `Ubicacion`, `Bodega`")
         
         archivo_excel = st.file_uploader("Selecciona el archivo Excel (.xlsx)", type=["xlsx", "xls"])
         
         if archivo_excel is not None:
             try:
-                # Leer el Excel subido
                 df_cargado = pd.read_excel(archivo_excel)
-                
-                # Columnas obligatorias que debe tener el Excel
                 columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"]
                 
-                # Verificar que el Excel tenga las columnas mínimas
                 if not all(col in df_cargado.columns for col in ["SKU", "Nombre"]):
                     st.error("⚠️ El archivo subido debe contener al menos las columnas 'SKU' y 'Nombre'.")
                 else:
-                    # Rellenar valores faltantes por defecto si alguna columna opcional no viene
                     if "Unidad" not in df_cargado.columns: df_cargado["Unidad"] = "Unidades"
                     if "Valor_Unitario" not in df_cargado.columns: df_cargado["Valor_Unitario"] = 0
                     if "Stock_Actual" not in df_cargado.columns: df_cargado["Stock_Actual"] = 0
                     if "Ubicacion" not in df_cargado.columns: df_cargado["Ubicacion"] = "A-00-0"
                     if "Bodega" not in df_cargado.columns: df_cargado["Bodega"] = "Bodega Central Antofagasta"
                     
-                    # Dar formato a los SKU y limpiar espacios
                     df_cargado["SKU"] = df_cargado["SKU"].astype(str).str.strip().str.upper()
-                    
                     st.write("🔍 **Vista previa de los datos a cargar:**")
                     st.dataframe(df_cargado[columnas_requeridas].head(10))
                     
                     if st.button("🚀 Confirmar e Importar Datos"):
-                        # Filtrar para no duplicar SKUs que ya existen en el sistema
                         skus_existentes = set(st.session_state.materiales["SKU"].tolist())
                         df_nuevos = df_cargado[~df_cargado["SKU"].isin(skus_existentes)][columnas_requeridas]
-                        
                         cant_duplicados = len(df_cargado) - len(df_nuevos)
                         
                         if df_nuevos.empty:
                             st.warning("⚠️ Todos los SKU del archivo ya existen en la base de datos.")
                         else:
-                            # Concatenar con la base de datos actual
                             st.session_state.materiales = pd.concat([st.session_state.materiales, df_nuevos], ignore_index=True)
                             guardar_datos()
                             st.success(f"¡Carga completada! Se importaron **{len(df_nuevos)}** nuevos materiales.")
@@ -326,7 +318,6 @@ elif menu == "1. Creación de Materiales":
             except Exception as e:
                 st.error(f"Error al procesar el archivo Excel: {e}")
 
-    # --- TABLA GENERAL DE MATERIALES ---
     st.markdown("---")
     st.subheader("Maestro de Materiales Registrados")
     st.dataframe(st.session_state.materiales, use_container_width=True)
@@ -343,20 +334,18 @@ elif menu == "2. Ingreso de Materiales":
             sku_ingreso = st.selectbox("Seleccionar Material (SKU)", st.session_state.materiales["SKU"])
             cant_ingreso = st.number_input("Cantidad a Ingresar", min_value=1, value=1)
             proveedor_origen = st.text_input("Proveedor / Procedencia")
-            
             if st.form_submit_button("Registrar Ingreso"):
                 idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_ingreso].tolist()[0]
                 st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_ingreso
-                
                 mov = pd.DataFrame([{
-    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-    "Tipo": "INGRESO",
-    "SKU": sku_ingreso,
-    "Cantidad": cant_ingreso,
-    "Origen/Destino": proveedor_origen or "Recepción General",
-    "Usuario": st.session_state.get('usuario_actual', 'admin'), # 👈 REGISTRA AL USUARIO
-    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-}])
+                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                    "Tipo": "INGRESO",
+                    "SKU": sku_ingreso,
+                    "Cantidad": cant_ingreso,
+                    "Origen/Destino": proveedor_origen or "Recepción General",
+                    "Usuario": st.session_state.get('usuario_actual', 'admin'),
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }])
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
                 guardar_datos()
                 st.success(f"Ingresadas {cant_ingreso} unidades del SKU {sku_ingreso}.")
@@ -373,12 +362,9 @@ elif menu == "3. Picking de Materiales":
         with st.form("form_picking"):
             cliente = st.text_input("Cliente / Destino")
             sku_pick = st.selectbox("Material a Extraer", st.session_state.materiales["SKU"])
-            
             mat_sel = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_pick].iloc[0]
             st.info(f"📍 **Ubicación:** {mat_sel.get('Ubicacion', 'N/A')} | **Stock Disponible:** {mat_sel['Stock_Actual']}")
-            
             cant_pick = st.number_input("Cantidad a Preparar", min_value=1, value=1)
-            
             if st.form_submit_button("Crear Orden de Picking"):
                 if cant_pick > mat_sel['Stock_Actual']:
                     st.error("Stock insuficiente.")
@@ -395,18 +381,16 @@ elif menu == "3. Picking de Materiales":
                     guardar_datos()
                     st.success(f"Orden {id_ord} creada con éxito.")
                     st.rerun()
-
-    if st.session_state.ordenes_picking:
-        st.markdown("---")
-        st.subheader("Historial de Órdenes de Picking")
-        st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
+        if st.session_state.ordenes_picking:
+            st.markdown("---")
+            st.subheader("Historial de Órdenes de Picking")
+            st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO CON FIRMA DIGITAL
+# MÓDULO 4: DESPACHO Y GUÍA CON FIRMA DIGITAL Y PDF
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
     st.header("🚚 Despacho y Emisión de Guía de Traslado")
-    
     pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
     
     if not pendientes:
@@ -430,7 +414,6 @@ elif menu == "4. Despacho y Guía":
         st.subheader("✍️ Firma Digital del Receptor / Transportista")
         st.caption("Dibuja tu firma a continuación dentro del recuadro:")
 
-        # Lienzo táctil interactivo para capturar la firma
         canvas_result = st_canvas(
             fill_color="rgba(255, 255, 255, 0)",
             stroke_width=2,
@@ -443,27 +426,24 @@ elif menu == "4. Despacho y Guía":
         )
 
         if st.button("Confirmar Despacho y Generar Guía"):
-            # Validar que se haya dibujado algo en el lienzo
             if canvas_result.image_data is None or not (canvas_result.image_data[:, :, 3] > 0).any():
                 st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
             else:
-                # 1. Actualizar Stock y Estado
                 idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
                 st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
                 datos_orden["Estado"] = "Despachado"
 
-                # 2. Registrar Movimiento
                 mov = pd.DataFrame([{
                     "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
                     "Tipo": "DESPACHO",
                     "SKU": datos_orden["SKU"],
                     "Cantidad": datos_orden["Cantidad"],
                     "Origen/Destino": datos_orden["Cliente"],
+                    "Usuario": st.session_state.get('usuario_actual', 'admin'),
                     "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }])
                 st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
 
-                # 3. Guardar Guía con Firma en session_state
                 num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
                 guia_data = {
                     "Numero_Guia": num_guia,
@@ -477,7 +457,7 @@ elif menu == "4. Despacho y Guía":
                     "Rut_Conductor": rut_conductor,
                     "Patente": patente,
                     "Motivo": motivo,
-                    "Firma_Img": canvas_result.image_data  # Array PNG de la firma
+                    "Firma_Img": canvas_result.image_data
                 }
                 
                 st.session_state.guias_despacho.append(guia_data)
@@ -485,6 +465,18 @@ elif menu == "4. Despacho y Guía":
                 st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}**")
                 st.session_state.ultima_guia = guia_data
                 st.rerun()
+
+    if "ultima_guia" in st.session_state:
+        st.markdown("---")
+        st.subheader("📥 Descargar Guía de Traslado")
+        pdf_buffer = generar_pdf_guia(st.session_state.ultima_guia)
+        st.download_button(
+            label="📄 Descargar Guía de Despacho en PDF",
+            data=pdf_buffer,
+            file_name=f"Guia_{st.session_state.ultima_guia['Numero_Guia']}.pdf",
+            mime="application/pdf"
+        )
+
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
@@ -495,12 +487,11 @@ elif menu == "5. Inventario":
         st.metric("Total SKU Registrados", len(st.session_state.materiales))
     with col_k2:
         st.metric("Total Unidades", int(st.session_state.materiales["Stock_Actual"].sum()) if not st.session_state.materiales.empty else 0)
-    
     st.markdown("---")
     st.dataframe(st.session_state.materiales, use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 6: DASHBOARD GERENCIAL (Plotly)
+# MÓDULO 6: DASHBOARD GERENCIAL
 # ---------------------------------------------------------
 elif menu == "6. Dashboard Gerencial":
     st.header("📈 Dashboard Gerencial y Analítica de Bodega")
@@ -519,14 +510,11 @@ elif menu == "6. Dashboard Gerencial":
         
         st.markdown("---")
         col_g1, col_g2 = st.columns(2)
-        
         with col_g1:
             st.subheader("Top Productos con Mayor Stock")
             df_top_stock = st.session_state.materiales.sort_values(by="Stock_Actual", ascending=False).head(10)
             fig_stock = px.bar(df_top_stock, x="SKU", y="Stock_Actual", text="Stock_Actual", color="Stock_Actual", color_continuous_scale="Blues", title="Top 10 SKUs con Mayor Cantidad en Bodega")
-            fig_stock.update_layout(xaxis_title="SKU", yaxis_title="Cantidad Actual")
             st.plotly_chart(fig_stock, use_container_width=True)
-            
         with col_g2:
             st.subheader("Valorización por Producto")
             df_val = st.session_state.materiales.copy()
@@ -534,15 +522,6 @@ elif menu == "6. Dashboard Gerencial":
             df_top_val = df_val.sort_values(by="Valor_Total", ascending=False).head(10)
             fig_val = px.pie(df_top_val, names="SKU", values="Valor_Total", title="Distribución del Valor en Inventario (Top SKU)", hole=0.4)
             st.plotly_chart(fig_val, use_container_width=True)
-            
-        st.markdown("---")
-        st.subheader("🔄 Actividad Operativa (Historial de Movimientos)")
-        if not st.session_state.movimientos.empty:
-            df_mov = st.session_state.movimientos.copy()
-            fig_mov = px.histogram(df_mov, x="Tipo", color="Tipo", title="Conteo de Transacciones por Tipo (Ingresos vs Despachos)", text_auto=True)
-            st.plotly_chart(fig_mov, use_container_width=True)
-        else:
-            st.info("Aún no hay movimientos registrados para mostrar en el gráfico de actividad.")
 
 # ---------------------------------------------------------
 # MÓDULO 7: TRAZABILIDAD
@@ -569,29 +548,15 @@ elif menu == "8. Etiquetas":
             cantidad_copias = st.number_input("Número de etiquetas a imprimir", min_value=1, value=1)
         
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
-        
         st.markdown("---")
         st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
         st.markdown("""
         <style>
         @media print {
-            [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput {
-                display: none !important;
-            }
-            body {
-                background-color: white !important;
-            }
+            [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput { display: none !important; }
+            body { background-color: white !important; }
         }
-        .etiqueta-box {
-            border: 2px dashed #000;
-            width: 320px;
-            padding: 15px;
-            font-family: Arial, sans-serif;
-            background: white;
-            color: black;
-            margin-bottom: 20px;
-            border-radius: 8px;
-        }
+        .etiqueta-box { border: 2px dashed #000; width: 320px; padding: 15px; font-family: Arial, sans-serif; background: white; color: black; margin-bottom: 20px; border-radius: 8px; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -612,8 +577,7 @@ elif menu == "8. Etiquetas":
             </div>
             """
             st.markdown(html_etiqueta, unsafe_allow_html=True)
-            
-        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado (o **`Cmd + P`** en Mac).")
+        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado.")
 
 # ---------------------------------------------------------
 # MÓDULO 9: ELIMINAR TRANSACCIONES
@@ -637,7 +601,7 @@ elif menu == "9. Eliminar Transacciones":
                     st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cant_mov
                 elif tipo_mov == "DESPACHO":
                     st.session_state.materiales.loc[idx_mat, "Stock_Actual"] += cant_mov
-                    
+            
             st.session_state.movimientos = st.session_state.movimientos[st.session_state.movimientos["ID_Mov"] != id_eliminar].reset_index(drop=True)
             guardar_datos()
             st.success("Transacción eliminada y stock revertido con éxito.")
@@ -674,15 +638,13 @@ elif menu == "11. Escáner de SKU":
     sku_detectado = None
     
     if tipo_escaneo == "Pistola / Lector USB":
-        st.info("💡 Haz clic en el campo de abajo y dispara con tu pistola lectora de códigos de barra. El sistema detectará el SKU automáticamente.")
+        st.info("💡 Haz clic en el campo de abajo y dispara con tu pistola lectora.")
         sku_input = st.text_input("Esperando lectura de pistola USB...").strip().upper()
         if sku_input:
             sku_detectado = sku_input
-            
     else:
-        st.info("📸 Enfoca el código QR del producto con la cámara de tu dispositivo.")
+        st.info("📸 Enfoca el código QR del producto con la cámara.")
         imagen_camara = st.camera_input("Capturar Código")
-        
         if imagen_camara is not None:
             try:
                 import cv2
@@ -690,22 +652,17 @@ elif menu == "11. Escáner de SKU":
                 bytes_data = imagen_camara.getvalue()
                 np_arr = np.frombuffer(bytes_data, np.uint8)
                 img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-                
                 detector = cv2.QRCodeDetector()
                 data, bbox, _ = detector.detectAndDecode(img)
-                
                 if data:
                     sku_detectado = data.strip().upper()
-                    st.success(f"¡Código detectado con éxito: **{sku_detectado}**!")
-                else:
-                    st.warning("No se pudo detectar ningún código QR en la imagen.")
+                    st.success(f"¡Código detectado: **{sku_detectado}**!")
             except Exception as e:
-                st.error(f"Error al procesar la imagen de la cámara: {e}")
+                st.error(f"Error al procesar la cámara: {e}")
 
     if sku_detectado:
         st.markdown("---")
         st.subheader(f"🔍 Resultado para SKU: `{sku_detectado}`")
-        
         if sku_detectado in st.session_state.materiales["SKU"].values:
             mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_detectado].iloc[0]
             st.success(f"**Material Encontrado:** {mat_info['Nombre']}")
@@ -713,98 +670,47 @@ elif menu == "11. Escáner de SKU":
             c1.metric("Stock Actual", mat_info['Stock_Actual'])
             c2.metric("Ubicación", mat_info.get('Ubicacion', 'N/A'))
             c3.metric("Valor Unitario", f"${mat_info['Valor_Unitario']:,.0f}")
-            
-            accion_rapida = st.selectbox("Acción rápida con este SKU:", ["Seleccionar...", "Registrar Ingreso", "Registrar Picking"])
-            
-            if accion_rapida == "Registrar Ingreso":
-                cant_rapida = st.number_input("Cantidad a Ingresar", min_value=1, value=1, key="cant_ing_rapido")
-                if st.button("Confirmar Ingreso Rápido"):
-                    idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_detectado].tolist()[0]
-                    st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_rapida
-                    
-                    mov = pd.DataFrame([{
-                        "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                        "Tipo": "INGRESO",
-                        "SKU": sku_detectado,
-                        "Cantidad": cant_rapida,
-                        "Origen/Destino": "Escáner Web/USB",
-                        "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    }])
-                    st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                    guardar_datos()
-                    st.success(f"¡Ingresadas {cant_rapida} unidades al SKU {sku_detectado}!")
-                    st.rerun()
-            
-            elif accion_rapida == "Registrar Picking":
-                cant_pick_rapida = st.number_input("Cantidad a Preparar", min_value=1, value=1, key="cant_pick_rapido")
-                cliente_rapido = st.text_input("Cliente / Destino", key="cli_rapido")
-                if st.button("Confirmar Picking Rápido"):
-                    if cant_pick_rapida > mat_info['Stock_Actual']:
-                        st.error("Stock insuficiente.")
-                    else:
-                        id_ord = f"PICK-{len(st.session_state.ordenes_picking)+1:04d}"
-                        st.session_state.ordenes_picking.append({
-                            "ID_Picking": id_ord,
-                            "Cliente": cliente_rapido or "Cliente General",
-                            "SKU": sku_detectado,
-                            "Ubicacion": mat_info.get('Ubicacion', 'N/A'),
-                            "Cantidad": cant_pick_rapida,
-                            "Estado": "Pendiente Despacho"
-                        })
-                        guardar_datos()
-                        st.success(f"Orden de picking {id_ord} creada con éxito.")
-                        st.rerun()
         else:
-            st.error(f"⚠️ El SKU `{sku_detectado}` no se encuentra registrado en el maestro de materiales.")
+            st.error(f"⚠️ El SKU `{sku_detectado}` no se encuentra registrado.")
 
 # ---------------------------------------------------------
-# MÓDULO 12: GESTIÓN DE MÚLTIPLES BODEGAS Y TRANSFERENCIAS
+# MÓDULO 12: GESTIÓN DE MÚLTIPLES BODEGAS
 # ---------------------------------------------------------
 elif menu == "12. Gestión de Bodegas":
     st.header("🏢 Gestión de Múltiples Centros de Distribución y Transferencias")
     bodegas_disponibles = ["Bodega Central Antofagasta", "Bodega Norte", "Bodega Tránsito", "Centro de Acopio Sur"]
-    
     tab_crear_mat_bodega, tab_transferencias = st.tabs(["📝 Materiales por Bodega", "🔄 Transferencia Interna entre Bodegas"])
     
     with tab_crear_mat_bodega:
-        st.subheader("Asignación de Material a Bodega")
         if st.session_state.materiales.empty:
-            st.info("No hay materiales creados. Regístrelos primero en el Módulo 1.")
+            st.info("No hay materiales creados.")
         else:
             with st.form("form_mat_bodega"):
                 sku_asig = st.selectbox("Seleccionar SKU", st.session_state.materiales["SKU"])
-                bodega_sel = st.selectbox("Seleccionar Bodega de Almacenamiento", bodegas_disponibles)
-                
-                if st.form_submit_button("Actualizar Bodega del Producto"):
+                bodega_sel = st.selectbox("Seleccionar Bodega", bodegas_disponibles)
+                if st.form_submit_button("Actualizar Bodega"):
                     idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_asig].tolist()[0]
                     st.session_state.materiales.loc[idx, "Bodega"] = bodega_sel
                     guardar_datos()
-                    st.success(f"El SKU `{sku_asig}` ha sido asignado a la **{bodega_sel}**.")
+                    st.success(f"SKU `{sku_asig}` asignado a **{bodega_sel}**.")
                     st.rerun()
-            
-            st.markdown("---")
-            st.subheader("Inventario Global por Bodega")
             st.dataframe(st.session_state.materiales, use_container_width=True)
 
     with tab_transferencias:
-        st.subheader("🔄 Realizar Traspaso / Transferencia de Stock")
         if st.session_state.materiales.empty:
-            st.info("No hay inventario disponible para transferir.")
+            st.info("No hay inventario disponible.")
         else:
             with st.form("form_transferencia"):
                 sku_trans = st.selectbox("SKU a Transferir", st.session_state.materiales["SKU"])
                 mat_row = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_trans].iloc[0]
                 bodega_origen = mat_row.get("Bodega", "Bodega Central Antofagasta")
                 stock_actual_origen = mat_row["Stock_Actual"]
-                
-                st.info(f"📍 **Bodega Origen Actual:** `{bodega_origen}` | **Stock Disponible:** `{stock_actual_origen}` unidades")
-                
+                st.info(f"📍 **Origen:** `{bodega_origen}` | **Stock:** `{stock_actual_origen}`")
                 bodega_destino = st.selectbox("Bodega de Destino", [b for b in bodegas_disponibles if b != bodega_origen])
                 cant_transferir = st.number_input("Cantidad a Transferir", min_value=1, value=1)
-                
                 if st.form_submit_button("Ejecutar Transferencia"):
                     if cant_transferir > stock_actual_origen:
-                        st.error("⚠️ La cantidad a transferir supera el stock disponible en la bodega de origen.")
+                        st.error("Supera el stock disponible.")
                     else:
                         idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_trans].tolist()[0]
                         st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cant_transferir
@@ -816,25 +722,23 @@ elif menu == "12. Gestión de Bodegas":
                             "SKU": sku_trans,
                             "Cantidad": cant_transferir,
                             "Origen/Destino": f"De {bodega_origen} a {bodega_destino}",
+                            "Usuario": st.session_state.get('usuario_actual', 'admin'),
                             "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         }])
                         st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
                         guardar_datos()
-                        st.success(f"¡Transferencia exitosa de {cant_transferir} unidades del SKU `{sku_trans}` hacia la **{bodega_destino}**!")
+                        st.success("¡Transferencia exitosa!")
                         st.rerun()
+
 # ---------------------------------------------------------
-# MÓDULO 13: AUDITORÍA Y LOGS DE ACTIVIDAD DE USUARIOS
+# MÓDULO 13: AUDITORÍA Y LOGS
 # ---------------------------------------------------------
 elif menu == "13. Auditoría y Logs":
     st.header("📋 Auditoría y Registro de Actividad por Usuario")
-    st.markdown("Consulta el historial detallado de quién ejecutó cada operación crítica en la bodega.")
-    
     if st.session_state.movimientos.empty:
-        st.info("No hay registros de actividad en el sistema.")
+        st.info("No hay registros de actividad.")
     else:
         df_logs = st.session_state.movimientos.copy()
-        
-        # Filtros interactivos de auditoría
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             usuarios_unicos = ["Todos"] + list(df_logs["Usuario"].dropna().unique())
@@ -843,7 +747,6 @@ elif menu == "13. Auditoría y Logs":
             tipos_unicos = ["Todos"] + list(df_logs["Tipo"].dropna().unique())
             filtro_tipo = st.selectbox("Filtrar por Tipo de Transacción", tipos_unicos)
             
-        # Aplicar filtros
         if filtro_usuario != "Todos":
             df_logs = df_logs[df_logs["Usuario"] == filtro_usuario]
         if filtro_tipo != "Todos":
@@ -852,61 +755,32 @@ elif menu == "13. Auditoría y Logs":
         st.markdown("---")
         st.metric("Total de Acciones Registradas", len(df_logs))
         st.dataframe(df_logs.sort_values(by="Fecha", ascending=False), use_container_width=True)
-        
-        # Botón para descargar el reporte de auditoría
-        output_audit = BytesIO()
-        with pd.ExcelWriter(output_audit, engine='openpyxl') as writer:
-            df_logs.to_excel(writer, sheet_name='auditoria_logs', index=False)
-        audit_data = output_audit.getvalue()
-        
-        st.download_button(
-            label="📥 Descargar Reporte de Auditoría en Excel",
-            data=audit_data,
-            file_name=f"auditoria_wms_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
 
 # ---------------------------------------------------------
-# MÓDULO 14: REGISTRO FOTOGRÁFICO Y DATOS ADJUNTOS
+# MÓDULO 14: REGISTRO FOTOGRÁFICO
 # ---------------------------------------------------------
 elif menu == "14. Registro Fotográfico":
     st.header("📸 Registro Fotográfico y Datos Adjuntos")
-    st.markdown("Captura, visualiza y adjunta evidencias fotográficas vinculadas a la operación de la bodega.")
-    
     if "registro_fotos" not in st.session_state:
         st.session_state.registro_fotos = []
-
+        
     with st.form("form_foto_adjunto"):
         c_f1, c_f2 = st.columns(2)
         with c_f1:
             sku_foto = st.selectbox("SKU Asociado (Opcional)", ["N/Ninguno"] + list(st.session_state.materiales["SKU"]))
-            tipo_evidencia = st.selectbox("Tipo de Evidencia", [
-                "Recepción de Mercancía", 
-                "Producto Dañado / Mermas", 
-                "Evidencia de Despacho", 
-                "Control de Calidad", 
-                "Documentación / Factura", 
-                "Otro"
-            ])
+            tipo_evidencia = st.selectbox("Tipo de Evidencia", ["Recepción", "Merma", "Despacho", "Calidad", "Factura", "Otro"])
         with c_f2:
-            referencia_doc = st.text_input("N° de Documento / Guía / Lote (Opcional)")
-            observacion = st.text_area("Comentarios u Observaciones Adicionales")
+            referencia_doc = st.text_input("N° de Documento / Lote (Opcional)")
+            observacion = st.text_area("Comentarios u Observaciones")
             
-        # 💡 Interruptor: La cámara permanece apagada por defecto
         usar_camara = st.checkbox("🟢 Activar la cámara web para tomar foto")
+        foto_capturada = st.camera_input("Capturar Evidencia") if usar_camara else None
+        archivo_adjunto = st.file_uploader("O adjuntar imagen (PNG, JPG)", type=["png", "jpg", "jpeg"])
         
-        foto_capturada = None
-        if usar_camara:
-            foto_capturada = st.camera_input("Capturar Evidencia")
-        
-        # Opción alternativa para subir archivo directo sin usar cámara
-        archivo_adjunto = st.file_uploader("O adjuntar imagen desde archivo (PNG, JPG)", type=["png", "jpg", "jpeg"])
-        
-        if st.form_submit_button("Guardar Evidencia con Datos Adjuntos"):
+        if st.form_submit_button("Guardar Evidencia"):
             imagen_final = foto_capturada if foto_capturada is not None else archivo_adjunto
-            
             if imagen_final is None:
-                st.error("⚠️ Debes capturar una foto con la cámara (activándola primero) o adjuntar un archivo de imagen.")
+                st.error("⚠️ Debes capturar una foto o adjuntar un archivo.")
             else:
                 nueva_foto = {
                     "ID_Foto": f"FOTO-{len(st.session_state.registro_fotos)+1:04d}",
@@ -919,5 +793,5 @@ elif menu == "14. Registro Fotográfico":
                     "Imagen": imagen_final
                 }
                 st.session_state.registro_fotos.append(nueva_foto)
-                st.success("¡Evidencia fotográfica y datos adjuntos registrados con éxito!")
+                st.success("¡Evidencia registrada con éxito!")
                 st.rerun()
