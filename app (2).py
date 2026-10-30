@@ -566,15 +566,50 @@ elif menu == "8. Etiquetas":
         
         mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
         st.markdown("---")
+        
+        # Botón de impresión directa mediante JavaScript
+        st.markdown("""
+        <style>
+        @media print {
+            [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput, footer { display: none !important; }
+            body { background-color: white !important; }
+            .etiqueta-box { border: 2px solid #000 !important; break-inside: avoid; }
+        }
+        .etiqueta-box { 
+            border: 2px dashed #000; 
+            width: 320px; 
+            padding: 15px; 
+            font-family: Arial, sans-serif; 
+            background: white; 
+            color: black; 
+            margin-bottom: 20px; 
+            border-radius: 8px; 
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        if st.button("🖨️ Imprimir Etiquetas"):
+            st.markdown("""
+                <script>
+                    window.print();
+                </script>
+            """, unsafe_allow_html=True)
+
         st.subheader("Vista Previa de Etiqueta")
         for i in range(cantidad_copias):
             html_etiqueta = f"""
-            <div style="border: 2px dashed #000; width: 320px; padding: 15px; font-family: Arial; background: white; color: black; margin-bottom: 20px; border-radius: 8px;">
-                <h4 style="text-align: center; margin: 0 0 10px 0;">WMS MARKLOGISTIC</h4>
-                <p style="margin: 5px 0;"><b>SKU:</b> {mat_info['SKU']}</p>
-                <p style="margin: 5px 0;"><b>Descripción:</b> {mat_info['Nombre']}</p>
-                <p style="margin: 5px 0;"><b>Ubicación:</b> {mat_info.get('Ubicacion', 'N/A')}</p>
-                <p style="margin: 5px 0;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
+            <div class="etiqueta-box">
+                <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
+                <hr style="border: 1px solid #000; margin: 5px 0;">
+                <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
+                <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
+                    ||||| | |||| ||| || ||||
+                </div>
             </div>
             """
             st.markdown(html_etiqueta, unsafe_allow_html=True)
