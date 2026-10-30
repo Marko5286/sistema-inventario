@@ -590,15 +590,47 @@ elif menu == "10. Asistente IA":
 # MÓDULO 11: ESCÁNER DE SKU
 # ---------------------------------------------------------
 elif menu == "11. Escáner de SKU":
-    st.header("📷 Escáner de SKU")
-    sku_input = st.text_input("Ingresa o escanea el SKU").strip().upper()
-    if sku_input:
-        if sku_input in st.session_state.materiales["SKU"].values:
-            mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_input].iloc[0]
+    st.header("📷 Escáner de SKU (Cámara Web o USB)")
+    tipo_escaneo = st.radio("Selecciona el método de lectura:", ["Pistola / Lector USB", "Cámara Web (QR / Barras)"])
+    sku_detectado = None
+    
+    if tipo_escaneo == "Pistola / Lector USB":
+        st.info("💡 Haz clic en el campo de abajo y dispara con tu pistola lectora.")
+        sku_input = st.text_input("Esperando lectura de pistola USB...").strip().upper()
+        if sku_input:
+            sku_detectado = sku_input
+    else:
+        st.info("📸 Enfoca el código QR del producto con la cámara.")
+        imagen_camara = st.camera_input("Capturar Código")
+        if imagen_camara is not None:
+            try:
+                import cv2
+                import numpy as np
+                bytes_data = imagen_camara.getvalue()
+                np_arr = np.frombuffer(bytes_data, np.uint8)
+                img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                detector = cv2.QRCodeDetector()
+                data, bbox, _ = detector.detectAndDecode(img)
+                if data:
+                    sku_detectado = data.strip().upper()
+                    st.success(f"¡Código detectado: **{sku_detectado}**!")
+                else:
+                    st.warning("⚠️ No se pudo leer ningún código QR en la imagen capturada.")
+            except Exception as e:
+                st.error(f"Error al procesar la cámara: {e}")
+
+    if sku_detectado:
+        st.markdown("---")
+        st.subheader(f"🔍 Resultado para SKU: `{sku_detectado}`")
+        if sku_detectado in st.session_state.materiales["SKU"].values:
+            mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_detectado].iloc[0]
             st.success(f"**Material Encontrado:** {mat_info['Nombre']}")
-            st.metric("Stock Actual", mat_info['Stock_Actual'])
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Stock Actual", mat_info['Stock_Actual'])
+            c2.metric("Ubicación", mat_info.get('Ubicacion', 'N/A'))
+            c3.metric("Valor Unitario", f"${mat_info['Valor_Unitario']:,.0f}")
         else:
-            st.error(f"⚠️ El SKU `{sku_input}` no se encuentra registrado.")
+            st.error(f"⚠️ El SKU `{sku_detectado}` no se encuentra registrado.")
 
 # ---------------------------------------------------------
 # MÓDULO 12: GESTIÓN DE BODEGAS
