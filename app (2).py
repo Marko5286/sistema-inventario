@@ -534,50 +534,77 @@ elif menu == "7. Trazabilidad":
         st.dataframe(st.session_state.movimientos.sort_values(by="Fecha", ascending=False), use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 8: ETIQUETAS
-# ---------------------------------------------------------
-elif menu == "8. Etiquetas":
-    st.header("🏷️ Generación e Impresión de Etiquetas de Bodega")
-    if st.session_state.materiales.empty:
-        st.info("No hay materiales registrados para etiquetar.")
-    else:
-        col_e1, col_e2 = st.columns(2)
-        with col_e1:
-            sku_etiqueta = st.selectbox("Seleccionar Material para Etiquetar", st.session_state.materiales["SKU"])
-        with col_e2:
-            cantidad_copias = st.number_input("Número de etiquetas a imprimir", min_value=1, value=1)
-        
-        mat_info = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiqueta].iloc[0]
-        st.markdown("---")
-        st.subheader("Vista Previa de Etiqueta (Optimizado para Impresión)")
-        st.markdown("""
-        <style>
-        @media print {
-            [data-testid="stSidebar"], header, .stButton, .stSelectbox, .stNumberInput { display: none !important; }
-            body { background-color: white !important; }
-        }
-        .etiqueta-box { border: 2px dashed #000; width: 320px; padding: 15px; font-family: Arial, sans-serif; background: white; color: black; margin-bottom: 20px; border-radius: 8px; }
-        </style>
-        """, unsafe_allow_html=True)
-
-        for i in range(cantidad_copias):
-            html_etiqueta = f"""
-            <div class="etiqueta-box">
-                <h4 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">WMS MARKLOGISTIC</h4>
-                <hr style="border: 1px solid #000; margin: 5px 0;">
-                <p style="margin: 5px 0; font-size: 14px;"><b>SKU:</b> {mat_info['SKU']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Descripción:</b> {mat_info['Nombre']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Ubicación:</b> <span style="font-size: 16px; font-weight: bold;">{mat_info.get('Ubicacion', 'N/A')}</span></p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Bodega:</b> {mat_info.get('Bodega', 'N/A')}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Unidad:</b> {mat_info['Unidad']}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><b>Valor Unit.:</b> ${mat_info['Valor_Unitario']:,.0f}</p>
-                <div style="text-align: center; margin-top: 10px; font-size: 12px; font-family: monospace;">
-                    ||||| | |||| ||| || ||||
-                </div>
+    # MÓDULO 8: ETIQUETAS
+    # ---------------------------------------------------------
+    elif menu == "8. Etiquetas":
+        st.header("🏷️ Generación e Impresión de Etiquetas de SKU y Ubicación")
+        if st.session_state.materiales.empty:
+            st.info("No hay materiales para etiquetar.")
+        else:
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                sku_etiq = st.selectbox("Seleccione SKU para Etiqueta", st.session_state.materiales["SKU"].tolist())
+            with col_e2:
+                copias = st.number_input("Cantidad de copias", min_value=1, value=1)
+                
+            mat_sel = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_etiq].iloc[0]
+            
+            st.markdown("---")
+            st.subheader("👁️ Vista Previa de la Etiqueta")
+            
+            # Contenedor visual tipo etiqueta de bodega
+            st.markdown(f"""
+            <div style="border: 3px dashed #333; padding: 20px; border-radius: 10px; background-color: white; color: black; max-width: 400px; font-family: monospace;">
+                <h3 style="margin: 0; color: #000;">📦 WMS MARKLOGISTIC</h3>
+                <hr style="border: 1px solid #333;">
+                <p style="font-size: 18px; margin: 5px 0;"><b>SKU:</b> {mat_sel['SKU']}</p>
+                <p style="font-size: 16px; margin: 5px 0;"><b>Descripción:</b> {mat_sel['Nombre']}</p>
+                <p style="font-size: 16px; margin: 5px 0;"><b>Ubicación:</b> <span style="background-color: #eee; padding: 2px 6px; border-radius: 4px;"><b>{mat_sel['Ubicacion']}</b></span></p>
+                <p style="font-size: 14px; margin: 5px 0; color: #555;">Bodega: {mat_sel['Bodega']}</p>
             </div>
-            """
-            st.markdown(html_etiqueta, unsafe_allow_html=True)
-        st.info("💡 **Para imprimir o guardar en PDF:** Presiona las teclas **`Ctrl + P`** en tu teclado.")
+            """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Función para generar PDF de Etiqueta
+            def generar_pdf_etiqueta(mat, n_copias):
+                buffer = BytesIO()
+                # Tamaño etiqueta pequeña (ej: 10cm x 7cm aprox en puntos)
+                c = canvas.Canvas(buffer, pagesize=(300, 200))
+                
+                for i in range(n_copias):
+                    if i > 0:
+                        c.showPage()
+                    c.setFont("Helvetica-Bold", 12)
+                    c.drawString(15, 175, "WMS MARKLOGISTIC - ETIQUETA DE UBICACIÓN")
+                    c.line(15, 165, 285, 165)
+                    
+                    c.setFont("Helvetica-Bold", 14)
+                    c.drawString(15, 135, f"SKU: {mat['SKU']}")
+                    
+                    c.setFont("Helvetica", 11)
+                    c.drawString(15, 110, f"Nombre: {str(mat['Nombre'])[:35]}")
+                    
+                    c.setFont("Helvetica-Bold", 13)
+                    c.drawString(15, 80, f"UBICACIÓN: {mat['Ubicacion']}")
+                    
+                    c.setFont("Helvetica", 9)
+                    c.drawString(15, 50, f"Bodega: {mat['Bodega']}")
+                    c.drawString(15, 35, f"Fecha Impresión: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+                    
+                c.save()
+                buffer.seek(0)
+                return buffer
+
+            pdf_buffer = generar_pdf_etiqueta(mat_sel, copias)
+            
+            st.download_button(
+                label="🖨️ Descargar Etiqueta en PDF (Lista para Imprimir)",
+                data=pdf_buffer,
+                file_name=f"etiqueta_{mat_sel['SKU']}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
 # ---------------------------------------------------------
 # MÓDULO 9: ELIMINAR TRANSACCIONES
