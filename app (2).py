@@ -198,6 +198,8 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
 # 2. PANEL LATERAL / NAVEGACIÓN Y PERMISOS
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS Marklogistic")
+st.sidebar.markdown("### 🏢 Centro de Distribución")
+
 usuario_actual = st.session_state.get('usuario_actual', 'bodega')
 st.sidebar.write(f"👤 Conectado como: **{usuario_actual}**")
 if st.sidebar.button("Cerrar Sesión"):
