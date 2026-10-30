@@ -620,4 +620,41 @@ elif menu == "12. Gestión de Bodegas":
 # ---------------------------------------------------------
 # MÓDULO 13: AUDITORÍA Y LOGS
 # ---------------------------------------------------------
-elif menu == "13. Auditor
+elif menu == "13. Auditoría y Logs":
+    st.header("📋 Auditoría y Registro de Actividad por Usuario")
+    if st.session_state.movimientos.empty:
+        st.info("No hay registros de actividad.")
+    else:
+        st.dataframe(st.session_state.movimientos.sort_values(by="Fecha", ascending=False), use_container_width=True)
+
+# ---------------------------------------------------------
+# MÓDULO 14: REGISTRO FOTOGRÁFICO
+# ---------------------------------------------------------
+elif menu == "14. Registro Fotográfico":
+    st.header("📸 Registro Fotográfico")
+    if "registro_fotos" not in st.session_state:
+        st.session_state.registro_fotos = []
+    
+    with st.form("form_foto"):
+        obs = st.text_area("Observación")
+        foto = st.file_uploader("Adjuntar imagen", type=["png", "jpg"])
+        if st.form_submit_button("Guardar"):
+            if foto:
+                st.session_state.registro_fotos.append({"Observacion": obs, "Imagen": foto})
+                st.success("Guardado con éxito.")
+                st.rerun()
+
+# ---------------------------------------------------------
+# MÓDULO 15: GESTIÓN DE PERMISOS (SOLO ADMIN)
+# ---------------------------------------------------------
+elif menu == "15. Gestión de Permisos":
+    if usuario_actual != 'admin':
+        st.error("⚠️ Acceso restringido exclusivamente para el Administrador.")
+    else:
+        st.header("🛡️ Control de Accesos y Permisos por Rol")
+        st.info("A continuación se detallan los módulos habilitados para cada perfil de usuario en el WMS:")
+        
+        for rol, mods in PERMISOS_USUARIOS.items():
+            with st.expander(f"Perfil: {rol.upper()} ({len(mods)} módulos habilitados)"):
+                for m in mods:
+                    st.write(f"- {m}")
