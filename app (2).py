@@ -10,10 +10,9 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
+import sqlite3
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
-
-import sqlite3
 
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE BASE DE DATOS SQLITE (Persistencia Robusta)
@@ -104,7 +103,6 @@ def guardar_datos():
     try:
         conn = sqlite3.connect(DB_FILE)
         
-        # Guardar DataFrames directamente a las tablas SQL
         st.session_state.materiales.to_sql("materiales", conn, if_exists="replace", index=False)
         st.session_state.movimientos.to_sql("movimientos", conn, if_exists="replace", index=False)
         
@@ -114,7 +112,6 @@ def guardar_datos():
             pd.DataFrame(columns=["ID_Picking", "Cliente", "SKU", "Ubicacion", "Cantidad", "Estado"]).to_sql("picking", conn, if_exists="replace", index=False)
             
         if st.session_state.guias_despacho:
-            # Quitamos la imagen de la firma de la tabla SQL para evitar errores de tipo binario
             df_g_sql = pd.DataFrame(st.session_state.guias_despacho).drop(columns=["Firma_Img"], errors="ignore")
             df_g_sql.to_sql("guias", conn, if_exists="replace", index=False)
         else:
