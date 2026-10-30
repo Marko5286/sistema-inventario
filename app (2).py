@@ -197,15 +197,11 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
 # ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN Y PERMISOS
 # ---------------------------------------------------------
-st.sidebar.image("https://raw.githubusercontent.com/Marko5286/sistema-inventario/main/logo.jpg", width=200)
+st.sidebar.title("📦 WMS Marklogistic")
 
 # Mostrar el logo local si el archivo existe en el repositorio
-if os.path.exists("logo.jpg"):
-    st.sidebar.image("logo.jpg", width=200)
-
-# Mostrar el logo local si el archivo existe en el repositorio
-if os.path.exists("logo.jpg"):
-    st.sidebar.image("logo.jpg", width=200)
+if os.path.exists("logo.jpg.jpg"):
+    st.sidebar.image("logo.jpg.jpg", width=200)
 
 usuario_actual = st.session_state.get('usuario_actual', 'bodega')
 st.sidebar.write(f"👤 Conectado como: **{usuario_actual}**")
