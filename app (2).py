@@ -197,8 +197,7 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
 # ---------------------------------------------------------
 # 2. PANEL LATERAL / NAVEGACIÓN Y PERMISOS
 # ---------------------------------------------------------
-if os.path.exists("logo.png"):
-    st.sidebar.image("logo.png", width=200)
+st.sidebar.image("https://raw.githubusercontent.com/Marko5286/sistema-inventario/main/logo.jpg", width=200)
 
 # Mostrar el logo local si el archivo existe en el repositorio
 if os.path.exists("logo.jpg"):
