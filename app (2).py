@@ -242,10 +242,12 @@ if menu == "1. Creación de Materiales":
         st.session_state.autenticado = False
         st.rerun()
 
-    # ---------------------------------------------------------
-    # INICIO DE LOS MÓDULOS (Alineados correctamente)
-    # ---------------------------------------------------------
+# ---------------------------------------------------------
+# INICIO DE LOS MÓDULOS (Alineado al margen izquierdo)
+# ---------------------------------------------------------
+if "menu" in locals() or "menu" in globals():
     if menu == "1. Creación de Materiales":
+        # (Aquí continúa el código de tu módulo 1)
         # (Aquí continúa el código de tu módulo 1)
 
 # ---------------------------------------------------------
