@@ -241,8 +241,12 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
         return False
 
 # ---------------------------------------------------------
-    # RESUMEN RÁPIDO EN BARRA LATERAL (UX)
+    # BARRA LATERAL Y MENÚ PRINCIPAL
     # ---------------------------------------------------------
+    st.sidebar.title("📦 WMS Marklogistic")
+    st.sidebar.write(f"Usuario: **{usuario_actual}**")
+    
+    # Resumen Rápido en Barra Lateral (UX)
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📊 Estado Rápido")
     if "materiales" in st.session_state and not st.session_state.materiales.empty:
@@ -258,6 +262,34 @@ def enviar_correo_respaldo(remitente, password_app, destinatario, archivo_excel_
         else:
             st.sidebar.metric("✅ Alertas Stock", 0)
     st.sidebar.markdown("---")
+    
+    # Definición de la variable menu antes de usarla
+    opciones_menu = [
+        "1. Creación de Materiales",
+        "2. Ingresos de Stock",
+        "3. Picking y Salidas",
+        "4. Despacho y Guía",
+        "5. Inventario",
+        "6. Dashboard Gerencial",
+        "7. Trazabilidad",
+        "8. Etiquetas"
+    ]
+    
+    # Agregar módulo 9 solo si es admin
+    if usuario_actual == "admin":
+        opciones_menu.append("9. Eliminar Transacciones")
+        
+    menu = st.sidebar.selectbox("Seleccione Módulo", opciones_menu)
+    
+    if st.sidebar.button("Cerrar Sesión"):
+        st.session_state.autenticado = False
+        st.rerun()
+
+# ---------------------------------------------------------
+# A PARTIR DE AQUÍ COMIENZAN LOS MÓDULOS
+# ---------------------------------------------------------
+if menu == "1. Creación de Materiales":
+    # (Código del módulo 1...)
 
 # ---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES Y CARGA MASIVA
