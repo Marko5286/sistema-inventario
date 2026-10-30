@@ -192,6 +192,57 @@ else:
         st.session_state.autenticado = False
         st.rerun()
 
+# ---------------------------------------------------------
+# INICIO DE LOS MÓDULOS (Alineados al margen izquierdo)
+# ---------------------------------------------------------
+if menu == "1. Creación de Materiales":
+    # (Aquí continúa el código de tu módulo 1)
+
+    # ---------------------------------------------------------
+    # BARRA LATERAL Y MENÚ PRINCIPAL
+    # ---------------------------------------------------------
+    st.sidebar.title("📦 WMS Marklogistic")
+    st.sidebar.write(f"Usuario: **{usuario_actual}**")
+    
+    # Resumen Rápido en Barra Lateral (UX)
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📊 Estado Rápido")
+    if "materiales" in st.session_state and not st.session_state.materiales.empty:
+        total_items = len(st.session_state.materiales)
+        if "Stock_Minimo" in st.session_state.materiales.columns:
+            criticos = len(st.session_state.materiales[st.session_state.materiales["Stock_Actual"] <= st.session_state.materiales["Stock_Minimo"]])
+        else:
+            criticos = 0
+            
+        st.sidebar.metric("📦 SKUs Totales", total_items)
+        if criticos > 0:
+            st.sidebar.metric("⚠️ Alertas Stock", criticos, delta=-criticos, delta_color="inverse")
+        else:
+            st.sidebar.metric("✅ Alertas Stock", 0)
+    st.sidebar.markdown("---")
+    
+    # Definición de opciones del menú
+    opciones_menu = [
+        "1. Creación de Materiales",
+        "2. Ingresos de Stock",
+        "3. Picking y Salidas",
+        "4. Despacho y Guía",
+        "5. Inventario",
+        "6. Dashboard Gerencial",
+        "7. Trazabilidad",
+        "8. Etiquetas"
+    ]
+    
+    # Módulo 9 solo visible para admin
+    if usuario_actual == "admin":
+        opciones_menu.append("9. Eliminar Transacciones")
+        
+    menu = st.sidebar.selectbox("Seleccione Módulo", opciones_menu)
+    
+    if st.sidebar.button("Cerrar Sesión"):
+        st.session_state.autenticado = False
+        st.rerun()
+
     # ---------------------------------------------------------
     # INICIO DE LOS MÓDULOS (Alineados correctamente)
     # ---------------------------------------------------------
