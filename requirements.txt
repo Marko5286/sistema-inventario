@@ -16,4 +16,4 @@ plotly
 reportlab
 psycopg2-binary
 sqlalchemy
-
+supabase
