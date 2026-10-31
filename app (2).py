@@ -402,7 +402,7 @@ st.markdown("---")
         key="canvas_firma",
     )
 
-    if st.button("Confirmar Despacho y Generar Guía"):
+        if st.button("Confirmar Despacho y Generar Guía"):
         firma_valida = False
         if canvas_result is not None:
             try:
