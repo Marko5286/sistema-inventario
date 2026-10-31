@@ -15,14 +15,20 @@ import sqlalchemy
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
 # =========================================================
-# 1. VERIFICACIÓN DE CLAVES SECRETAS (Ponlo aquí arriba)
+# 1. VERIFICACIÓN DE CLAVES SECRETAS 
 # =========================================================
-api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+import os
+import streamlit as st
+
+# Intenta leer la clave de Gemini desde los secretos de forma segura
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    api_key = os.getenv("GEMINI_API_KEY", "")
 
 if not api_key:
     st.error("Configura tu GEMINI_API_KEY en los secretos.")
     st.stop()
-
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS EN LA NUBE (SUPABASE)
 # ---------------------------------------------------------
