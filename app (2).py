@@ -369,15 +369,13 @@ elif menu == "3. Picking de Materiales":
             st.markdown("---")
             st.subheader("Historial de Órdenes de Picking")
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
-
 # =========================================================
 # MÓDULO 4: SALIDAS Y DESPACHOS
 # =========================================================
 elif "4" in menu_opcion or "Salidas" in menu_opcion:
-    st.header("📤 Salidas y Despachos de Material")
+    st.header("📤 Módulo 4: Salidas y Despachos de Material")
     st.write("Complete los datos de entrega y registre la firma de recepción.")
 
-    # Formulario del Despacho
     col1, col2 = st.columns(2)
     with col1:
         cliente_destino = st.text_input("Cliente / Destino final")
@@ -388,7 +386,6 @@ elif "4" in menu_opcion or "Salidas" in menu_opcion:
     st.markdown("---")
     st.subheader("Firma Digital del Receptor")
 
-    # Componente Canvas para firma
     canvas_result = st_canvas(
         fill_color="rgba(255, 165, 0, 0.3)",
         stroke_width=2,
@@ -400,7 +397,6 @@ elif "4" in menu_opcion or "Salidas" in menu_opcion:
         key="canvas_firma_modulo4",
     )
 
-    # Captura segura para evitar RuntimeError
     has_drawing = False
     if canvas_result is not None:
         try:
@@ -409,7 +405,6 @@ elif "4" in menu_opcion or "Salidas" in menu_opcion:
         except (RuntimeError, AttributeError, IndexError):
             has_drawing = False
 
-    # Guardar Despacho
     if st.button("Guardar Registro de Despacho", type="primary"):
         if not cliente_destino or not numero_guia:
             st.warning("⚠️ Por favor, ingrese el cliente y el número de guía.")
@@ -417,6 +412,7 @@ elif "4" in menu_opcion or "Salidas" in menu_opcion:
             st.warning("⚠️ El recuadro de firma no puede estar vacío.")
         else:
             st.success(f"¡Despacho N° {numero_guia} registrado correctamente con firma digital!")
+
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
