@@ -238,53 +238,41 @@ if menu == "1. Creación de Materiales":
     
     tab_manual, tab_masivo = st.tabs(["✍️ Registro Manual", "📂 Carga Masiva (Excel)"])
     
-    with tab_manual:
-        with st.form("form_nuevo_mat"):
-            st.subheader("Registro Manual de Material")
-            c1, c2 = st.columns(2)
-            with c1:
-                sku_m = st.text_input("SKU").strip().upper()
-                nom_m = st.text_input("Nombre / Descripción")
-                uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
-            with c2:
-                ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
-                val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
-                stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
-            
-            # Dentro del Módulo 1 (Guardar Material Manual)
-if st.form_submit_button("Guardar Material"):
-    if not sku_m or not nom_m:
-        st.error("SKU y Nombre son obligatorios.")
-    elif sku_m in st.session_state.materiales["SKU"].values:
-        st.error("El SKU ya existe.")
-    else:
-        # Estructura que va hacia Supabase (en minúsculas según la tabla que creamos)
-        nuevo_registro = {
-            "sku": sku_m,
-            "nombre": nom_m,
-            "unidad": uni_m,
-            "valor_unitario": val_m,
-            "stock_actual": stk_m,
-            "ubicacion": ubi_m,
-            "bodega": "Bodega Central Antofagasta"
-        }
-        try:
-            # Inserta directamente en la tabla 'materiales' de Supabase
-            supabase.table("materiales").insert(nuevo_registro).execute()
-            
-            # Recarga la tabla de materiales en la sesión para que se actualice la vista
-            st.session_state.materiales = cargar_materiales_db()
-            st.success(f"Material {sku_m} guardado en Supabase correctamente.")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error al guardar en Supabase: {e}")
-            except Exception as e:
-                st.error(f"Error al procesar el archivo Excel: {e}")
+ with tab_manual:
+    with st.form("form_nuevo_mat"):
+        st.subheader("Registro Manual de Material")
+        c1, c2 = st.columns(2)
+        with c1:
+            sku_m = st.text_input("SKU").strip().upper()
+            nom_m = st.text_input("Nombre / Descripción")
+            uni_m = st.selectbox("Unidad", ["Unidades", "Cajas", "Pallets", "Kg", "Metros"])
+        with c2:
+            ubi_m = st.text_input("Ubicación en Bodega", value="A-00-0").strip().upper()
+            val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
+            stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
 
-    st.markdown("---")
-    st.subheader("Maestro de Materiales Registrados")
-    st.dataframe(st.session_state.materiales, use_container_width=True)
-
+        if st.form_submit_button("Guardar Material"):
+            if not sku_m or not nom_m:
+                st.error("SKU y Nombre son obligatorios.")
+            elif sku_m in st.session_state.materiales["SKU"].values:
+                st.error("El SKU ya existe.")
+            else:
+                nuevo_registro = {
+                    "sku": sku_m,
+                    "nombre": nom_m,
+                    "unidad": uni_m,
+                    "valor_unitario": val_m,
+                    "stock_actual": stk_m,
+                    "ubicacion": ubi_m,
+                    "bodega": "Bodega Central Antofagasta"
+                }
+                try:
+                    supabase.table("materiales").insert(nuevo_registro).execute()
+                    st.session_state.materiales = cargar_materiales_db()
+                    st.success(f"Material {sku_m} guardado en Supabase correctamente.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar en Supabase: {e}")   
 # ---------------------------------------------------------
 # MÓDULO 2: INGRESO DE MATERIALES
 # ---------------------------------------------------------
