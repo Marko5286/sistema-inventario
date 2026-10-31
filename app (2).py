@@ -369,10 +369,11 @@ elif menu == "3. Picking de Materiales":
             st.markdown("---")
             st.subheader("Historial de Órdenes de Picking")
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
+            
 # =========================================================
-# MÓDULO 4: SALIDAS Y DESPACHOS
+# MÓDULO 4: SALIDAS Y DESPACHOS (CON FIRMA DIGITAL SEGURA)
 # =========================================================
-elif "4" in menu_opcion or "Salidas" in menu_opcion:
+elif menu_opcion == "Módulo 4: Salidas y Despachos":
     st.header("📤 Módulo 4: Salidas y Despachos de Material")
     st.write("Complete los datos de entrega y registre la firma de recepción.")
 
@@ -386,6 +387,7 @@ elif "4" in menu_opcion or "Salidas" in menu_opcion:
     st.markdown("---")
     st.subheader("Firma Digital del Receptor")
 
+    # Componente Canvas exclusivo para el Módulo 4
     canvas_result = st_canvas(
         fill_color="rgba(255, 165, 0, 0.3)",
         stroke_width=2,
@@ -397,6 +399,7 @@ elif "4" in menu_opcion or "Salidas" in menu_opcion:
         key="canvas_firma_modulo4",
     )
 
+    # Captura segura del trazo para prevenir el RuntimeError
     has_drawing = False
     if canvas_result is not None:
         try:
