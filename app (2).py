@@ -371,10 +371,10 @@ elif menu == "3. Picking de Materiales":
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
 
 # =========================================================
-# MÓDULO 4: SALIDAS Y DESPACHOS (CON FIRMA DIGITAL SEGUIRA)
+# MÓDULO 4: SALIDAS Y DESPACHOS
 # =========================================================
-elif menu_opcion == "Módulo 4: Salidas y Despachos":
-    st.header("📤 Módulo 4: Salidas y Despachos de Material")
+elif "4" in menu_opcion or "Salidas" in menu_opcion:
+    st.header("📤 Salidas y Despachos de Material")
     st.write("Complete los datos de entrega y registre la firma de recepción.")
 
     # Formulario del Despacho
@@ -385,11 +385,10 @@ elif menu_opcion == "Módulo 4: Salidas y Despachos":
     with col2:
         encargado = st.text_input("Responsable del despacho")
 
-    # Separador visual seguro (sin cadenas sueltas que generen IndentationError)
     st.markdown("---")
     st.subheader("Firma Digital del Receptor")
 
-    # Componente Canvas exclusivo de este módulo
+    # Componente Canvas para firma
     canvas_result = st_canvas(
         fill_color="rgba(255, 165, 0, 0.3)",
         stroke_width=2,
@@ -401,7 +400,7 @@ elif menu_opcion == "Módulo 4: Salidas y Despachos":
         key="canvas_firma_modulo4",
     )
 
-    # Captura segura del trazo para prevenir RuntimeError
+    # Captura segura para evitar RuntimeError
     has_drawing = False
     if canvas_result is not None:
         try:
@@ -410,7 +409,7 @@ elif menu_opcion == "Módulo 4: Salidas y Despachos":
         except (RuntimeError, AttributeError, IndexError):
             has_drawing = False
 
-    # Acción de guardado
+    # Guardar Despacho
     if st.button("Guardar Registro de Despacho", type="primary"):
         if not cliente_destino or not numero_guia:
             st.warning("⚠️ Por favor, ingrese el cliente y el número de guía.")
@@ -418,9 +417,6 @@ elif menu_opcion == "Módulo 4: Salidas y Despachos":
             st.warning("⚠️ El recuadro de firma no puede estar vacío.")
         else:
             st.success(f"¡Despacho N° {numero_guia} registrado correctamente con firma digital!")
-            # Aquí agregas la consulta SQL con `engine` para guardar en tu base de datos de Supabase
-
-
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
