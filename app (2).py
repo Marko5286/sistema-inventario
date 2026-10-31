@@ -10,71 +10,51 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
+import sqlalchemy
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
 # ---------------------------------------------------------
-# 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
+# 0. CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS EN LA NUBE (SUPABASE)
 # ---------------------------------------------------------
-EXCEL_MATERIALES = "db_materiales.xlsx"
-EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
-EXCEL_PICKING = "db_picking.xlsx"
-EXCEL_GUIAS = "db_guias.xlsx"
+try:
+    # Intenta conectar usando los secretos configurados en Streamlit Cloud
+    db_url = st.secrets["postgres"]["url"]
+    engine = sqlalchemy.create_engine(db_url)
+except Exception:
+    # Respaldo temporal local si no están configurados los secretos aún
+    engine = sqlalchemy.create_engine("sqlite:///wms_local.db")
 
-if "materiales" not in st.session_state:
-    if os.path.exists(EXCEL_MATERIALES):
-        try:
-            st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
-        except:
-            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
-    else:
-        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
+def cargar_tabla_desde_nube(tabla, columnas_default):
+    try:
+        df = pd.read_sql(f"SELECT * FROM {tabla}", con=engine)
+        return df
+    except Exception:
+        return pd.DataFrame(columns=columnas_default)
 
+# Cargar datos iniciales desde la Base de Datos
+st.session_state.materiales = cargar_tabla_desde_nube("materiales", ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
+st.session_state.movimientos = cargar_tabla_desde_nube("movimientos", ["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
+st.session_state.ordenes_picking = cargar_tabla_desde_nube("ordenes_picking", ["ID_Picking", "Cliente", "SKU", "Ubicacion", "Cantidad", "Estado"]).to_dict('records')
+st.session_state.guias_despacho = cargar_tabla_desde_nube("guias_despacho", ["Numero_Guia", "Fecha", "Cliente", "Rut", "SKU", "Cantidad", "Transporte", "Conductor", "Rut_Conductor", "Patente", "Motivo"]).to_dict('records')
+
+# Validaciones de columnas básicas por seguridad
 if "Bodega" not in st.session_state.materiales.columns:
     st.session_state.materiales["Bodega"] = "Bodega Central Antofagasta"
 if "Ubicacion" not in st.session_state.materiales.columns:
     st.session_state.materiales["Ubicacion"] = "A-00-0"
-
-if "movimientos" not in st.session_state:
-    if os.path.exists(EXCEL_MOVIMIENTOS):
-        try:
-            st.session_state.movimientos = pd.read_excel(EXCEL_MOVIMIENTOS)
-        except:
-            st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
-    else:
-        st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
-
 if "Usuario" not in st.session_state.movimientos.columns:
     st.session_state.movimientos["Usuario"] = "admin"
 
-if "ordenes_picking" not in st.session_state:
-    if os.path.exists(EXCEL_PICKING):
-        try:
-            df_pick = pd.read_excel(EXCEL_PICKING)
-            st.session_state.ordenes_picking = df_pick.to_dict('records')
-        except:
-            st.session_state.ordenes_picking = []
-    else:
-        st.session_state.ordenes_picking = []
-
-if "guias_despacho" not in st.session_state:
-    if os.path.exists(EXCEL_GUIAS):
-        try:
-            df_guias = pd.read_excel(EXCEL_GUIAS)
-            st.session_state.guias_despacho = df_guias.to_dict('records')
-        except:
-            st.session_state.guias_despacho = []
-    else:
-        st.session_state.guias_despacho = []
-
 def guardar_datos():
+    """Guarda automáticamente todos los DataFrames en la base de datos PostgreSQL de Supabase"""
     try:
-        st.session_state.materiales.to_excel(EXCEL_MATERIALES, index=False)
-        st.session_state.movimientos.to_excel(EXCEL_MOVIMIENTOS, index=False)
-        pd.DataFrame(st.session_state.ordenes_picking).to_excel(EXCEL_PICKING, index=False)
-        pd.DataFrame(st.session_state.guias_despacho).to_excel(EXCEL_GUIAS, index=False)
+        st.session_state.materiales.to_sql("materiales", con=engine, if_exists="replace", index=False)
+        st.session_state.movimientos.to_sql("movimientos", con=engine, if_exists="replace", index=False)
+        pd.DataFrame(st.session_state.ordenes_picking).to_sql("ordenes_picking", con=engine, if_exists="replace", index=False)
+        pd.DataFrame(st.session_state.guias_despacho).to_sql("guias_despacho", con=engine, if_exists="replace", index=False)
     except Exception as e:
-        st.error(f"Error al guardar datos: {e}")
+        st.error(f"Error al sincronizar con la base de datos en la nube: {e}")
 
 # ---------------------------------------------------------
 # 0.1 AUTENTICACIÓN DE USUARIOS
