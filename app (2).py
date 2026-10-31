@@ -425,10 +425,9 @@ elif menu == "4. Despacho y Guía":
             drawing_mode="freedraw",
             key="canvas_firma",
         )
-
-        if st.button("Confirmar Despacho y Generar Guía"):
-            if canvas_result.image_data is None or not (canvas_result.image_data[:, :, 3] > 0).any():
-                st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
+if st.button("Confirmar Despacho y Generar Guía"):
+    if canvas_result.image_data is None or not (canvas_result.image_data[:, :, 3] > 0).any():
+        st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
             else:
                 idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
                 st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
