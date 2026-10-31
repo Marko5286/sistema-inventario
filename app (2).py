@@ -370,40 +370,96 @@ elif menu == "3. Picking de Materiales":
             st.subheader("Historial de Órdenes de Picking")
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
 
-# =========================================================
-# SECCIÓN DE FIRMA DIGITAL / CANVAS
-# =========================================================
-
-st.subheader("Firma de recepción / despacho")
-
-canvas_result = st_canvas(
-    fill_color="rgba(255, 165, 0, 0.3)",
-    stroke_width=2,
-    stroke_color="#000000",
-    background_color="#FFFFFF",
-    height=150,
-    width=400,
-    drawing_mode="freedraw",
-    key="canvas_firma_despacho",
-)
-
-# Validación segura para evitar el RuntimeError en cualquier otro módulo
-has_drawing = False
-if canvas_result is not None:
-    try:
-        if canvas_result.image_data is not None and (canvas_result.image_data[:, :, 3] > 0).any():
-            has_drawing = True
-    except (RuntimeError, AttributeError, IndexError):
-        has_drawing = False
-
-# Lógica del botón o acción a realizar con la firma
-if st.button("Guardar Registro con Firma"):
-    if not has_drawing:
-        st.warning("⚠️ Por favor, realiza una firma en el recuadro antes de guardar.")
+ ---------------------------------------------------------
+# MÓDULO 4: DESPACHO Y GUÍA CON FIRMA DIGITAL Y PDF
+# ---------------------------------------------------------
+elif menu == "4. Despacho y Guía":
+    st.header("🚚 Despacho y Emisión de Guía de Traslado")
+    pendientes = [p for p in st.session_state.ordenes_picking if p["Estado"] == "Pendiente Despacho"]
+    
+    if not pendientes:
+        st.info("No hay órdenes de picking pendientes.")
     else:
-        st.success("¡Firma registrada y datos guardados con éxito!")
-        # Aquí puedes colocar el código que inserta los datos en tu base de datos de Supabase
+        df_pendientes = pd.DataFrame(pendientes)
+        orden_sel = st.selectbox("Seleccionar Orden de Picking", df_pendientes["ID_Picking"])
+        datos_orden = next(item for item in st.session_state.ordenes_picking if item["ID_Picking"] == orden_sel)
+        
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            transporte = st.text_input("Empresa de Transporte")
+            patente = st.text_input("Patente Vehículo")
+            nombre_conductor = st.text_input("Nombre Conductor")
+            rut_conductor = st.text_input("R.U.T. Conductor")
+        with col_d2:
+            rut_cliente = st.text_input("R.U.T. del Cliente")
+            motivo = st.selectbox("Motivo de Traslado", ["Venta", "Traspaso entre bodegas", "Devolución", "Muestras"])
 
+        st.markdown("---")
+        st.subheader("✍️ Firma Digital del Receptor / Transportista")
+        st.caption("Dibuja tu firma a continuación dentro del recuadro:")
+
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)",
+            stroke_width=2,
+            stroke_color="#000000",
+            background_color="#f0f2f6",
+            height=150,
+            width=400,
+            drawing_mode="freedraw",
+            key="canvas_firma",
+        )
+
+        if st.button("Confirmar Despacho y Generar Guía"):
+            if canvas_result.image_data is None or not (canvas_result.image_data[:, :, 3] > 0).any():
+                st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
+            else:
+                idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
+                st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
+                datos_orden["Estado"] = "Despachado"
+
+                mov = pd.DataFrame([{
+                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                    "Tipo": "DESPACHO",
+                    "SKU": datos_orden["SKU"],
+                    "Cantidad": datos_orden["Cantidad"],
+                    "Origen/Destino": datos_orden["Cliente"],
+                    "Usuario": st.session_state.get('usuario_actual', 'admin'),
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }])
+                st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+
+                num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
+                guia_data = {
+                    "Numero_Guia": num_guia,
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "Cliente": datos_orden["Cliente"],
+                    "Rut": rut_cliente,
+                    "SKU": datos_orden["SKU"],
+                    "Cantidad": datos_orden["Cantidad"],
+                    "Transporte": transporte,
+                    "Conductor": nombre_conductor,
+                    "Rut_Conductor": rut_conductor,
+                    "Patente": patente,
+                    "Motivo": motivo,
+                    "Firma_Img": canvas_result.image_data
+                }
+                
+                st.session_state.guias_despacho.append(guia_data)
+                guardar_datos()
+                st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}**")
+                st.session_state.ultima_guia = guia_data
+                st.rerun()
+
+    if "ultima_guia" in st.session_state:
+        st.markdown("---")
+        st.subheader("📥 Descargar Guía de Traslado")
+        pdf_buffer = generar_pdf_guia(st.session_state.ultima_guia)
+        st.download_button(
+            label="📄 Descargar Guía de Despacho en PDF",
+            data=pdf_buffer,
+            file_name=f"Guia_{st.session_state.ultima_guia['Numero_Guia']}.pdf",
+            mime="application/pdf"
+        )
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
