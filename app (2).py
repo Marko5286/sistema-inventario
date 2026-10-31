@@ -14,13 +14,23 @@ import sqlalchemy
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
+# =========================================================
+# 1. VERIFICACIÓN DE CLAVES SECRETAS (Ponlo aquí arriba)
+# =========================================================
+api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    st.error("Configura tu GEMINI_API_KEY en los secretos.")
+    st.stop()
+
 # ---------------------------------------------------------
 # 0. CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS EN LA NUBE (SUPABASE)
 # ---------------------------------------------------------
 try:
-    # Intenta conectar usando los secretos configurados en Streamlit Cloud
     db_url = st.secrets["postgres"]["url"]
     engine = sqlalchemy.create_engine(db_url)
+except Exception:
+    engine = sqlalchemy.create_engine("sqlite:///wms_local.db")
 except Exception:
     # Respaldo temporal local si no están configurados los secretos aún
     engine = sqlalchemy.create_engine("sqlite:///wms_local.db")
