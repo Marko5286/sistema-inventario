@@ -386,7 +386,7 @@ elif menu == "3. Picking de Materiales":
             st.markdown("---")
             st.subheader("Historial de Órdenes de Picking")
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
- # ---------------------------------------------------------
+# ---------------------------------------------------------
 # MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
 # ---------------------------------------------------------
 elif menu == "4. Despacho y Guía":
@@ -406,9 +406,11 @@ elif menu == "4. Despacho y Guía":
             st.warning("Todas las órdenes de picking ya han sido despachadas.")
         else:
             id_sel = st.selectbox("Seleccionar Orden de Picking a Despachar", ordenes_pendientes)
+            
+            # Inicializamos de forma segura la variable antes de usarla
             datos_orden = next((o for o in st.session_state.ordenes_picking if o["ID_Picking"] == id_sel), None)
-
-if datos_orden:
+            
+            if datos_orden:
                 st.markdown("---")
                 st.subheader(f"Datos de Despacho para Orden: `{id_sel}`")
                 
@@ -500,7 +502,6 @@ if datos_orden:
                         st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}** generada.")
                         st.session_state.ultima_guia = guia_data
                         st.rerun()
-            
 
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
