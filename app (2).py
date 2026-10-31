@@ -378,13 +378,7 @@ elif menu == "3. Picking de Materiales":
             st.subheader("Historial de Órdenes de Picking")
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
             
-import io
-import streamlit as st
-from streamlit_drawable_canvas import st_canvas
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
+
 
 # =========================================================
 # MÓDULO DE SALIDAS, DESPACHOS Y GUÍA IMPRESA
