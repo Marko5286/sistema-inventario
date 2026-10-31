@@ -397,7 +397,8 @@ elif menu == "4. Despacho y Guía":
         st.markdown("---")
         st.subheader("✍️ Firma Digital del Receptor / Transportista")
         st.caption("Dibuja tu firma a continuación dentro del recuadro:")
-
+        
+        st.subheader("Firma de recepción / despacho")
         canvas_result = st_canvas(
             fill_color="rgba(255, 255, 255, 0)",
             stroke_width=2,
