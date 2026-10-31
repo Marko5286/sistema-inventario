@@ -251,64 +251,33 @@ if menu == "1. Creación de Materiales":
                 val_m = st.number_input("Valor Unitario ($)", min_value=0.0, value=0.0, step=100.0)
                 stk_m = st.number_input("Stock Inicial", min_value=0, value=0)
             
-            if st.form_submit_button("Guardar Material"):
-                if not sku_m or not nom_m:
-                    st.error("SKU y Nombre son obligatorios.")
-                elif sku_m in st.session_state.materiales["SKU"].values:
-                    st.error("El SKU ya existe.")
-                else:
-                    nuevo = pd.DataFrame([{
-                        "SKU": sku_m,
-                        "Nombre": nom_m,
-                        "Unidad": uni_m,
-                        "Valor_Unitario": val_m,
-                        "Stock_Actual": stk_m,
-                        "Ubicacion": ubi_m,
-                        "Bodega": "Bodega Central Antofagasta"
-                    }])
-                    st.session_state.materiales = pd.concat([st.session_state.materiales, nuevo], ignore_index=True)
-                    guardar_datos()
-                    st.success(f"Material {sku_m} creado correctamente.")
-                    st.rerun()
-
-    with tab_masivo:
-        st.subheader("Subir Planilla Excel de Materiales")
-        st.info("💡 **Formato requerido del Excel:** La primera fila debe contener exactamente:\n\n `SKU`, `Nombre`, `Unidad`, `Valor_Unitario`, `Stock_Actual`, `Ubicacion`, `Bodega`")
-        
-        archivo_excel = st.file_uploader("Selecciona el archivo Excel (.xlsx)", type=["xlsx", "xls"])
-        
-        if archivo_excel is not None:
-            try:
-                df_cargado = pd.read_excel(archivo_excel)
-                columnas_requeridas = ["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"]
-                
-                if not all(col in df_cargado.columns for col in ["SKU", "Nombre"]):
-                    st.error("⚠️ El archivo subido debe contener al menos las columnas 'SKU' y 'Nombre'.")
-                else:
-                    if "Unidad" not in df_cargado.columns: df_cargado["Unidad"] = "Unidades"
-                    if "Valor_Unitario" not in df_cargado.columns: df_cargado["Valor_Unitario"] = 0
-                    if "Stock_Actual" not in df_cargado.columns: df_cargado["Stock_Actual"] = 0
-                    if "Ubicacion" not in df_cargado.columns: df_cargado["Ubicacion"] = "A-00-0"
-                    if "Bodega" not in df_cargado.columns: df_cargado["Bodega"] = "Bodega Central Antofagasta"
-                    
-                    df_cargado["SKU"] = df_cargado["SKU"].astype(str).str.strip().str.upper()
-                    st.write("🔍 **Vista previa de los datos a cargar:**")
-                    st.dataframe(df_cargado[columnas_requeridas].head(10))
-                    
-                    if st.button("🚀 Confirmar e Importar Datos"):
-                        skus_existentes = set(st.session_state.materiales["SKU"].tolist())
-                        df_nuevos = df_cargado[~df_cargado["SKU"].isin(skus_existentes)][columnas_requeridas]
-                        cant_duplicados = len(df_cargado) - len(df_nuevos)
-                        
-                        if df_nuevos.empty:
-                            st.warning("⚠️ Todos los SKU del archivo ya existen en la base de datos.")
-                        else:
-                            st.session_state.materiales = pd.concat([st.session_state.materiales, df_nuevos], ignore_index=True)
-                            guardar_datos()
-                            st.success(f"¡Carga completada! Se importaron **{len(df_nuevos)}** nuevos materiales.")
-                            if cant_duplicados > 0:
-                                st.warning(f"Se omitieron **{cant_duplicados}** registros porque sus SKUs ya existían.")
-                            st.rerun()
+            # Dentro del Módulo 1 (Guardar Material Manual)
+if st.form_submit_button("Guardar Material"):
+    if not sku_m or not nom_m:
+        st.error("SKU y Nombre son obligatorios.")
+    elif sku_m in st.session_state.materiales["SKU"].values:
+        st.error("El SKU ya existe.")
+    else:
+        # Estructura que va hacia Supabase (en minúsculas según la tabla que creamos)
+        nuevo_registro = {
+            "sku": sku_m,
+            "nombre": nom_m,
+            "unidad": uni_m,
+            "valor_unitario": val_m,
+            "stock_actual": stk_m,
+            "ubicacion": ubi_m,
+            "bodega": "Bodega Central Antofagasta"
+        }
+        try:
+            # Inserta directamente en la tabla 'materiales' de Supabase
+            supabase.table("materiales").insert(nuevo_registro).execute()
+            
+            # Recarga la tabla de materiales en la sesión para que se actualice la vista
+            st.session_state.materiales = cargar_materiales_db()
+            st.success(f"Material {sku_m} guardado en Supabase correctamente.")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error al guardar en Supabase: {e}")
             except Exception as e:
                 st.error(f"Error al procesar el archivo Excel: {e}")
 
@@ -324,27 +293,36 @@ elif menu == "2. Ingreso de Materiales":
     if st.session_state.materiales.empty:
         st.info("Primero debe crear materiales.")
     else:
-        with st.form("form_ingreso"):
-            sku_ingreso = st.selectbox("Seleccionar Material (SKU)", st.session_state.materiales["SKU"])
-            cant_ingreso = st.number_input("Cantidad a Ingresar", min_value=1, value=1)
-            proveedor_origen = st.text_input("Proveedor / Procedencia")
-            if st.form_submit_button("Registrar Ingreso"):
-                idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_ingreso].tolist()[0]
-                st.session_state.materiales.loc[idx, "Stock_Actual"] += cant_ingreso
-                mov = pd.DataFrame([{
-                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-                    "Tipo": "INGRESO",
-                    "SKU": sku_ingreso,
-                    "Cantidad": cant_ingreso,
-                    "Origen/Destino": proveedor_origen or "Recepción General",
-                    "Usuario": st.session_state.get('usuario_actual', 'admin'),
-                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }])
-                st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-                guardar_datos()
-                st.success(f"Ingresadas {cant_ingreso} unidades del SKU {sku_ingreso}.")
-                st.rerun()
-
+       # Dentro del Módulo 2 (Ingreso de Materiales)
+if st.form_submit_button("Registrar Ingreso"):
+    # 1. Calcular el nuevo stock sumando el ingreso
+    sku_elegido = sku_ingreso
+    mat_actual = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_elegido].iloc[0]
+    stock_viejo = int(mat_actual["Stock_Actual"])
+    nuevo_stock = stock_viejo + cant_ingreso
+    
+    try:
+        # 2. Actualizar el stock actual en la tabla 'materiales' de Supabase
+        supabase.table("materiales").update({"stock_actual": nuevo_stock}).eq("sku", sku_elegido).execute()
+        
+        # 3. Registrar el movimiento en la tabla 'movimientos' de Supabase
+        supabase.table("movimientos").insert({
+            "codigo_mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+            "tipo": "INGRESO",
+            "sku": sku_elegido,
+            "cantidad": cant_ingreso,
+            "origen_destino": proveedor_origen or "Recepción General",
+            "usuario": st.session_state.get('usuario_actual', 'admin')
+        }).execute()
+        
+        # 4. Recargar los datos desde la nube a la sesión
+        st.session_state.materiales = cargar_materiales_db()
+        st.session_state.movimientos = cargar_movimientos_db()
+        
+        st.success(f"Ingresadas {cant_ingreso} unidades del SKU {sku_elegido} guardadas en la nube.")
+        st.rerun()
+    except Exception as e:
+        st.error(f"Error al registrar en Supabase: {e}")
 # ---------------------------------------------------------
 # MÓDULO 3: PICKING DE MATERIALES
 # ---------------------------------------------------------
