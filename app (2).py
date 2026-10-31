@@ -105,9 +105,7 @@ if not st.session_state.autenticado:
 # ---------------------------------------------------------
 # FUNCIONES DE AUTOMATIZACIÓN (PDF CON FIRMA & CORREO)
 # ---------------------------------------------------------
-# ---------------------------------------------------------
-# FUNCIONES DE AUTOMATIZACIÓN (PDF CON FIRMA & CORREO)
-# ---------------------------------------------------------
+
 def generar_pdf_guia(guia):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
@@ -257,7 +255,42 @@ if menu == "1. Creación de Materiales":
                         st.success(f"Material {sku_m} guardado en Supabase correctamente.")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error al guardar en Supabase: {e}")  
+                        st.error(f"Error al guardar en Supabase: {e}")
+
+    with tab_masivo:
+        st.subheader("Carga Masiva de SKUs mediante Archivo Excel")
+        st.markdown("Sube un archivo de Excel con las columnas: `SKU`, `Nombre`, `Unidad`, `Valor_Unitario`, `Stock_Actual`, `Ubicacion`.")
+        
+        archivo_subido = st.file_uploader("Seleccionar archivo Excel", type=["xlsx", "xls"])
+        if archivo_subido is not None:
+            try:
+                df_carga = pd.read_excel(archivo_subido)
+                st.write("Vista previa de los datos cargados:", df_carga.head())
+                
+                if st.button("Procesar e Insertar en Supabase"):
+                    conteo_exitosos = 0
+                    for _, row in df_carga.iterrows():
+                        reg_masivo = {
+                            "sku": str(row.get("SKU", "")).strip().upper(),
+                            "nombre": str(row.get("Nombre", "")),
+                            "unidad": str(row.get("Unidad", "Unidades")),
+                            "valor_unitario": float(row.get("Valor_Unitario", 0.0)),
+                            "stock_actual": int(row.get("Stock_Actual", 0)),
+                            "ubicacion": str(row.get("Ubicacion", "A-00-0")).strip().upper(),
+                            "bodega": "Bodega Central Antofagasta"
+                        }
+                        if reg_masivo["sku"]:
+                            try:
+                                supabase.table("materiales").upsert(reg_masivo).execute()
+                                conteo_exitosos += 1
+                            except Exception:
+                                pass
+                    
+                    st.session_state.materiales = cargar_materiales_db()
+                    st.success(f"¡Carga masiva finalizada! Se procesaron {conteo_exitosos} registros correctamente en Supabase.")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error al leer el archivo Excel: {e}")
 # ---------------------------------------------------------
 # MÓDULO 2: INGRESO DE MATERIALES
 # ---------------------------------------------------------
