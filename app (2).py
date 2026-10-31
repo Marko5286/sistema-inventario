@@ -21,6 +21,7 @@ import os
 import streamlit as st
 
 # Intenta leer la clave de Gemini desde los secretos de forma segura
+api_key = None
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
 except Exception:
