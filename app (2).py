@@ -11,6 +11,14 @@ from reportlab.lib.utils import ImageReader
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
 import sqlalchemy
+import io
+import streamlit as st
+from streamlit_drawable_canvas import st_canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
@@ -370,51 +378,146 @@ elif menu == "3. Picking de Materiales":
             st.subheader("Historial de Órdenes de Picking")
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
             
+import io
+import streamlit as st
+from streamlit_drawable_canvas import st_canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+
 # =========================================================
-# MÓDULO 4: SALIDAS Y DESPACHOS (CON FIRMA DIGITAL SEGURA)
+# MÓDULO DE SALIDAS, DESPACHOS Y GUÍA IMPRESA
 # =========================================================
-elif menu_opcion == "Módulo 4: Salidas y Despachos":
-    st.header("📤 Módulo 4: Salidas y Despachos de Material")
-    st.write("Complete los datos de entrega y registre la firma de recepción.")
+st.header("📤 Salidas y Despachos de Material")
+st.write("Complete la información de salida, registre la firma digital y genere la Guía de Despacho oficial.")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        cliente_destino = st.text_input("Cliente / Destino final")
-        numero_guia = st.text_input("N° de Guía / Documento")
-    with col2:
-        encargado = st.text_input("Responsable del despacho")
+# 1. Formulario de Datos del Despacho
+col1, col2 = st.columns(2)
+with col1:
+    cliente_destino = st.text_input("Cliente / Destino final", placeholder="Ej: Constructora del Norte")
+    numero_guia = st.text_input("N° de Guía de Despacho", placeholder="GD-2026-001")
+    material_desc = st.text_area("Detalle de los Materiales / Productos", placeholder="Ej: 50x Cajas de pernos, 10x Tubos PVC")
+with col2:
+    encargado = st.text_input("Responsable del despacho", placeholder="Tu Nombre")
+    vehiculo_patente = st.text_input("Patente del vehículo / Transportista", placeholder="ABCD-12")
 
-    st.markdown("---")
-    st.subheader("Firma Digital del Receptor")
+st.markdown("---")
+st.subheader("✍️ Firma Digital del Receptor")
+st.info("Por favor, solicite al receptor que firme en el recuadro inferior.")
 
-    # Componente Canvas exclusivo para el Módulo 4
-    canvas_result = st_canvas(
-        fill_color="rgba(255, 165, 0, 0.3)",
-        stroke_width=2,
-        stroke_color="#000000",
-        background_color="#FFFFFF",
-        height=180,
-        width=450,
-        drawing_mode="freedraw",
-        key="canvas_firma_modulo4",
-    )
+# 2. Componente de Firma (Canvas con validación segura de RuntimeError)
+canvas_result = st_canvas(
+    fill_color="rgba(255, 165, 0, 0.3)",
+    stroke_width=2,
+    stroke_color="#000000",
+    background_color="#FFFFFF",
+    height=160,
+    width=450,
+    drawing_mode="freedraw",
+    key="canvas_firma_despacho_pdf",
+)
 
-    # Captura segura del trazo para prevenir el RuntimeError
-    has_drawing = False
-    if canvas_result is not None:
-        try:
-            if canvas_result.image_data is not None and (canvas_result.image_data[:, :, 3] > 0).any():
-                has_drawing = True
-        except (RuntimeError, AttributeError, IndexError):
-            has_drawing = False
+# Verificación de que el usuario haya dibujado algo de manera segura
+has_drawing = False
+signature_image_path = None
+if canvas_result is not None:
+    try:
+        if canvas_result.image_data is not None and (canvas_result.image_data[:, :, 3] > 0).any():
+            has_drawing = True
+            # Guardamos temporalmente la imagen de la firma para el PDF
+            import numpy as np
+            from PIL import Image
+            img_data = canvas_result.image_data.astype(np.uint8)
+            img = Image.fromarray(img_data)
+            signature_image_path = "temp_firma.png"
+            img.save(signature_image_path)
+    except (RuntimeError, AttributeError, IndexError):
+        has_drawing = False
 
-    if st.button("Guardar Registro de Despacho", type="primary"):
-        if not cliente_destino or not numero_guia:
-            st.warning("⚠️ Por favor, ingrese el cliente y el número de guía.")
-        elif not has_drawing:
-            st.warning("⚠️ El recuadro de firma no puede estar vacío.")
-        else:
-            st.success(f"¡Despacho N° {numero_guia} registrado correctamente con firma digital!")
+st.markdown("---")
+
+# 3. Acciones de Validación y Generación de PDF
+if st.button("💾 Guardar y Generar Guía de Despacho (PDF)", type="primary"):
+    if not cliente_destino or not numero_guia or not material_desc:
+        st.warning("⚠️ Por favor, complete los campos obligatorios: Cliente, N° de Guía y Materiales.")
+    elif not has_drawing:
+        st.warning("⚠️ El recuadro de firma no puede estar vacío. Se requiere la firma del receptor.")
+    else:
+        st.success(f"¡Despacho N° {numero_guia} procesado exitosamente!")
+
+        # 4. Generación automática del archivo PDF (Guía de Despacho)
+        pdf_buffer = io.BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        # Estilos personalizados
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            textColor=colors.HexColor("#1A365D"),
+            alignment=1, # Centrado
+            spaceAfter=15
+        )
+        
+        normal_style = styles['Normal']
+
+        # Contenido del PDF
+        elements.append(Paragraph("<b>MARKLOGISTIC - GUÍA DE DESPACHO</b>", title_style))
+        elements.append(Paragraph(f"<b>N° de Guía:</b> {numero_guia}", normal_style))
+        elements.append(Spacer(1, 10))
+
+        # Tabla de datos generales
+        data_tabla = [
+            [Paragraph(f"<b>Cliente / Destino:</b> {cliente_destino}", normal_style), 
+             Paragraph(f"<b>Responsable:</b> {encargado}", normal_style)],
+            [Paragraph(f"<b>Transporte / Patente:</b> {vehiculo_patente}", normal_style), 
+             Paragraph(f"<b>Fecha:</b> 2026-10-31", normal_style)]
+        ]
+        t = Table(data_tabla, colWidths=[270, 270])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F7FAFC")),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#CBD5E0")),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#E2E8F0")),
+            ('PADDING', (0,0), (-1,-1), 8),
+        ]))
+        elements.append(t)
+        elements.append(Spacer(1, 15))
+
+        # Detalle de materiales
+        elements.append(Paragraph("<b>Detalle de Materiales Entregados:</b>", styles['Heading3']))
+        elements.append(Spacer(1, 5))
+        elements.append(Paragraph(material_desc.replace('\n', '<br/>'), normal_style))
+        elements.append(Spacer(1, 40))
+
+        # Sección de Firma en el PDF
+        from reportlab.platypus import Image as RLImage
+        signature_elements = [Paragraph("<b>Firma de Recepción Conforme:</b>", normal_style)]
+        if signature_image_path:
+            # Insertar la firma dibujada en el PDF
+            signature_elements.append(Spacer(1, 10))
+            signature_elements.append(RLImage(signature_image_path, width=150, height=60))
+        
+        signature_elements.append(Spacer(1, 10))
+        signature_elements.append(Paragraph("________________________________________", normal_style))
+        signature_elements.append(Paragraph("Nombre y Rut del Receptor", normal_style))
+
+        elements.append(Table([[signature_elements]], colWidths=[540]))
+
+        # Construir el PDF
+        doc.build(elements)
+        pdf_buffer.seek(0)
+
+        # 5. Botón de descarga directa en Streamlit
+        st.download_button(
+            label="📥 Descargar Guía de Despacho en PDF",
+            data=pdf_buffer,
+            file_name=f"Guia_Despacho_{numero_guia}.pdf",
+            mime="application/pdf",
+            type="secondary"
+        )
 
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
