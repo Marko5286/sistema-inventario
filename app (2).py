@@ -386,7 +386,7 @@ elif menu == "3. Picking de Materiales":
 # =========================================================
 # SECCIÓN DE FIRMA DIGITAL / CANVAS
 # =========================================================
-st.subheader("Firma de recepción / despacho")
+st.subheader("despacho")
 
 # Componente del canvas (asegúrate de que mantenga los parámetros que ya usabas)
 canvas_result = st_canvas(
