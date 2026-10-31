@@ -398,16 +398,28 @@ elif menu == "4. Despacho y Guía":
         st.subheader("✍️ Firma Digital del Receptor / Transportista")
         st.caption("Dibuja tu firma a continuación dentro del recuadro:")
         
-        st.subheader("Firma de recepción / despacho")
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)",
-            stroke_width=2,
-            stroke_color="#000000",
-            background_color="#f0f2f6",
-            height=150,
-            width=400,
-            drawing_mode="freedraw",
-            key="canvas_firma",
+      # Dentro del módulo de Salidas/Despachos o el que tú elijas:
+st.subheader("Firma de recepción / despacho")
+
+canvas_result = st_canvas(
+    fill_color="rgba(255, 165, 0, 0.3)",
+    stroke_width=2,
+    stroke_color="#000000",
+    background_color="#FFFFFF",
+    height=150,
+    width=400,
+    drawing_mode="freedraw",
+    key="canvas_firma_despacho",
+)
+
+# Validación segura para evitar el RuntimeError en cualquier otro módulo
+has_drawing = False
+if canvas_result is not None:
+    try:
+        if canvas_result.image_data is not None and (canvas_result.image_data[:, :, 3] > 0).any():
+            has_drawing = True
+    except (RuntimeError, AttributeError, IndexError):
+        has_drawing = False
         )
 
         if st.button("Confirmar Despacho y Generar Guía"):
