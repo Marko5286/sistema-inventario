@@ -425,10 +425,19 @@ elif menu == "4. Despacho y Guía":
             drawing_mode="freedraw",
             key="canvas_firma",
         )
-if st.button("Confirmar Despacho y Generar Guía"):
-    if canvas_result.image_data is None or not (canvas_result.image_data[:, :, 3] > 0).any():
+       if st.button("Confirmar Despacho y Generar Guía"):
+    firma_valida = False
+    if canvas_result is not None:
+        try:
+            if canvas_result.image_data is not None and (canvas_result.image_data[:, :, 3] > 0).any():
+                firma_valida = True
+        except RuntimeError:
+            firma_valida = False
+
+    if not firma_valida:
         st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
-            else:
+    else:
+        # El resto de tu lógica de despacho existente...
                 idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
                 st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
                 datos_orden["Estado"] = "Despachado"
