@@ -795,4 +795,4 @@ elif menu == "14. Registro Fotográfico":
                 }
                 st.session_state.registro_fotos.append(nueva_foto)
                 st.success("¡Evidencia registrada con éxito!")
-                st.rerun(
+                st.rerun()
