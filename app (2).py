@@ -386,72 +386,80 @@ elif menu == "3. Picking de Materiales":
             st.markdown("---")
             st.subheader("Historial de Órdenes de Picking")
             st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
+            
 
-st.markdown("---")
-    st.subheader("✍️ Firma Digital del Receptor / Transportista")
-    st.caption("Dibuja tu firma a continuación dentro del recuadro:")
-    
-    canvas_result = st_canvas(
-        fill_color="rgba(255, 255, 255, 0)",
-        stroke_width=2,
-        stroke_color="#000000",
-        background_color="#f0f2f6",
-        height=150,
-        width=400,
-        drawing_mode="freedraw",
-        key="canvas_firma",
-    )
+# ---------------------------------------------------------
+# MÓDULO 4: DESPACHO Y GUÍA DE TRASLADO
+# ---------------------------------------------------------
+if st.session_state.ordenes_picking:
+        st.markdown("---")
+        st.subheader("Historial de Órdenes de Picking")
+        st.dataframe(pd.DataFrame(st.session_state.ordenes_picking), use_container_width=True)
+        
+        st.markdown("---")
+        st.subheader("✍️ Firma Digital del Receptor / Transportista")
+        st.caption("Dibuja tu firma a continuación dentro del recuadro:")
+        
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)",
+            stroke_width=2,
+            stroke_color="#000000",
+            background_color="#f0f2f6",
+            height=150,
+            width=400,
+            drawing_mode="freedraw",
+            key="canvas_firma",
+        )
 
         if st.button("Confirmar Despacho y Generar Guía"):
-        firma_valida = False
-        if canvas_result is not None:
-            try:
-                if canvas_result.image_data is not None and (canvas_result.image_data[:, :, 3] > 0).any():
-                    firma_valida = True
-            except RuntimeError:
-                firma_valida = False
+            firma_valida = False
+            if canvas_result is not None:
+                try:
+                    if canvas_result.image_data is not None and (canvas_result.image_data[:, :, 3] > 0).any():
+                        firma_valida = True
+                except RuntimeError:
+                    firma_valida = False
 
-        if not firma_valida:
-            st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
-        else:
-            idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
-            st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
-            datos_orden["Estado"] = "Despachado"
-            
-            mov = pd.DataFrame([{
-                "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}", 
-                "Tipo": "DESPACHO", 
-                "SKU": datos_orden["SKU"], 
-                "Cantidad": datos_orden["Cantidad"], 
-                "Origen/Destino": datos_orden["Cliente"], 
-                "Usuario": st.session_state.get('usuario_actual', 'admin'), 
-                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }])
-            
-            st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
-            
-            num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
-            guia_data = {
-                "Numero_Guia": num_guia, 
-                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"), 
-                "Cliente": datos_orden["Cliente"], 
-                "Rut": rut_cliente, 
-                "SKU": datos_orden["SKU"], 
-                "Cantidad": datos_orden["Cantidad"], 
-                "Transporte": transporte, 
-                "Conductor": nombre_conductor, 
-                "Rut_Conductor": rut_conductor, 
-                "Patente": patente, 
-                "Motivo": motivo, 
-                "Firma_Img": canvas_result.image_data
-            }
-            
-            st.session_state.guias_despacho.append(guia_data)
-            guardar_datos()
-            st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}**")
-            st.session_state.ultima_guia = guia_data
-            st.rerun()
-
+            if not firma_valida:
+                st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
+            else:
+                idx = st.session_state.materiales.index[st.session_state.materiales["SKU"] == datos_orden["SKU"]].tolist()[0]
+                st.session_state.materiales.loc[idx, "Stock_Actual"] -= datos_orden["Cantidad"]
+                datos_orden["Estado"] = "Despachado"
+                
+                mov = pd.DataFrame([{
+                    "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}", 
+                    "Tipo": "DESPACHO", 
+                    "SKU": datos_orden["SKU"], 
+                    "Cantidad": datos_orden["Cantidad"], 
+                    "Origen/Destino": datos_orden["Cliente"], 
+                    "Usuario": st.session_state.get('usuario_actual', 'admin'), 
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }])
+                
+                st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
+                
+                num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
+                guia_data = {
+                    "Numero_Guia": num_guia, 
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"), 
+                    "Cliente": datos_orden["Cliente"], 
+                    "Rut": rut_cliente, 
+                    "SKU": datos_orden["SKU"], 
+                    "Cantidad": datos_orden["Cantidad"], 
+                    "Transporte": transporte, 
+                    "Conductor": nombre_conductor, 
+                    "Rut_Conductor": rut_conductor, 
+                    "Patente": patente, 
+                    "Motivo": motivo, 
+                    "Firma_Img": canvas_result.image_data
+                }
+                
+                st.session_state.guias_despacho.append(guia_data)
+                guardar_datos()
+                st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}**")
+                st.session_state.ultima_guia = guia_data
+                st.rerun()
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
 # ---------------------------------------------------------
