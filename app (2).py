@@ -280,36 +280,39 @@ elif menu == "2. Ingreso de Materiales":
     if st.session_state.materiales.empty:
         st.info("Primero debe crear materiales.")
     else:
-       # Dentro del Módulo 2 (Ingreso de Materiales)
-if st.form_submit_button("Registrar Ingreso"):
-    # 1. Calcular el nuevo stock sumando el ingreso
-    sku_elegido = sku_ingreso
-    mat_actual = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_elegido].iloc[0]
-    stock_viejo = int(mat_actual["Stock_Actual"])
-    nuevo_stock = stock_viejo + cant_ingreso
-    
-    try:
-        # 2. Actualizar el stock actual en la tabla 'materiales' de Supabase
-        supabase.table("materiales").update({"stock_actual": nuevo_stock}).eq("sku", sku_elegido).execute()
-        
-        # 3. Registrar el movimiento en la tabla 'movimientos' de Supabase
-        supabase.table("movimientos").insert({
-            "codigo_mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
-            "tipo": "INGRESO",
-            "sku": sku_elegido,
-            "cantidad": cant_ingreso,
-            "origen_destino": proveedor_origen or "Recepción General",
-            "usuario": st.session_state.get('usuario_actual', 'admin')
-        }).execute()
-        
-        # 4. Recargar los datos desde la nube a la sesión
-        st.session_state.materiales = cargar_materiales_db()
-        st.session_state.movimientos = cargar_movimientos_db()
-        
-        st.success(f"Ingresadas {cant_ingreso} unidades del SKU {sku_elegido} guardadas en la nube.")
-        st.rerun()
-    except Exception as e:
-        st.error(f"Error al registrar en Supabase: {e}")
+        with st.form("form_ingreso"):
+            sku_ingreso = st.selectbox("Seleccionar SKU a Ingresar", st.session_state.materiales["SKU"])
+            cant_ingreso = st.number_input("Cantidad a Ingresar", min_value=1, value=1)
+            proveedor_origen = st.text_input("Proveedor / Origen (Opcional)")
+            
+            if st.form_submit_button("Registrar Ingreso"):
+                mat_actual = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_ingreso].iloc[0]
+                stock_viejo = int(mat_actual["Stock_Actual"])
+                nuevo_stock = stock_viejo + cant_ingreso
+                
+                try:
+                    # 1. Actualizar stock actual en la tabla 'materiales' de Supabase
+                    supabase.table("materiales").update({"stock_actual": nuevo_stock}).eq("sku", sku_ingreso).execute()
+                    
+                    # 2. Registrar el movimiento en la tabla 'movimientos' de Supabase
+                    supabase.table("movimientos").insert({
+                        "id_mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                        "tipo": "INGRESO",
+                        "sku": sku_ingreso,
+                        "cantidad": cant_ingreso,
+                        "origen_destino": proveedor_origen or "Recepción General",
+                        "usuario": st.session_state.get('usuario_actual', 'admin'),
+                        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }).execute()
+                    
+                    # 3. Recargar los datos desde la nube
+                    st.session_state.materiales = cargar_materiales_db()
+                    st.session_state.movimientos = cargar_movimientos_db()
+                    
+                    st.success(f"¡Ingreso de {cant_ingreso} unidades para el SKU {sku_ingreso} registrado y guardado en Supabase!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al registrar en Supabase: {e}")
 # ---------------------------------------------------------
 # MÓDULO 3: PICKING DE MATERIALES
 # ---------------------------------------------------------
