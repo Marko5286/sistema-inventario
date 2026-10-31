@@ -14,68 +14,61 @@ from PIL import Image
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
-# ---------------------------------------------------------
-# 0. CONFIGURACIÓN DE ARCHIVOS Y PERSISTENCIA (Base de Datos)
-# ---------------------------------------------------------
-EXCEL_MATERIALES = "db_materiales.xlsx"
-EXCEL_MOVIMIENTOS = "db_movimientos.xlsx"
-EXCEL_PICKING = "db_picking.xlsx"
-EXCEL_GUIAS = "db_guias.xlsx"
+from supabase import create_client, Client
 
+# ---------------------------------------------------------
+# 0. CONEXIÓN Y PERSISTENCIA CON SUPABASE
+# ---------------------------------------------------------
+@st.cache_resource
+def init_supabase() -> Client:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+supabase = init_supabase()
+
+def cargar_materiales_db():
+    res = supabase.table("materiales").select("*").execute()
+    if res.data:
+        df = pd.DataFrame(res.data)
+        return df.rename(columns={
+            "sku": "SKU",
+            "nombre": "Nombre",
+            "unidad": "Unidad",
+            "valor_unitario": "Valor_Unitario",
+            "stock_actual": "Stock_Actual",
+            "ubicacion": "Ubicacion",
+            "bodega": "Bodega"
+        })
+    return pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
+
+def cargar_movimientos_db():
+    res = supabase.table("movimientos").select("*").execute()
+    if res.data:
+        df = pd.DataFrame(res.data)
+        return df.rename(columns={
+            "id_mov": "ID_Mov",
+            "tipo": "Tipo",
+            "sku": "SKU",
+            "cantidad": "Cantidad",
+            "origen_destino": "Origen/Destino",
+            "usuario": "Usuario",
+            "fecha": "Fecha"
+        })
+    return pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
+
+# Inicializar estados cargando directamente desde la nube
 if "materiales" not in st.session_state:
-    if os.path.exists(EXCEL_MATERIALES):
-        try:
-            st.session_state.materiales = pd.read_excel(EXCEL_MATERIALES)
-        except:
-            st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
-    else:
-        st.session_state.materiales = pd.DataFrame(columns=["SKU", "Nombre", "Unidad", "Valor_Unitario", "Stock_Actual", "Ubicacion", "Bodega"])
-
-if "Bodega" not in st.session_state.materiales.columns:
-    st.session_state.materiales["Bodega"] = "Bodega Central Antofagasta"
-if "Ubicacion" not in st.session_state.materiales.columns:
-    st.session_state.materiales["Ubicacion"] = "A-00-0"
+    st.session_state.materiales = cargar_materiales_db()
 
 if "movimientos" not in st.session_state:
-    if os.path.exists(EXCEL_MOVIMIENTOS):
-        try:
-            st.session_state.movimientos = pd.read_excel(EXCEL_MOVIMIENTOS)
-        except:
-            st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
-    else:
-        st.session_state.movimientos = pd.DataFrame(columns=["ID_Mov", "Tipo", "SKU", "Cantidad", "Origen/Destino", "Fecha", "Usuario"])
-
-if "Usuario" not in st.session_state.movimientos.columns:
-    st.session_state.movimientos["Usuario"] = "admin"
+    st.session_state.movimientos = cargar_movimientos_db()
 
 if "ordenes_picking" not in st.session_state:
-    if os.path.exists(EXCEL_PICKING):
-        try:
-            df_pick = pd.read_excel(EXCEL_PICKING)
-            st.session_state.ordenes_picking = df_pick.to_dict('records')
-        except:
-            st.session_state.ordenes_picking = []
-    else:
-        st.session_state.ordenes_picking = []
+    st.session_state.ordenes_picking = []
 
 if "guias_despacho" not in st.session_state:
-    if os.path.exists(EXCEL_GUIAS):
-        try:
-            df_guias = pd.read_excel(EXCEL_GUIAS)
-            st.session_state.guias_despacho = df_guias.to_dict('records')
-        except:
-            st.session_state.guias_despacho = []
-    else:
-        st.session_state.guias_despacho = []
-
-def guardar_datos():
-    try:
-        st.session_state.materiales.to_excel(EXCEL_MATERIALES, index=False)
-        st.session_state.movimientos.to_excel(EXCEL_MOVIMIENTOS, index=False)
-        pd.DataFrame(st.session_state.ordenes_picking).to_excel(EXCEL_PICKING, index=False)
-        pd.DataFrame(st.session_state.guias_despacho).to_excel(EXCEL_GUIAS, index=False)
-    except Exception as e:
-        st.error(f"Error al guardar datos: {e}")
+    st.session_state.guias_despacho = []
 
 # ---------------------------------------------------------
 # 0.1 AUTENTICACIÓN DE USUARIOS
