@@ -407,8 +407,8 @@ elif menu == "4. Despacho y Guía":
         else:
             id_sel = st.selectbox("Seleccionar Orden de Picking a Despachar", ordenes_pendientes)
             datos_orden = next((o for o in st.session_state.ordenes_picking if o["ID_Picking"] == id_sel), None)
-            
-            if datos_orden:
+
+if datos_orden:
                 st.markdown("---")
                 st.subheader(f"Datos de Despacho para Orden: `{id_sel}`")
                 
@@ -453,19 +453,19 @@ elif menu == "4. Despacho y Guía":
                     if not firma_valida:
                         st.warning("⚠️ Debes registrar la firma en el recuadro antes de confirmar el despacho.")
                     else:
-                        # 1. Actualizar stock del material
                         sku_afectado = datos_orden["SKU"]
                         cantidad_despacho = datos_orden["Cantidad"]
                         
+                        # Actualizar stock
                         idx_mat = st.session_state.materiales.index[st.session_state.materiales["SKU"] == sku_afectado].tolist()[0]
                         st.session_state.materiales.loc[idx_mat, "Stock_Actual"] -= cantidad_despacho
                         
-                        # 2. Actualizar el estado de la orden de picking en session_state usando bucle explícito
+                        # Cambiar estado de la orden de picking
                         for o in st.session_state.ordenes_picking:
                             if o["ID_Picking"] == id_sel:
                                 o["Estado"] = "Despachado"
                         
-                        # 3. Registrar movimiento de salida
+                        # Registrar movimiento
                         mov = pd.DataFrame([{
                             "ID_Mov": f"MOV-{len(st.session_state.movimientos)+1:04d}", 
                             "Tipo": "DESPACHO", 
@@ -477,7 +477,7 @@ elif menu == "4. Despacho y Guía":
                         }])
                         st.session_state.movimientos = pd.concat([st.session_state.movimientos, mov], ignore_index=True)
                         
-                        # 4. Crear y almacenar la guía de despacho
+                        # Generar guía
                         num_guia = f"GD-{len(st.session_state.guias_despacho)+1:04d}"
                         guia_data = {
                             "Numero_Guia": num_guia, 
@@ -495,14 +495,12 @@ elif menu == "4. Despacho y Guía":
                         }
                         
                         st.session_state.guias_despacho.append(guia_data)
-                        
-                        # 5. Guardar cambios en los archivos Excel persistentes
                         guardar_datos()
                         
-                        # 6. Notificar éxito y recargar pantalla
-                        st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}** generada correctamente.")
+                        st.success(f"¡Despacho realizado con éxito! Guía N° **{num_guia}** generada.")
                         st.session_state.ultima_guia = guia_data
-                        st.rerun()           
+                        st.rerun()
+            
 
 # ---------------------------------------------------------
 # MÓDULO 5: INVENTARIO
