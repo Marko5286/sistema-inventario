@@ -161,8 +161,16 @@ if st.sidebar.button("Enviar Respaldo por Email", key="btn_respaldo_email"):
             st.sidebar.success("¡Correo de respaldo enviado con éxito!")
         else:
             st.sidebar.error("Error al enviar. Revisa tus credenciales.")
+      
 
-# ---------------------------------------------------------
+# ----------# Coloca esto justo debajo de donde termina tu menú lateral
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Cerrar Sesión", use_container_width=True):
+    # Aquí limpias las variables de sesión que uses para el login
+    st.session_state.logged_in = False
+    st.session_state.user = None
+    st.rerun()
+-----------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES Y CARGA MASIVA
 # ---------------------------------------------------------
 if menu == "1. Creación de Materiales":
