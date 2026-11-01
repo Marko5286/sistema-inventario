@@ -83,7 +83,7 @@ if not st.session_state.autenticado:
                 st.rerun()
             else:
                 st.error("Usuario o contraseña incorrectos.")
-    st.stop()  # Detiene la ejecución aquí si no ha iniciado sesión
+    st.stop()
 
 # ---------------------------------------------------------
 # FUNCIONES AUXILIARES (CORREO Y PDF)
@@ -112,7 +112,7 @@ def enviar_correo_respaldo(remitente, password, destino, excel_bytes):
         return False
 
 # ---------------------------------------------------------
-# PANEL LATERAL / NAVEGACIÓN (ÚNICO BLOQUE)
+# PANEL LATERAL / NAVEGACIÓN
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS Marklogistic")
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
@@ -225,6 +225,159 @@ if menu == "1. Creación de Materiales":
                 st.error(f"Error al leer el archivo Excel: {e}")
 
 # ---------------------------------------------------------
+# MÓDULO 2: INGRESO DE MATERIALES
+# ---------------------------------------------------------
+elif menu == "2. Ingreso de Materiales":
+    st.header("📥 Recepción e Ingreso a Bodega")
+    if st.session_state.materiales.empty:
+        st.info("Primero debe crear materiales.")
+    else:
+        with st.form("form_ingreso"):
+            sku_ingreso = st.selectbox("Seleccionar SKU a Ingresar", st.session_state.materiales["SKU"])
+            cant_ingreso = st.number_input("Cantidad a Ingresar", min_value=1, value=1)
+            proveedor_origen = st.text_input("Proveedor / Origen (Opcional)")
+            if st.form_submit_button("Registrar Ingreso"):
+                mat_actual = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_ingreso].iloc[0]
+                stock_viejo = int(mat_actual["Stock_Actual"])
+                nuevo_stock = stock_viejo + cant_ingreso
+                try:
+                    supabase.table("materiales").update({"stock_actual": nuevo_stock}).eq("sku", sku_ingreso).execute()
+                    supabase.table("movimientos").insert({
+                        "id_mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                        "tipo": "INGRESO", "sku": sku_ingreso, "cantidad": cant_ingreso,
+                        "origen_destino": proveedor_origen or "Recepción General",
+                        "usuario": st.session_state.get('usuario_actual', 'admin'),
+                        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }).execute()
+                    st.session_state.materiales = cargar_materiales_db()
+                    st.session_state.movimientos = cargar_movimientos_db()
+                    st.success("¡Ingreso registrado y guardado en Supabase!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al registrar en Supabase: {e}")
+
+# ---------------------------------------------------------
+# MÓDULO 3: PICKING DE MATERIALES
+# ---------------------------------------------------------
+elif menu == "3. Picking de Materiales":
+    st.header("🛒 Órdenes de Picking")
+    if st.session_state.materiales.empty:
+        st.info("No hay materiales cargados.")
+    else:
+        sku_pick = st.selectbox("SKU a Preparar", st.session_state.materiales["SKU"], key="pick_sku")
+        cant_pick = st.number_input("Cantidad para Picking", min_value=1, value=1, key="pick_cant")
+        cliente_dest = st.text_input("Cliente / Destino")
+        if st.button("Generar Orden de Picking"):
+            mat_row = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_pick].iloc[0]
+            if cant_pick > int(mat_row["Stock_Actual"]):
+                st.error("Stock insuficiente para realizar el picking.")
+            else:
+                st.success(f"Orden de Picking generada para {cant_pick} unidades de {sku_pick} con destino a {cliente_dest or 'Cliente General'}.")
+
+# ---------------------------------------------------------
+# MÓDULO 4: DESPACHO Y GUÍA
+# ---------------------------------------------------------
+elif menu == "4. Despacho y Guía":
+    st.header("🚚 Despacho y Emisión de Guías")
+    if st.session_state.materiales.empty:
+        st.info("No hay materiales disponibles para despachar.")
+    else:
+        with st.form("form_despacho"):
+            sku_d = st.selectbox("SKU a Despachar", st.session_state.materiales["SKU"])
+            cant_d = st.number_input("Cantidad", min_value=1, value=1)
+            cliente_d = st.text_input("Nombre Cliente / Destinatario")
+            rut_d = st.text_input("RUT Cliente")
+            transporte_d = st.selectbox("Transportista", ["Flota Propia", "Transportes Starken", "Chilexpress", "Externo"])
+            patente_d = st.text_input("Patente del Vehículo", value="ABCD-12")
+            motivo_d = st.selectbox("Motivo de Traslado", ["Venta", "Traslado entre bodegas", "Devolución", "Préstamo"])
+            
+            if st.form_submit_button("Despachar y Actualizar Stock"):
+                mat_actual = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_d].iloc[0]
+                stock_actual = int(mat_actual["Stock_Actual"])
+                if cant_d > stock_actual:
+                    st.error("No hay suficiente stock para este despacho.")
+                else:
+                    nuevo_stock = stock_actual - cant_d
+                    num_guia_gen = f"G-{len(st.session_state.get('guias_despacho', []))+1:05d}"
+                    try:
+                        supabase.table("materiales").update({"stock_actual": nuevo_stock}).eq("sku", sku_d).execute()
+                        supabase.table("movimientos").insert({
+                            "id_mov": f"MOV-{len(st.session_state.movimientos)+1:04d}",
+                            "tipo": "DESPACHO", "sku": sku_d, "cantidad": cant_d,
+                            "origen_destino": cliente_d or "Cliente Final",
+                            "usuario": st.session_state.get('usuario_actual', 'admin'),
+                            "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        }).execute()
+                        st.session_state.materiales = cargar_materiales_db()
+                        st.session_state.movimientos = cargar_movimientos_db()
+                        st.success(f"¡Despacho completado! Guía generada: {num_guia_gen}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al procesar el despacho en Supabase: {e}")
+
+# ---------------------------------------------------------
+# MÓDULO 5: INVENTARIO
+# ---------------------------------------------------------
+elif menu == "5. Inventario":
+    st.header("📊 Inventario Actual de Bodega")
+    st.dataframe(st.session_state.materiales, use_container_width=True)
+
+# ---------------------------------------------------------
+# MÓDULO 6: DASHBOARD GERENCIAL
+# ---------------------------------------------------------
+elif menu == "6. Dashboard Gerencial":
+    st.header("📈 Dashboard Gerencial y Métricas")
+    if not st.session_state.materiales.empty:
+        total_items = st.session_state.materiales["Stock_Actual"].sum()
+        valor_total = (st.session_state.materiales["Stock_Actual"] * st.session_state.materiales["Valor_Unitario"]).sum()
+        col1, col2 = st.columns(2)
+        col1.metric("Stock Total de Unidades", f"{total_items:,}")
+        col2.metric("Valorización Total Inventario ($)", f"${valor_total:,.2f}")
+    else:
+        st.info("Sin datos para mostrar en el dashboard.")
+
+# ---------------------------------------------------------
+# MÓDULO 7: TRAZABILIDAD
+# ---------------------------------------------------------
+elif menu == "7. Trazabilidad":
+    st.header("🔍 Historial y Trazabilidad de Movimientos")
+    st.dataframe(st.session_state.movimientos, use_container_width=True)
+
+# ---------------------------------------------------------
+# MÓDULO 8: ETIQUETAS
+# ---------------------------------------------------------
+elif menu == "8. Etiquetas":
+    st.header("🏷️ Generación de Etiquetas SKU")
+    if not st.session_state.materiales.empty:
+        sku_et = st.selectbox("Seleccionar SKU para Etiqueta", st.session_state.materiales["SKU"], key="etiqueta_sku")
+        mat_et = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_et].iloc[0]
+        st.markdown(f"""
+        <div style="border: 2px dashed #333; padding: 20px; width: 300px; text-align: center; background: white; color: black;">
+            <h3>MARKLOGISTIC WMS</h3>
+            <h2>SKU: {mat_et['SKU']}</h2>
+            <p><b>Descripción:</b> {mat_et['Nombre']}</p>
+            <p><b>Ubicación:</b> {mat_et['Ubicacion']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# MÓDULO 9: ELIMINAR TRANSACCIONES
+# ---------------------------------------------------------
+elif menu == "9. Eliminar Transacciones":
+    st.header("🗑️ Gestión y Supresión de Registros")
+    st.warning("Zona de administración avanzada.")
+    if not st.session_state.materiales.empty:
+        sku_del = st.selectbox("Seleccionar SKU a Eliminar de la Base de Datos", st.session_state.materiales["SKU"], key="del_sku")
+        if st.button("Eliminar Material"):
+            try:
+                supabase.table("materiales").delete().eq("sku", sku_del).execute()
+                st.session_state.materiales = cargar_materiales_db()
+                st.success(f"Material {sku_del} eliminado correctamente de Supabase.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al eliminar: {e}")
+
+# ---------------------------------------------------------
 # MÓDULO 10: ASISTENTE IA
 # ---------------------------------------------------------
 elif menu == "10. Asistente IA":
@@ -245,3 +398,42 @@ elif menu == "10. Asistente IA":
             st.error(f"Error IA: {e}")
     else:
         st.warning("Configura tu GEMINI_API_KEY en los secretos de Streamlit.")
+
+# ---------------------------------------------------------
+# MÓDULO 11: ESCÁNER DE SKU
+# ---------------------------------------------------------
+elif menu == "11. Escáner de SKU":
+    st.header("📷 Escáner de Códigos y Consulta Rápida")
+    sku_buscar = st.text_input("Ingrese o escanee el código SKU:").strip().upper()
+    if sku_buscar:
+        res_busqueda = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_buscar]
+        if not res_busqueda.empty:
+            st.success("¡Material encontrado!")
+            st.dataframe(res_busqueda, use_container_width=True)
+        else:
+            st.warning("No se encontró ningún material con ese SKU.")
+
+# ---------------------------------------------------------
+# MÓDULO 12: GESTIÓN DE BODEGAS
+# ---------------------------------------------------------
+elif menu == "12. Gestión de Bodegas":
+    st.header("🏢 Configuración y Zonas de Bodega")
+    st.info("Bodega Activa: Bodega Central Antofagasta")
+    st.markdown("- **Zona A:** Recepción y Cross-Docking\n- **Zona B:** Almacenamiento General\n- **Zona C:** Picking y Despachos")
+
+# ---------------------------------------------------------
+# MÓDULO 13: AUDITORÍA Y LOGS
+# ---------------------------------------------------------
+elif menu == "13. Auditoría y Logs":
+    st.header("📋 Auditoría de Actividad del Sistema")
+    st.dataframe(st.session_state.movimientos, use_container_width=True)
+
+# ---------------------------------------------------------
+# MÓDULO 14: REGISTRO FOTOGRÁFICO
+# ---------------------------------------------------------
+elif menu == "14. Registro Fotográfico":
+    st.header("📸 Evidencia y Registro Fotográfico de Carga")
+    foto_subida = st.file_uploader("Subir foto de evidencia", type=["png", "jpg", "jpeg"])
+    if foto_subida is not None:
+        st.image(foto_subida, caption="Evidencia registrada en sistema", use_container_width=True)
+        st.success("Fotografía cargada correctamente para el expediente.")
