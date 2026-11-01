@@ -14,24 +14,6 @@ st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
 from supabase import create_client, Client
 
-# 🛡️ ANTÍDOTO GLOBAL CONTRA PANTALLAS NEGRAS (Pégalo al inicio de tu app.py)
-st.markdown("""
-    <style>
-        /* Forzar fondo blanco y texto oscuro en toda la app y sus tarjetas */
-        .stApp, div[data-testid="stVerticalBlock"], div[data-testid="stHorizontalBlock"] {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-        }
-        /* Forzar que las tablas y métricas no se pongan negras */
-        div[data-testid="stDataFrame"], div[data-testid="stMetric"] {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-        }
-        p, span, label, h1, h2, h3, h4 {
-            color: #000000 !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 0. CONEXIÓN Y PERSISTENCIA CON SUPABASE
