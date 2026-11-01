@@ -612,14 +612,14 @@ elif menu == "16. Emisión de Guías de Despacho":
                             st.success(f"¡Guía de Despacho **{num_guia_id}** generada con éxito y stock descontado!")
                         except Exception as e:
                             st.error(f"Error al sincronizar con Supabase: {e}")
-# Visualización limpia de la Guía Generada usando componentes HTML seguros
+
+    # Visualización limpia de la Guía Generada
     if "ultima_guia" in st.session_state:
         g = st.session_state.ultima_guia
         st.markdown("---")
         st.subheader("👁️ Vista Previa del Documento Tributario (Guía de Despacho)")
         
-        # HTML limpio empaquetado para componente web seguro
-      html_guia = f"""
+        html_guia = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -639,7 +639,6 @@ elif menu == "16. Emisión de Guías de Despacho":
                 .firmas {{ margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; text-align: center; }}
                 .linea-firma {{ border-top: 1px solid #000; width: 200px; padding-top: 5px; margin: 0 auto; }}
 
-                /* 🖨️ ESTO OCULTA TODO LO DEMÁS DE STREAMLIT AL IMPRIMIR */
                 @media print {{
                     body * {{
                         visibility: hidden;
@@ -717,13 +716,14 @@ elif menu == "16. Emisión de Guías de Despacho":
         </html>
         """
         
-        # Renderizado visual garantizado mediante componente HTML de Streamlit
         import streamlit.components.v1 as components
         components.html(html_guia, height=520, scrolling=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🖨️ Imprimir / Guardar Guía en PDF"):
-            st.info("💡 Consejo: Haz clic derecho dentro del cuadro de la guía o usa la función de impresión de tu navegador para guardar como PDF.")
+            st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")                            
+                                
+                            
+                            
+                            
 
-# Visualización limpia de la Guía Generada
-   
