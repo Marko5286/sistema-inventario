@@ -115,7 +115,7 @@ def enviar_correo_respaldo(remitente, password, destino, excel_bytes):
 # PANEL LATERAL / NAVEGACIÓN
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS Marklogistic")
-st.sidebar.image("logo.png", width=150")
+st.sidebar.image("logo.png", width=150)
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
 
 if st.sidebar.button("Cerrar Sesión", key="btn_cerrar_sesion_unico"):
