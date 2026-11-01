@@ -22,7 +22,7 @@ if not st.session_state.autenticado:
     with col2:
         # Reemplaza "logo.png" por el nombre exacto de tu archivo si es distinto (ej: "logo.jpg")
         try:
-            st.image("logo.png", width=220)
+            st.image("st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=200)", width=220)
         except Exception:
             # Plan de respaldo por si el archivo no se encuentra temporalmente
             st.markdown("<h1 style='text-align: center;'>📦</h1>", unsafe_allow_html=True)
