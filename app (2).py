@@ -210,7 +210,7 @@ def generar_pdf_guia(guia):
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS Marklogistic")
 st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
-if st.sidebar.button("Cerrar Sesión"):
+if st.sidebar.button("Cerrar Sesión", key="btn_cerrar_sesion"):
     st.session_state.autenticado = False
     st.rerun()
 
