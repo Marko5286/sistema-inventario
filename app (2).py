@@ -9,10 +9,30 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from PIL import Image
+import io
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
 from supabase import create_client, Client
+try:
+    from barcode import Code128
+    from barcode.writer import ImageWriter
+    HAS_BARCODE = True
+except ImportError:
+    HAS_BARCODE = False
+
+# 🛡️ 2. FUNCIÓN DE GENERACIÓN DE CÓDIGO DE BARRAS
+def generar_codigo_barras(sku_texto):
+    if not HAS_BARCODE:
+        return None
+    try:
+        rv = io.BytesIO()
+        code = Code128(str(sku_texto), writer=ImageWriter())
+        code.write(rv, options={"write_text": True, "module_width": 0.3, "module_height": 12.0})
+        rv.seek(0)
+        return rv
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------
