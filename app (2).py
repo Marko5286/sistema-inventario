@@ -454,13 +454,9 @@ elif menu == "14. Registro Fotográfico":
         st.success("Fotografía cargada correctamente para el expediente.")
 
 # ---------------------------------------------------------
-# MÓDULO 15: ALERTAS DE STOCK
+# MÓDULO 15: ALERTAS DE STOCK (AISLADO)
 # ---------------------------------------------------------
 elif menu == "15. Alertas de Stock":
-    st.markdown("""
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 10px; color: #000000;">
-    """, unsafe_allow_html=True)
-
     st.header("🚨 Panel de Alertas de Stock Crítico")
     st.markdown("Monitoreo en tiempo real de productos que se encuentran bajo su stock mínimo de seguridad.")
     
@@ -476,18 +472,19 @@ elif menu == "15. Alertas de Stock":
         
         criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
+        # Usamos contenedores con bordes limpios para evitar herencias oscuras
+        c1, c2, c3 = st.columns(3)
+        with c1:
             st.metric("Total Productos", len(df_mat))
-        with col2:
+        with c2:
             st.metric("Stock Normal", len(df_mat) - len(criticos))
-        with col3:
+        with c3:
             st.metric("🚨 En Estado Crítico", len(criticos))
             
-        st.markdown("---")
+        st.divider()
         
         if len(criticos) > 0:
-            st.warning(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición inmediata.")
+            st.error(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición inmediata.")
             st.dataframe(
                 criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
                 use_container_width=True,
@@ -495,8 +492,6 @@ elif menu == "15. Alertas de Stock":
             )
         else:
             st.success("🎉 ¡Excelente noticia! No hay productos en nivel crítico.")
-            
-    st.markdown("</div>", unsafe_allow_html=True)
 # ---------------------------------------------------------
 # MÓDULO 16: EMISIÓN DE GUÍAS DE DESPACHO OFICIALES
 # ---------------------------------------------------------
@@ -694,13 +689,9 @@ elif menu == "16. Emisión de Guías de Despacho":
             st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")                            
                                 
 # ---------------------------------------------------------
-# MÓDULO 17: QUIEBRE DE STOCK
+# MÓDULO 17: QUIEBRE DE STOCK (AISLADO)
 # ---------------------------------------------------------
 elif menu == "17. Quiebre de Stock":
-    st.markdown("""
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 10px; color: #000000;">
-    """, unsafe_allow_html=True)
-
     st.header("🚨 Alertas de Quiebre de Stock")
     st.markdown("Monitoreo en tiempo real de productos que se encuentran bajo su stock mínimo de seguridad.")
     
@@ -716,31 +707,29 @@ elif menu == "17. Quiebre de Stock":
         
         criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
+        c1, c2, c3 = st.columns(3)
+        with c1:
             st.metric("Total Catálogo", len(df_mat))
-        with col2:
+        with c2:
             st.metric("Stock Normal", len(df_mat) - len(criticos))
-        with col3:
+        with c3:
             st.metric("🚨 En Quiebre / Crítico", len(criticos))
             
-        st.markdown("---")
+        st.divider()
         
         if len(criticos) > 0:
-            st.warning(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición urgente.")
+            st.error(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición urgente.")
             st.dataframe(
                 criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
                 use_container_width=True,
                 hide_index=True
             )
             
-            st.subheader("🛒 Sugerencia de Reposición")
-            sku_a_pedir = st.selectbox("Seleccionar SKU para calcular reposición", criticos["SKU"], key="sel_quiebre_sku_17")
+            st.markdown("### 🛒 Sugerencia de Reposición")
+            sku_a_pedir = st.selectbox("Seleccionar SKU para calcular reposición", criticos["SKU"], key="sel_quiebre_sku_17_clean")
             prod_sel = criticos[criticos["SKU"] == sku_a_pedir].iloc[0]
             
             sugerido = (int(prod_sel["Stock_Minimo"]) * 3) - int(prod_sel["Stock_Actual"])
             st.info(f"Para el producto **{prod_sel['Nombre']}** ({sku_a_pedir}), se recomienda comprar al menos **{sugerido} unidades**.")
         else:
             st.success("🎉 ¡Excelente! No hay productos en nivel de quiebre de stock.")
-            
-    st.markdown("</div>", unsafe_allow_html=True)
