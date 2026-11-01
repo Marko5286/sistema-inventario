@@ -113,24 +113,31 @@ def enviar_correo_respaldo(remitente, password, destino, excel_bytes):
         return False
 
 # ---------------------------------------------------------
-# PANEL LATERAL / NAVEGACIÓN
+# MENÚ LATERAL DE NAVEGACIÓN
 # ---------------------------------------------------------
-st.sidebar.title("📦 WMS Marklogistic")
-st.sidebar.image("logo.jpg.jpg", width=150)
-st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
-
-if st.sidebar.button("Cerrar Sesión", key="btn_cerrar_sesion_unico"):
-    st.session_state.autenticado = False
-    st.rerun()
-
+st.sidebar.title("📦 WMS MARKLOGISTIC")
 st.sidebar.markdown("---")
+
 menu = st.sidebar.radio(
     "Módulos del Sistema", 
     [
-        "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
-        "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
-        "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
-        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico","15. Emisión de Guías de Despacho",
+        "1. Creación de Materiales", 
+        "2. Ingreso de Materiales", 
+        "3. Picking de Materiales", 
+        "4. Despacho y Guía", 
+        "5. Inventario", 
+        "6. Dashboard Gerencial", 
+        "7. Trazabilidad", 
+        "8. Etiquetas", 
+        "9. Eliminar Transacciones", 
+        "10. Asistente IA", 
+        "11. Escáner de SKU", 
+        "12. Gestión de Bodegas", 
+        "13. Auditoría y Logs", 
+        "14. Registro Fotográfico",
+        "15. Emisión de Guías de Despacho",
+        "16. Alertas de Stock",
+        "17. Quiebre de Stock"
     ],
     key="menu_principal_navegacion"
 )
@@ -649,5 +656,71 @@ elif menu == "15. Emisión de Guías de Despacho":
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🖨️ Imprimir / Guardar Guía en PDF"):
-            st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")                            
+            st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")   
+            
+  # ---------------------------------------------------------
+# MÓDULO 16: ALERTAS DE STOCK
+# ---------------------------------------------------------
+elif menu == "16. Alertas de Stock":
+    st.header("🚨 Panel de Alertas de Stock")
+    st.markdown("Monitoreo en tiempo real de productos bajo el stock mínimo.")
+    
+    if "materiales" in st.session_state and not st.session_state.materiales.empty:
+        df_mat = st.session_state.materiales.copy()
+        if "Stock_Minimo" not in df_mat.columns:
+            df_mat["Stock_Minimo"] = 5  # Valor por defecto si no existe la columna
+            
+        df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
+        df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
+        
+        criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Catálogo", len(df_mat))
+        with col2:
+            st.metric("Productos en Riesgo", len(criticos))
+            
+        st.divider()
+        
+        if len(criticos) > 0:
+            st.warning(f"Hay {len(criticos)} productos que necesitan atención.")
+            st.dataframe(criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo"]], use_container_width=True, hide_index=True)
+        else:
+            st.success("¡Todo en orden! No hay alertas de stock.")
+    else:
+        st.info("No hay materiales registrados.")
+
+# ---------------------------------------------------------
+# MÓDULO 17: QUIEBRE DE STOCK
+# ---------------------------------------------------------
+elif menu == "17. Quiebre de Stock":
+    st.header("📉 Análisis de Quiebre de Stock")
+    st.markdown("Gestión y sugerencias de reposición para inventario crítico.")
+    
+    if "materiales" in st.session_state and not st.session_state.materiales.empty:
+        df_mat = st.session_state.materiales.copy()
+        if "Stock_Minimo" not in df_mat.columns:
+            df_mat["Stock_Minimo"] = 5
+            
+        df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
+        df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
+        
+        criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
+        
+        if len(criticos) > 0:
+            st.error(f"¡Atención! {len(criticos)} productos se encuentran en quiebre o nivel crítico.")
+            st.dataframe(criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo"]], use_container_width=True, hide_index=True)
+            
+            st.subheader("🛒 Sugerencia de Compra")
+            sku_sel = st.selectbox("Seleccionar SKU para calcular reposición", criticos["SKU"], key="sel_quiebre_17")
+            prod = criticos[criticos["SKU"] == sku_sel].iloc[0]
+            
+            sugerido = (int(prod["Stock_Minimo"]) * 3) - int(prod["Stock_Actual"])
+            st.info(f"Se recomienda reabastecer **{sugerido} unidades** del producto **{prod['Nombre']}**.")
+        else:
+            st.success("🎉 No hay quiebres de stock en este momento.")
+    else:
+        st.info("No hay materiales registrados.")          
+            
                                 
