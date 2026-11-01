@@ -21,6 +21,62 @@ try:
 except ImportError:
     HAS_BARCODE = False
 
+import streamlit as st
+import pandas as pd
+# (Tus demás importaciones de Supabase, Plotly, etc.)
+
+# ---------------------------------------------------------
+# 1. GESTIÓN DE SESIÓN Y LOGIN
+# ---------------------------------------------------------
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+    st.session_state.usuario = None
+    st.session_state.rol = None
+
+# Función para verificar credenciales contra Supabase
+def verificar_login(username, password):
+    try:
+        # Consulta a tu tabla de usuarios en Supabase usando st.connection o supabase-py
+        # Ejemplo genérico usando pandas/supabase:
+        query = f"SELECT * FROM usuarios WHERE username = '{username}' AND password = '{password}'"
+        # Supongamos que ejecutas tu consulta y obtienes un DataFrame `df_user`:
+        # df_user = conn.query(query, ttl=0)
+        
+        # --- SIMULACIÓN DE PRUEBA (Reemplaza esto con tu consulta real a Supabase) ---
+        if username == "admin" and password == "admin123":
+            return {"nombre_completo": "Administrador General", "rol": "Administrador"}
+        elif username == "bodega" and password == "bodega123":
+            return {"nombre_completo": "Operario de Bodega", "rol": "Bodeguero"}
+        return None
+    except Exception as e:
+        st.error(f"Error al conectar con la base de datos de usuarios: {e}")
+        return None
+
+# PANTALLA DE LOGIN SI NO ESTÁ AUTENTICADO
+if not st.session_state.autenticado:
+    st.title("📦 WMS MARKLOGISTIC - Acceso al Sistema")
+    st.markdown("Por favor, inicia sesión con tus credenciales.")
+    
+    with st.form("form_login"):
+        user_input = st.text_input("Usuario")
+        pass_input = st.text_input("Contraseña", type="password")
+        btn_login = st.form_submit_button("Iniciar Sesión")
+        
+        if btn_login:
+            datos_usuario = verificar_login(user_input, pass_input)
+            if datos_usuario:
+                st.session_state.autenticado = True
+                st.session_state.usuario = user_input
+                st.session_state.rol = datos_usuario["rol"]
+                st.session_state.nombre_usuario = datos_usuario["nombre_completo"]
+                st.success(f"¡Bienvenido, {datos_usuario['nombre_completo']}!")
+                st.rerun()
+            else:
+                st.error("Usuario o contraseña incorrectos.")
+                
+    # Detenemos la ejecución aquí para que no muestre los módulos si no hay sesión
+    st.stop()
+
 # 🛡️ 2. FUNCIÓN DE GENERACIÓN DE CÓDIGO DE BARRAS
 def generar_codigo_barras(sku_texto):
     if not HAS_BARCODE:
@@ -136,12 +192,16 @@ def enviar_correo_respaldo(remitente, password, destino, excel_bytes):
 # MENÚ LATERAL DE NAVEGACIÓN
 # ---------------------------------------------------------
 st.sidebar.image("logo.jpg.jpg", width=200) 
+st.sidebar.write(f"👤 **Usuario:** {st.session_state.get('nombre_usuario', 'N/A')}")
+st.sidebar.write(f"🔑 **Rol:** {st.session_state.get('rol', 'N/A')}")
 st.sidebar.title("📦 WMS MARKLOGISTIC")
 st.sidebar.markdown("---")
 
-menu = st.sidebar.radio(
-    "Módulos del Sistema", 
-    [
+rol_actual = st.session_state.get("rol", "Bodeguero")
+
+if rol_actual == "Administrador":
+ 
+   lista_modulos= [
         "1. Creación de Materiales", 
         "2. Ingreso de Materiales", 
         "3. Picking de Materiales", 
@@ -159,35 +219,15 @@ menu = st.sidebar.radio(
         "15. Emisión de Guías de Despacho",
         "16. Alertas de Stock",
         "17. Quiebre de Stock"
-    ],
-    key="menu_principal_navegacion"
-)
+    
+menu = st.sidebar.radio("Módulos del Sistema", lista_modulos, key="menu_principal_navegacion")
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("📧 Envío Automático de Reportes")
-correo_remitente = st.sidebar.text_input("Correo Remitente (Gmail)", value="marco.inostroza63.mi@gmail.com", key="input_remitente")
-pass_remitente = st.sidebar.text_input("Contraseña de Aplicación", type="password", key="input_pass")
-correo_destino = st.sidebar.text_input("Correo Destino (Gerencia)", value="marco.inostroza63.mi@gmail.com", key="input_destino")
-
-if st.sidebar.button("Enviar Respaldo por Email", key="btn_respaldo_email"):
-    if not correo_remitente or not pass_remitente or not correo_destino:
-        st.sidebar.error("Completa todos los campos de correo.")
-    else:
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            st.session_state.materiales.to_excel(writer, sheet_name='materiales', index=False)
-            st.session_state.movimientos.to_excel(writer, sheet_name='movimientos', index=False)
-        excel_bytes = output.getvalue()
-        if enviar_correo_respaldo(correo_remitente, pass_remitente, correo_destino, excel_bytes):
-            st.sidebar.success("¡Correo de respaldo enviado con éxito!")
-        else:
-            st.sidebar.error("Error al enviar. Revisa tus credenciales.")
-      
+# Botón de Cerrar Sesión en la barra lateral que ya querías implementar
 st.sidebar.markdown("---")
 if st.sidebar.button("🚪 Cerrar Sesión", use_container_width=True):
-    # Cambia 'autenticado' por el nombre exacto de la variable que uses para el login
-    st.session_state["autenticado"] = False  
-    st.success("Sesión cerrada con éxito.")
+    st.session_state.autenticado = False
+    st.session_state.usuario = None
+    st.session_state.rol = None
     st.rerun()
 
 
