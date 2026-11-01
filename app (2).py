@@ -192,6 +192,7 @@ def enviar_correo_respaldo(remitente, password, destino, excel_bytes):
 # MENÚ LATERAL DINÁMICO SEGÚN EL ROL
 # ---------------------------------------------------------
 st.sidebar.title("📦 WMS MARKLOGISTIC")
+st.sidebar.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=200)
 st.sidebar.write(f"👤 **Usuario:** {st.session_state.get('nombre_usuario', 'N/A')}")
 st.sidebar.write(f"🔑 **Rol:** {st.session_state.get('rol', 'N/A')}")
 st.sidebar.markdown("---")
@@ -206,14 +207,14 @@ if rol_actual == "Administrador":
         "3. Picking de Materiales", 
         "4. Despacho y Guía", 
         "5. Inventario", 
-        "6. Dashboard Gerencial",       # <--- Aquí está el 6
-        "7. Trazabilidad",              # <--- Aquí está el 7
+        "6. Dashboard Gerencial",       
+        "7. Trazabilidad",              
         "8. Etiquetas", 
         "9. Eliminar Transacciones", 
         "10. Asistente IA", 
         "11. Escáner de SKU", 
-        "12. Gestión de Bodegas",       # <--- Aquí está el 12
-        "13. Auditoría y Logs",         # <--- Aquí está el 13
+        "12. Gestión de Bodegas",       
+        "13. Auditoría y Logs",         
         "14. Registro Fotográfico",
         "15. Emisión de Guías de Despacho",
         "16. Alertas de Stock",
