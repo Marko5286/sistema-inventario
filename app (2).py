@@ -528,7 +528,6 @@ elif menu == "15. Logística Inversa":
                             st.warning(f"El producto fue registrado como dañado/cuarentena. **No** se sumó al stock actual, pero quedó guardado en la trazabilidad.")
                         except Exception as e:
                             st.error(f"Error al registrar en la base de datos: {e}")
-
 # ---------------------------------------------------------
 # MÓDULO 16: EMISIÓN DE GUÍAS DE DESPACHO OFICIALES
 # ---------------------------------------------------------
@@ -564,21 +563,18 @@ elif menu == "16. Emisión de Guías de Despacho":
                 if not c_razon or not c_rut or not c_dir:
                     st.error("Por favor completa los datos obligatorios del cliente (Razón Social, RUT y Dirección).")
                 else:
-                    # Validar stock
                     mat_row = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_guia].iloc[0]
                     stock_actual = int(mat_row["Stock_Actual"])
                     
                     if cant_guia > stock_actual:
                         st.error(f"Stock insuficiente. Stock disponible actual para {sku_guia}: {stock_actual}")
                     else:
-                        # Cálculos financieros
                         val_unit = float(mat_row["Valor_Unitario"])
                         subtotal = val_unit * cant_guia
                         iva = subtotal * 0.19
                         total = subtotal + iva
                         num_guia_id = f"GD-{len(st.session_state.get('historial_guias', [])) + 1:05d}"
                         
-                        # Guardar en session_state para mantener la vista previa
                         st.session_state.ultima_guia = {
                             "numero": num_guia_id,
                             "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -598,7 +594,6 @@ elif menu == "16. Emisión de Guías de Despacho":
                             "patente": patente_camion or "Sin registro"
                         }
                         
-                        # Actualizar inventario y registrar movimiento en Supabase automáticamente
                         nuevo_stock = stock_actual - cant_guia
                         try:
                             supabase.table("materiales").update({"stock_actual": nuevo_stock}).eq("sku", sku_guia).execute()
@@ -618,59 +613,70 @@ elif menu == "16. Emisión de Guías de Despacho":
                         except Exception as e:
                             st.error(f"Error al sincronizar con Supabase: {e}")
 
-    # Visualización / Formato de impresión de la Guía Generada
+    # Visualización limpia de la Guía Generada
     if "ultima_guia" in st.session_state:
         g = st.session_state.ultima_guia
         st.markdown("---")
         st.subheader("👁️ Vista Previa del Documento Tributario (Guía de Despacho)")
         
-        # Contenedor con diseño estilo documento formal
-        # Asegúrate de que comience exactamente con st.markdown y termine con unsafe_allow_html=True
-st.markdown("""
-<div style="margin-top: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-    <p style="margin: 4px 0;"><b>Fecha de Emisión:</b> 2026-11-01 03:15:35</p>
-    <p style="margin: 4px 0;"><b>Señor(es):</b> mel &nbsp;&nbsp;&nbsp;&nbsp; <b>R.U.T.:</b> 22.345.132.-5</p>
-    <p style="margin: 4px 0;"><b>Dirección:</b> Davila 6960, Antofagasta</p>
-    <p style="margin: 4px 0;"><b>Motivo Traslado:</b> Venta &nbsp;&nbsp;&nbsp;&nbsp; <b>Transportista:</b> Marco Inostroza (Patente: VCKJ-0)</p>
-</div>
-
-<table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 14px;">
-    <thead>
-        <tr style="background-color: #2c3e50; color: white;">
-            <th style="padding: 8px; text-align: left;">SKU</th>
-            <th style="padding: 8px; text-align: left;">Descripción</th>
-            <th style="padding: 8px; text-align: center;">Cantidad</th>
-            <th style="padding: 8px; text-align: right;">Precio Unit.</th>
-            <th style="padding: 8px; text-align: right;">Total</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 8px;">SKU002</td>
-            <td style="padding: 8px;">Caja de Clines 2 pulgadas</td>
-            <td style="padding: 8px; text-align: center;">2</td>
-            <td style="padding: 8px; text-align: right;">$3,500.00</td>
-            <td style="padding: 8px; text-align: right;">$7,000.00</td>
-        </tr>
-    </tbody>
-</table>
-
-<div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-    <div style="width: 250px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-        <p style="margin: 4px 0; display: flex; justify-content: space-between;"><span>Neto:</span> <span>$7,000.00</span></p>
-        <p style="margin: 4px 0; display: flex; justify-content: space-between;"><span>I.V.A. (19%):</span> <span>$1,330.00</span></p>
-        <hr style="border: 0; border-top: 1px solid #ccc; margin: 6px 0;">
-        <p style="margin: 4px 0; display: flex; justify-content: space-between; font-weight: bold; font-size: 16px;"><span>TOTAL:</span> <span>$8,330.00</span></p>
-    </div>
-</div>
-
-<div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; text-align: center;">
-    <div style="border-top: 1px solid #000; width: 200px; padding-top: 5px;">Nombre y RUT Recinto Receptor</div>
-    <div style="border-top: 1px solid #000; width: 200px; padding-top: 5px;">Firma y Timbre Conductor</div>
-</div>
-""", unsafe_allow_html=True)  # <--- Esto es lo que transforma el código en diseño visual
+        st.markdown(f"""
+        <div style="border: 2px solid #2c3e50; padding: 25px; border-radius: 8px; background-color: #ffffff; color: #000000; font-family: sans-serif;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #2c3e50; padding-bottom: 15px;">
+                <div>
+                    <h2 style="margin: 0; color: #2c3e50;">WMS MARKLOGISTIC</h2>
+                    <p style="margin: 2px 0; font-size: 13px;">Bodega Central Antofagasta<br>Operaciones Logísticas</p>
+                </div>
+                <div style="text-align: right; border: 2px solid #e74c3c; padding: 10px; border-radius: 5px;">
+                    <h3 style="margin: 0; color: #e74c3c;">GUÍA DE DESPACHO</h3>
+                    <p style="margin: 2px 0; font-size: 16px; font-weight: bold;">N° {g['numero']}</p>
+                    <p style="margin: 2px 0; font-size: 12px;">R.U.T.: 76.123.456-7</p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
+                <p style="margin: 4px 0;"><b>Fecha de Emisión:</b> {g['fecha']}</p>
+                <p style="margin: 4px 0;"><b>Señor(es):</b> {g['cliente']} &nbsp;&nbsp;&nbsp;&nbsp; <b>R.U.T.:</b> {g['rut']}</p>
+                <p style="margin: 4px 0;"><b>Dirección:</b> {g['direccion']}, {g['ciudad']}</p>
+                <p style="margin: 4px 0;"><b>Motivo Traslado:</b> {g['motivo']} &nbsp;&nbsp;&nbsp;&nbsp; <b>Transportista:</b> {g['chofer']} (Patente: {g['patente']})</p>
+            </div>
+            
+            <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                    <tr style="background-color: #2c3e50; color: white;">
+                        <th style="padding: 8px; text-align: left;">SKU</th>
+                        <th style="padding: 8px; text-align: left;">Descripción</th>
+                        <th style="padding: 8px; text-align: center;">Cantidad</th>
+                        <th style="padding: 8px; text-align: right;">Precio Unit.</th>
+                        <th style="padding: 8px; text-align: right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;">{g['sku']}</td>
+                        <td style="padding: 8px;">{g['descripcion']}</td>
+                        <td style="padding: 8px; text-align: center;">{g['cantidad']}</td>
+                        <td style="padding: 8px; text-align: right;">${g['precio_unit']:,.2f}</td>
+                        <td style="padding: 8px; text-align: right;">${g['subtotal']:,.2f}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+                <div style="width: 250px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
+                    <p style="margin: 4px 0; display: flex; justify-content: space-between;"><span>Neto:</span> <span>${g['subtotal']:,.2f}</span></p>
+                    <p style="margin: 4px 0; display: flex; justify-content: space-between;"><span>I.V.A. (19%):</span> <span>${g['iva']:,.2f}</span></p>
+                    <hr style="border: 0; border-top: 1px solid #ccc; margin: 6px 0;">
+                    <p style="margin: 4px 0; display: flex; justify-content: space-between; font-weight: bold; font-size: 16px;"><span>TOTAL:</span> <span>${g['total']:,.2f}</span></p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; text-align: center;">
+                <div style="border-top: 1px solid #000; width: 200px; padding-top: 5px;">Nombre y RUT Recinto Receptor</div>
+                <div style="border-top: 1px solid #000; width: 200px; padding-top: 5px;">Firma y Timbre Conductor</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # Botón para imprimir la vista usando las capacidades del navegador
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🖨️ Imprimir / Guardar Guía en PDF"):
             st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")
@@ -679,3 +685,4 @@ st.markdown("""
                     window.print();
                 </script>
             """, unsafe_allow_html=True)
+
