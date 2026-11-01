@@ -130,7 +130,7 @@ menu = st.sidebar.radio(
         "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
         "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
         "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
-        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico","15.Logística Inversa","16. Emisión de Guías de Despacho",("17. Alertas de Stock")
+        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico","15. Emisión de Guías de Despacho",
     ],
     key="menu_principal_navegacion"
 )
@@ -454,49 +454,11 @@ elif menu == "14. Registro Fotográfico":
         st.image(foto_subida, caption="Evidencia registrada en sistema", use_container_width=True)
         st.success("Fotografía cargada correctamente para el expediente.")
 
+
 # ---------------------------------------------------------
-# MÓDULO 15: ALERTAS DE STOCK (AISLADO)
+# MÓDULO 15: EMISIÓN DE GUÍAS DE DESPACHO OFICIALES
 # ---------------------------------------------------------
-elif menu == "15. Alertas de Stock":
-    st.header("🚨 Panel de Alertas de Stock Crítico")
-    st.markdown("Monitoreo en tiempo real de productos que se encuentran bajo su stock mínimo de seguridad.")
-    
-    if st.session_state.materiales.empty:
-        st.info("No hay materiales registrados en el sistema.")
-    else:
-        df_mat = st.session_state.materiales.copy()
-        if "Stock_Minimo" not in df_mat.columns:
-            df_mat["Stock_Minimo"] = 5
-            
-        df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
-        df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
-        
-        criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
-        
-        # Usamos contenedores con bordes limpios para evitar herencias oscuras
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.metric("Total Productos", len(df_mat))
-        with c2:
-            st.metric("Stock Normal", len(df_mat) - len(criticos))
-        with c3:
-            st.metric("🚨 En Estado Crítico", len(criticos))
-            
-        st.divider()
-        
-        if len(criticos) > 0:
-            st.error(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición inmediata.")
-            st.dataframe(
-                criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
-                use_container_width=True,
-                hide_index=True
-            )
-        else:
-            st.success("🎉 ¡Excelente noticia! No hay productos en nivel crítico.")
-# ---------------------------------------------------------
-# MÓDULO 16: EMISIÓN DE GUÍAS DE DESPACHO OFICIALES
-# ---------------------------------------------------------
-elif menu == "16. Emisión de Guías de Despacho":
+elif menu == "15. Emisión de Guías de Despacho":
     st.header("📄 Generador de Guías de Despacho / Traslado")
     st.markdown("Crea, visualiza y genera el comprobante formal de despacho de mercadería.")
     st.sidebar.image("logo.jpg.jpg", width=150)
@@ -689,48 +651,3 @@ elif menu == "16. Emisión de Guías de Despacho":
         if st.button("🖨️ Imprimir / Guardar Guía en PDF"):
             st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")                            
                                 
-# ---------------------------------------------------------
-# MÓDULO 17: QUIEBRE DE STOCK (AISLADO)
-# ---------------------------------------------------------
-elif menu == "17. Quiebre de Stock":
-    st.header("🚨 Alertas de Quiebre de Stock")
-    st.markdown("Monitoreo en tiempo real de productos que se encuentran bajo su stock mínimo de seguridad.")
-    
-    if st.session_state.materiales.empty:
-        st.info("No hay materiales registrados en el sistema.")
-    else:
-        df_mat = st.session_state.materiales.copy()
-        if "Stock_Minimo" not in df_mat.columns:
-            df_mat["Stock_Minimo"] = 5
-            
-        df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
-        df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
-        
-        criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
-        
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.metric("Total Catálogo", len(df_mat))
-        with c2:
-            st.metric("Stock Normal", len(df_mat) - len(criticos))
-        with c3:
-            st.metric("🚨 En Quiebre / Crítico", len(criticos))
-            
-        st.divider()
-        
-        if len(criticos) > 0:
-            st.error(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición urgente.")
-            st.dataframe(
-                criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
-                use_container_width=True,
-                hide_index=True
-            )
-            
-            st.markdown("### 🛒 Sugerencia de Reposición")
-            sku_a_pedir = st.selectbox("Seleccionar SKU para calcular reposición", criticos["SKU"], key="sel_quiebre_sku_17_clean")
-            prod_sel = criticos[criticos["SKU"] == sku_a_pedir].iloc[0]
-            
-            sugerido = (int(prod_sel["Stock_Minimo"]) * 3) - int(prod_sel["Stock_Actual"])
-            st.info(f"Para el producto **{prod_sel['Nombre']}** ({sku_a_pedir}), se recomienda comprar al menos **{sugerido} unidades**.")
-        else:
-            st.success("🎉 ¡Excelente! No hay productos en nivel de quiebre de stock.")
