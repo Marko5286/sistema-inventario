@@ -109,6 +109,23 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ---------------------------------------------------------
+# PANEL LATERAL / NAVEGACIÓN Y RESPALDO
+# ---------------------------------------------------------
+st.sidebar.title("📦 WMS Marklogistic")
+st.sidebar.write(f"👤 Conectado como: **{st.session_state.get('usuario_actual', '')}**")
+
+if st.sidebar.button("Cerrar Sesión"):
+    st.session_state.autenticado = False
+    st.rerun()
+
+st.sidebar.markdown("---")
+menu = st.sidebar.radio("Módulos del Sistema", [
+    "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
+    "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
+    "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
+    "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico"
+])
+# ---------------------------------------------------------
 # FUNCIONES DE AUTOMATIZACIÓN (PDF, CORREO Y SOPORTE)
 # ---------------------------------------------------------
 def enviar_correo_respaldo(remitente, password, destino, excel_bytes):
