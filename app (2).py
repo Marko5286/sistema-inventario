@@ -460,10 +460,15 @@ elif menu == "15. Alertas de Stock":
     # CSS para forzar fondo claro y evitar pantallas negras
     st.markdown("""
         <style>
-            .stApp { background-color: #ffffff !important; color: #000000 !important; }
-            section[data-testid="stSidebar"] { background-color: #f8f9fa !important; }
-            div.stMarkdown, p, h1, h2, h3, span { color: #000000 !important; }
-        </style>
+            .stApp { 
+            background-color: #ffffff !important; 
+            olor: #000000 !important;
+        }
+         /* Asegurar que las tarjetas y contenedores de métricas no se pongan negros */
+        div[data-testid="stMetric"], div[data-testid="stVerticalBlock"] {
+            background-color: transparent !important;
+        }
+    </style>
     """, unsafe_allow_html=True)
 
     st.header("🚨 Panel de Alertas de Stock Crítico")
