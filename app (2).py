@@ -613,13 +613,14 @@ elif menu == "16. Emisión de Guías de Despacho":
                         except Exception as e:
                             st.error(f"Error al sincronizar con Supabase: {e}")
 
-    # Visualización limpia de la Guía Generada
+# Visualización limpia de la Guía Generada
     if "ultima_guia" in st.session_state:
         g = st.session_state.ultima_guia
         st.markdown("---")
         st.subheader("👁️ Vista Previa del Documento Tributario (Guía de Despacho)")
         
-        st.markdown(f"""
+        # Construimos el HTML de manera limpia
+        html_guia = f"""
         <div style="border: 2px solid #2c3e50; padding: 25px; border-radius: 8px; background-color: #ffffff; color: #000000; font-family: sans-serif;">
             <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #2c3e50; padding-bottom: 15px;">
                 <div>
@@ -675,7 +676,10 @@ elif menu == "16. Emisión de Guías de Despacho":
                 <div style="border-top: 1px solid #000; width: 200px; padding-top: 5px;">Firma y Timbre Conductor</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """
+        
+        # Renderizamos explícitamente el HTML asegurando que Streamlit lo interprete visualmente
+        st.markdown(html_guia, unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🖨️ Imprimir / Guardar Guía en PDF"):
@@ -685,4 +689,7 @@ elif menu == "16. Emisión de Guías de Despacho":
                     window.print();
                 </script>
             """, unsafe_allow_html=True)
+                            
 
+    # Visualización limpia de la Guía Generada
+    
