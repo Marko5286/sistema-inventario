@@ -115,7 +115,7 @@ def enviar_correo_respaldo(remitente, password, destino, excel_bytes):
 # ---------------------------------------------------------
 # MENÚ LATERAL DE NAVEGACIÓN
 # ---------------------------------------------------------
-st.sidebar.image("ruta_o_link_de_tu_logo.png", width=200) 
+st.sidebar.image("logo.jpg.jpg", width=200) 
 st.sidebar.title("📦 WMS MARKLOGISTIC")
 st.sidebar.markdown("---")
 
