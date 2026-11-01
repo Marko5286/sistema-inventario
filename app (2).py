@@ -189,47 +189,35 @@ def enviar_correo_respaldo(remitente, password, destino, excel_bytes):
         return False
 
 # ---------------------------------------------------------
-# MENÚ LATERAL DE NAVEGACIÓN
+# MENÚ LATERAL DINÁMICO SEGÚN EL ROL
 # ---------------------------------------------------------
-st.sidebar.image("logo.jpg.jpg", width=200) 
+st.sidebar.title("📦 WMS MARKLOGISTIC")
 st.sidebar.write(f"👤 **Usuario:** {st.session_state.get('nombre_usuario', 'N/A')}")
 st.sidebar.write(f"🔑 **Rol:** {st.session_state.get('rol', 'N/A')}")
-st.sidebar.title("📦 WMS MARKLOGISTIC")
 st.sidebar.markdown("---")
 
+# Definir el rol actual de forma segura
 rol_actual = st.session_state.get("rol", "Bodeguero")
 
+# Definir la lista de módulos según el rol
 if rol_actual == "Administrador":
- 
-   lista_modulos= [
-        "1. Creación de Materiales", 
-        "2. Ingreso de Materiales", 
-        "3. Picking de Materiales", 
-        "4. Despacho y Guía", 
-        "5. Inventario", 
-        "6. Dashboard Gerencial", 
-        "7. Trazabilidad", 
-        "8. Etiquetas", 
-        "9. Eliminar Transacciones", 
-        "10. Asistente IA", 
-        "11. Escáner de SKU", 
-        "12. Gestión de Bodegas", 
-        "13. Auditoría y Logs", 
-        "14. Registro Fotográfico",
-        "15. Emisión de Guías de Despacho",
-        "16. Alertas de Stock",
-        "17. Quiebre de Stock"
+    lista_modulos = [
+        "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
+        "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
+        "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
+        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico",
+        "15. Emisión de Guías de Despacho", "16. Alertas de Stock", "17. Quiebre de Stock"
     ]
-    
-menu = st.sidebar.radio("Módulos del Sistema", lista_modulos, key="menu_principal_navegacion")
+else:
+    lista_modulos = [
+        "2. Ingreso de Materiales", "3. Picking de Materiales", 
+        "4. Despacho y Guía", "5. Inventario", "8. Etiquetas", 
+        "11. Escáner de SKU", "14. Registro Fotográfico",
+        "15. Emisión de Guías de Despacho", "16. Alertas de Stock", "17. Quiebre de Stock"
+    ]
 
-# Botón de Cerrar Sesión en la barra lateral que ya querías implementar
-st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Cerrar Sesión", use_container_width=True):
-    st.session_state.autenticado = False
-    st.session_state.usuario = None
-    st.session_state.rol = None
-    st.rerun()
+# Ahora sí, el radio se renderiza sin errores porque 'lista_modulos' ya existe
+menu = st.sidebar.radio("Módulos del Sistema", lista_modulos, key="menu_principal_navegacion")
 
 
 #---------------------------------------------------------
