@@ -170,7 +170,7 @@ if st.sidebar.button("🚪 Cerrar Sesión", use_container_width=True):
     st.session_state.logged_in = False
     st.session_state.user = None
     st.rerun()
------------------------------------------------
+#---------------------------------------------------------
 # MÓDULO 1: CREACIÓN DE MATERIALES Y CARGA MASIVA
 # ---------------------------------------------------------
 if menu == "1. Creación de Materiales":
