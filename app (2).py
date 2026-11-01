@@ -129,7 +129,7 @@ menu = st.sidebar.radio(
         "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
         "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
         "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
-        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico","15. Logística Inversa","16. Emisión de Guías de Despacho"
+        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico","15.Logística Inversa","16. Emisión de Guías de Despacho",("17. Alertas de Stock")
     ],
     key="menu_principal_navegacion"
 )
@@ -724,7 +724,64 @@ elif menu == "16. Emisión de Guías de Despacho":
         if st.button("🖨️ Imprimir / Guardar Guía en PDF"):
             st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")                            
                                 
-                            
+      # ---------------------------------------------------------
+# MÓDULO 17 DE ALERTAS DE STOCK CRÍTICO / MÍNIMO
+# ---------------------------------------------------------
+elif menu == "15. Alertas de Stock":  # O agrégalo en tu Dashboard
+    st.header("🚨 Panel de Alertas de Stock Crítico")
+    st.markdown("Monitoreo en tiempo real de productos que se encuentran bajo su stock mínimo de seguridad.")
+    
+    if st.session_state.materiales.empty:
+        st.info("No hay materiales registrados en el sistema.")
+    else:
+        # Asegurarnos de que existan las columnas numéricas necesarias
+        df_mat = st.session_state.materiales.copy()
+        
+        # Si la columna stock_minimo no viene cargada, le asignamos un valor por defecto de 5
+        if "Stock_Minimo" not in df_mat.columns:
+            df_mat["Stock_Minimo"] = 5  # Valor por defecto de seguridad
+            
+        df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
+        df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
+        
+        # Filtrar productos cuyo stock actual sea menor o igual al stock mínimo
+        criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
+        
+        # Métricas rápidas superiores
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Productos", len(df_mat))
+        with col2:
+            st.metric("Stock Normal", len(df_mat) - len(criticos))
+        with col3:
+            st.metric("🚨 En Estado Crítico", len(criticos), delta=f"-{len(criticos)}" if len(criticos) > 0 else "0", delta_color="inverse")
+            
+        st.markdown("---")
+        
+        if len(criticos) > 0:
+            st.warning(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición inmediata por estar en niveles críticos.")
+            
+            # Estilizador visual para resaltar las filas críticas en rojo suave
+            def resaltar_critico(s):
+                return ['background-color: #ffcccc' if s['Stock_Actual'] <= s['Stock_Minimo'] else '' for _ in s]
+
+            # Mostrar tabla interactiva con los productos en alerta
+            st.dataframe(
+                criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Sugerencia de compra / reabastecimiento rápido
+            st.subheader("🛒 Sugerencia de Reposición")
+            sku_a_pedir = st.selectbox("Seleccionar SKU para ajustar orden de compra", criticos["SKU"])
+            prod_sel = criticos[criticos["SKU"] == sku_a_pedir].iloc[0]
+            
+            sugerido_reposicion = (int(prod_sel["Stock_Minimo"]) * 3) - int(prod_sel["Stock_Actual"])
+            st.info(f"Para el producto **{prod_sel['Nombre']}** ({sku_a_pedir}), se recomienda reabastecer al menos **{sugerido_reposicion} unidades** para recuperar el stock óptimo.")
+            
+        else:
+            st.success("🎉 ¡Excelente noticia! No hay productos en nivel crítico. Todo el inventario está sobre el stock mínimo establecido.")                      
                             
                             
 
