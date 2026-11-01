@@ -534,6 +534,7 @@ elif menu == "15. Logística Inversa":
 elif menu == "16. Emisión de Guías de Despacho":
     st.header("📄 Generador de Guías de Despacho / Traslado")
     st.markdown("Crea, visualiza y genera el comprobante formal de despacho de mercadería.")
+    st.sidebar.image("logo.jpg.jpg", width=150)
     
     if st.session_state.materiales.empty:
         st.info("No hay materiales cargados en el sistema.")
