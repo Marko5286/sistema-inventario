@@ -454,21 +454,11 @@ elif menu == "14. Registro Fotográfico":
         st.success("Fotografía cargada correctamente para el expediente.")
 
 # ---------------------------------------------------------
-# MÓDULO 15: ALERTAS DE STOCK (LIMPIO Y FORZADO CLARO)
+# MÓDULO 15: ALERTAS DE STOCK
 # ---------------------------------------------------------
 elif menu == "15. Alertas de Stock":
-    # CSS para forzar fondo claro y evitar pantallas negras
     st.markdown("""
-        <style>
-            .stApp { 
-            background-color: #ffffff !important; 
-            olor: #000000 !important;
-        }
-         /* Asegurar que las tarjetas y contenedores de métricas no se pongan negros */
-        div[data-testid="stMetric"], div[data-testid="stVerticalBlock"] {
-            background-color: transparent !important;
-        }
-    </style>
+        <div style="background-color: #ffffff; padding: 20px; border-radius: 10px; color: #000000;">
     """, unsafe_allow_html=True)
 
     st.header("🚨 Panel de Alertas de Stock Crítico")
@@ -505,6 +495,8 @@ elif menu == "15. Alertas de Stock":
             )
         else:
             st.success("🎉 ¡Excelente noticia! No hay productos en nivel crítico.")
+            
+    st.markdown("</div>", unsafe_allow_html=True)
 # ---------------------------------------------------------
 # MÓDULO 16: EMISIÓN DE GUÍAS DE DESPACHO OFICIALES
 # ---------------------------------------------------------
@@ -702,16 +694,11 @@ elif menu == "16. Emisión de Guías de Despacho":
             st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")                            
                                 
 # ---------------------------------------------------------
-# MÓDULO 17: QUIEBRE DE STOCK (LIMPIO Y FORZADO CLARO)
+# MÓDULO 17: QUIEBRE DE STOCK
 # ---------------------------------------------------------
 elif menu == "17. Quiebre de Stock":
-    # CSS para forzar fondo claro y evitar pantallas negras
     st.markdown("""
-        <style>
-            .stApp { background-color: #ffffff !important; color: #000000 !important; }
-            section[data-testid="stSidebar"] { background-color: #f8f9fa !important; }
-            div.stMarkdown, p, h1, h2, h3, span { color: #000000 !important; }
-        </style>
+        <div style="background-color: #ffffff; padding: 20px; border-radius: 10px; color: #000000;">
     """, unsafe_allow_html=True)
 
     st.header("🚨 Alertas de Quiebre de Stock")
@@ -755,3 +742,5 @@ elif menu == "17. Quiebre de Stock":
             st.info(f"Para el producto **{prod_sel['Nombre']}** ({sku_a_pedir}), se recomienda comprar al menos **{sugerido} unidades**.")
         else:
             st.success("🎉 ¡Excelente! No hay productos en nivel de quiebre de stock.")
+            
+    st.markdown("</div>", unsafe_allow_html=True)
