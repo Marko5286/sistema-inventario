@@ -14,6 +14,63 @@ import plotly.express as px
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
+import streamlit as st
+import pandas as pd
+import io
+import plotly.express as px
+
+# ---------------------------------------------------------
+# 1. INICIALIZACIÓN OBLIGATORIA DEL SESSION STATE
+# ---------------------------------------------------------
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+if "usuario" not in st.session_state:
+    st.session_state.usuario = None
+if "rol" not in st.session_state:
+    st.session_state.rol = None
+if "nombre_usuario" not in st.session_state:
+    st.session_state.nombre_usuario = None
+
+# ---------------------------------------------------------
+# 2. PANTALLA DE LOGIN CON EL LOGO
+# ---------------------------------------------------------
+if not st.session_state.autenticado:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        try:
+            st.image("https://github.com/Marko5286/sistema-inventario/blob/main/logo.jpg.jpg?raw=true", width=220)
+        except Exception:
+            st.markdown("<h1 style='text-align: center;'>📦</h1>", unsafe_allow_html=True)
+            
+        st.markdown("<h2 style='text-align: center;'>WMS MARKLOGISTIC</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray;'>Sistema de Gestión de Almacenes</p>", unsafe_allow_html=True)
+    
+    with st.form("form_login"):
+        user_input = st.text_input("Usuario")
+        pass_input = st.text_input("Contraseña", type="password")
+        btn_login = st.form_submit_button("Iniciar Sesión", use_container_width=True)
+        
+        if btn_login:
+            # Aquí va tu lógica de verificación (contra Supabase o tus usuarios)
+            if user_input == "admin" and pass_input == "admin123":
+                st.session_state.autenticado = True
+                st.session_state.usuario = user_input
+                st.session_state.rol = "Administrador"
+                st.session_state.nombre_usuario = "Marco Inostroza"
+                st.success("¡Bienvenido!")
+                st.rerun()
+            elif user_input == "bodega" and pass_input == "bodega123":
+                st.session_state.autenticado = True
+                st.session_state.usuario = user_input
+                st.session_state.rol = "Bodeguero"
+                st.session_state.nombre_usuario = "Operario Bodega"
+                st.success("¡Bienvenido!")
+                st.rerun()
+            else:
+                st.error("Usuario o contraseña incorrectos.")
+                
+    st.stop()  # Detiene la ejecución aquí si no ha iniciado sesión
 # PANTALLA DE LOGIN SI NO ESTÁ AUTENTICADO
 if not st.session_state.autenticado:
     
