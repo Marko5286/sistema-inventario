@@ -106,7 +106,11 @@ if not st.session_state.autenticado:
                 st.rerun()
             else:
                 st.error("Usuario o contraseña incorrectos.")
-    st.stop()
+    st.stop()  # <--- Esto detiene la ejecución aquí si NO ha iniciado sesión
+
+# =========================================================
+# A PARTIR DE AQUÍ EL USUARIO YA ESTÁ LOGUEADO
+# =========================================================
 
 # ---------------------------------------------------------
 # PANEL LATERAL / NAVEGACIÓN Y RESPALDO
