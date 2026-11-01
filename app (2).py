@@ -400,18 +400,32 @@ elif menu == "10. Asistente IA":
         st.warning("Configura tu GEMINI_API_KEY en los secretos de Streamlit.")
 
 # ---------------------------------------------------------
-# MÓDULO 11: ESCÁNER DE SKU
+# MÓDULO 11: ESCÁNER DE SKU (CÁMARA Y CÓDIGOS)
 # ---------------------------------------------------------
 elif menu == "11. Escáner de SKU":
-    st.header("📷 Escáner de Códigos y Consulta Rápida")
-    sku_buscar = st.text_input("Ingrese o escanee el código SKU:").strip().upper()
-    if sku_buscar:
-        res_busqueda = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_buscar]
-        if not res_busqueda.empty:
-            st.success("¡Material encontrado!")
-            st.dataframe(res_busqueda, use_container_width=True)
-        else:
-            st.warning("No se encontró ningún material con ese SKU.")
+    st.header("📷 Escáner de SKU y Códigos")
+    
+    tab_manual_esc, tab_camara_nativa = st.tabs(["⌨️ Búsqueda Manual / Pistola", "📸 Captura con Cámara del Dispositivo"])
+    
+    with tab_manual_esc:
+        sku_buscar = st.text_input("Ingrese o pistolee el código SKU:").strip().upper()
+        if sku_buscar:
+            res_busqueda = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_buscar]
+            if not res_busqueda.empty:
+                st.success("¡Material encontrado!")
+                st.dataframe(res_busqueda, use_container_width=True)
+            else:
+                st.warning("No se encontró ningún material con ese SKU.")
+
+    with tab_camara_nativa:
+        st.markdown("Utiliza la cámara para tomar una foto clara del código de barras, etiqueta o código QR del producto:")
+        
+        # Componente nativo de Streamlit para usar la cámara en la nube de forma segura
+        imagen_camara = st.camera_input("Apunta al código y toma la foto", key="camara_sku_nativa")
+        
+        if imagen_camara is not None:
+            st.success("¡Fotografía de la etiqueta capturada con éxito!")
+            st.info("💡 **Consejo:** Ingresa el SKU correspondiente a esta etiqueta en el buscador manual de la pestaña anterior para validar o actualizar su stock de inmediato.")
 
 # ---------------------------------------------------------
 # MÓDULO 12: GESTIÓN DE BODEGAS
