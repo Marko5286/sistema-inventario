@@ -344,15 +344,58 @@ elif menu == "5. Inventario":
 # MÓDULO 6: DASHBOARD GERENCIAL
 # ---------------------------------------------------------
 elif menu == "6. Dashboard Gerencial":
-    st.header("📈 Dashboard Gerencial y Métricas")
-    if not st.session_state.materiales.empty:
-        total_items = st.session_state.materiales["Stock_Actual"].sum()
-        valor_total = (st.session_state.materiales["Stock_Actual"] * st.session_state.materiales["Valor_Unitario"]).sum()
-        col1, col2 = st.columns(2)
-        col1.metric("Stock Total de Unidades", f"{total_items:,}")
-        col2.metric("Valorización Total Inventario ($)", f"${valor_total:,.2f}")
+    st.header("📊 Dashboard Gerencial y Métricas")
+    st.markdown("Resumen general del rendimiento del inventario de Marklogistic.")
+    
+    # Verificamos si existe la librería Plotly importada arriba en tu archivo. 
+    # Si no la tienes, aseguras tener 'import plotly.express as px' al inicio de tu app.py
+    import plotly.express as px
+    
+    if "materiales" in st.session_state and not st.session_state.materiales.empty:
+        df_dash = st.session_state.materiales.copy()
+        
+        # Asegurar tipos numéricos para los cálculos
+        df_dash["Stock_Actual"] = pd.to_numeric(df_dash["Stock_Actual"], errors="coerce").fillna(0)
+        if "Valor_Unitario" in df_dash.columns:
+            df_dash["Valor_Unitario"] = pd.to_numeric(df_dash["Valor_Unitario"], errors="coerce").fillna(0)
+            df_dash["Valor_Total"] = df_dash["Stock_Actual"] * df_dash["Valor_Unitario"]
+        else:
+            df_dash["Valor_Total"] = 0
+            
+        # Métricas superiores del Dashboard
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📦 SKUs Totales", len(df_dash))
+        with col2:
+            st.metric("📊 Stock Total Físico", int(df_dash["Stock_Actual"].sum()))
+        with col3:
+            total_valor = df_dash["Valor_Total"].sum()
+            st.metric("💰 Valorización Inventario", f"${total_valor:,.0f}")
+            
+        st.divider()
+        
+        # Gráficos interactivos con Plotly
+        c_graf1, c_graf2 = st.columns(2)
+        
+        with c_graf1:
+            st.subheader("Top Productos por Stock")
+            if "Nombre" in df_dash.columns and len(df_dash) > 0:
+                top_stock = df_dash.nlargest(5, "Stock_Actual")
+                fig1 = px.bar(top_stock, x="Nombre", y="Stock_Actual", text="Stock_Actual", color="Stock_Actual")
+                st.plotly_chart(fig1, use_container_width=True)
+            else:
+                st.info("No hay suficientes datos para graficar.")
+                
+        with c_graf2:
+            st.subheader("Distribución de Stock")
+            if len(df_dash) > 0:
+                fig2 = px.pie(df_dash, names="Nombre" if "Nombre" in df_dash.columns else "SKU", values="Stock_Actual")
+                st.plotly_chart(fig2, use_container_width=True)
+            else:
+                st.info("No hay datos para el gráfico circular.")
+                
     else:
-        st.info("Sin datos para mostrar en el dashboard.")
+        st.info("⚠️ No hay materiales registrados en el sistema para generar el dashboard.")
 
 # ---------------------------------------------------------
 # MÓDULO 7: TRAZABILIDAD
