@@ -612,84 +612,101 @@ elif menu == "16. Emisión de Guías de Despacho":
                             st.success(f"¡Guía de Despacho **{num_guia_id}** generada con éxito y stock descontado!")
                         except Exception as e:
                             st.error(f"Error al sincronizar con Supabase: {e}")
-
-# Visualización limpia de la Guía Generada
+# Visualización limpia de la Guía Generada usando componentes HTML seguros
     if "ultima_guia" in st.session_state:
         g = st.session_state.ultima_guia
         st.markdown("---")
         st.subheader("👁️ Vista Previa del Documento Tributario (Guía de Despacho)")
         
-        # Construimos el HTML de manera limpia
+        # HTML limpio empaquetado para componente web seguro
         html_guia = f"""
-        <div style="border: 2px solid #2c3e50; padding: 25px; border-radius: 8px; background-color: #ffffff; color: #000000; font-family: sans-serif;">
-            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #2c3e50; padding-bottom: 15px;">
-                <div>
-                    <h2 style="margin: 0; color: #2c3e50;">WMS MARKLOGISTIC</h2>
-                    <p style="margin: 2px 0; font-size: 13px;">Bodega Central Antofagasta<br>Operaciones Logísticas</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: sans-serif; background-color: #ffffff; color: #000000; margin: 0; padding: 10px; }}
+                .guia-container {{ border: 2px solid #2c3e50; padding: 25px; border-radius: 8px; background-color: #ffffff; }}
+                .header-flex {{ display: flex; justify-content: space-between; border-bottom: 2px solid #2c3e50; padding-bottom: 15px; }}
+                .box-titulo {{ text-align: right; border: 2px solid #e74c3c; padding: 10px; border-radius: 5px; }}
+                .info-box {{ margin-top: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 5px; }}
+                table {{ width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 14px; }}
+                th {{ background-color: #2c3e50; color: white; padding: 8px; text-align: left; }}
+                td {{ padding: 8px; border-bottom: 1px solid #ddd; }}
+                .totales-wrapper {{ display: flex; justify-content: flex-end; margin-top: 20px; }}
+                .totales-box {{ width: 250px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 5px; }}
+                .fila-total {{ display: flex; justify-content: space-between; margin: 4px 0; }}
+                .firmas {{ margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; text-align: center; }}
+                .linea-firma {{ border-top: 1px solid #000; width: 200px; padding-top: 5px; margin: 0 auto; }}
+            </style>
+        </head>
+        <body>
+            <div class="guia-container">
+                <div class="header-flex">
+                    <div>
+                        <h2 style="margin: 0; color: #2c3e50;">WMS MARKLOGISTIC</h2>
+                        <p style="margin: 2px 0; font-size: 13px;">Bodega Central Antofagasta<br>Operaciones Logísticas</p>
+                    </div>
+                    <div class="box-titulo">
+                        <h3 style="margin: 0; color: #e74c3c;">GUÍA DE DESPACHO</h3>
+                        <p style="margin: 2px 0; font-size: 16px; font-weight: bold;">N° {g['numero']}</p>
+                        <p style="margin: 2px 0; font-size: 12px;">R.U.T.: 76.123.456-7</p>
+                    </div>
                 </div>
-                <div style="text-align: right; border: 2px solid #e74c3c; padding: 10px; border-radius: 5px;">
-                    <h3 style="margin: 0; color: #e74c3c;">GUÍA DE DESPACHO</h3>
-                    <p style="margin: 2px 0; font-size: 16px; font-weight: bold;">N° {g['numero']}</p>
-                    <p style="margin: 2px 0; font-size: 12px;">R.U.T.: 76.123.456-7</p>
+                
+                <div class="info-box">
+                    <p style="margin: 4px 0;"><b>Fecha de Emisión:</b> {g['fecha']}</p>
+                    <p style="margin: 4px 0;"><b>Señor(es):</b> {g['cliente']} &nbsp;&nbsp;&nbsp;&nbsp; <b>R.U.T.:</b> {g['rut']}</p>
+                    <p style="margin: 4px 0;"><b>Dirección:</b> {g['direccion']}, {g['ciudad']}</p>
+                    <p style="margin: 4px 0;"><b>Motivo Traslado:</b> {g['motivo']} &nbsp;&nbsp;&nbsp;&nbsp; <b>Transportista:</b> {g['chofer']} (Patente: {g['patente']})</p>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Descripción</th>
+                            <th style="text-align: center;">Cantidad</th>
+                            <th style="text-align: right;">Precio Unit.</th>
+                            <th style="text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{g['sku']}</td>
+                            <td>{g['descripcion']}</td>
+                            <td style="text-align: center;">{g['cantidad']}</td>
+                            <td style="text-align: right;">${g['precio_unit']:,.2f}</td>
+                            <td style="text-align: right;">${g['subtotal']:,.2f}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="totales-wrapper">
+                    <div class="totales-box">
+                        <div class="fila-total"><span>Neto:</span> <span>${g['subtotal']:,.2f}</span></div>
+                        <div class="fila-total"><span>I.V.A. (19%):</span> <span>${g['iva']:,.2f}</span></div>
+                        <hr style="border: 0; border-top: 1px solid #ccc; margin: 6px 0;">
+                        <div class="fila-total" style="font-weight: bold; font-size: 16px;"><span>TOTAL:</span> <span>${g['total']:,.2f}</span></div>
+                    </div>
+                </div>
+                
+                <div class="firmas">
+                    <div><div class="linea-firma"></div>Nombre y RUT Recinto Receptor</div>
+                    <div><div class="linea-firma"></div>Firma y Timbre Conductor</div>
                 </div>
             </div>
-            
-            <div style="margin-top: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-                <p style="margin: 4px 0;"><b>Fecha de Emisión:</b> {g['fecha']}</p>
-                <p style="margin: 4px 0;"><b>Señor(es):</b> {g['cliente']} &nbsp;&nbsp;&nbsp;&nbsp; <b>R.U.T.:</b> {g['rut']}</p>
-                <p style="margin: 4px 0;"><b>Dirección:</b> {g['direccion']}, {g['ciudad']}</p>
-                <p style="margin: 4px 0;"><b>Motivo Traslado:</b> {g['motivo']} &nbsp;&nbsp;&nbsp;&nbsp; <b>Transportista:</b> {g['chofer']} (Patente: {g['patente']})</p>
-            </div>
-            
-            <table style="width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 14px;">
-                <thead>
-                    <tr style="background-color: #2c3e50; color: white;">
-                        <th style="padding: 8px; text-align: left;">SKU</th>
-                        <th style="padding: 8px; text-align: left;">Descripción</th>
-                        <th style="padding: 8px; text-align: center;">Cantidad</th>
-                        <th style="padding: 8px; text-align: right;">Precio Unit.</th>
-                        <th style="padding: 8px; text-align: right;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr style="border-bottom: 1px solid #ddd;">
-                        <td style="padding: 8px;">{g['sku']}</td>
-                        <td style="padding: 8px;">{g['descripcion']}</td>
-                        <td style="padding: 8px; text-align: center;">{g['cantidad']}</td>
-                        <td style="padding: 8px; text-align: right;">${g['precio_unit']:,.2f}</td>
-                        <td style="padding: 8px; text-align: right;">${g['subtotal']:,.2f}</td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-                <div style="width: 250px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
-                    <p style="margin: 4px 0; display: flex; justify-content: space-between;"><span>Neto:</span> <span>${g['subtotal']:,.2f}</span></p>
-                    <p style="margin: 4px 0; display: flex; justify-content: space-between;"><span>I.V.A. (19%):</span> <span>${g['iva']:,.2f}</span></p>
-                    <hr style="border: 0; border-top: 1px solid #ccc; margin: 6px 0;">
-                    <p style="margin: 4px 0; display: flex; justify-content: space-between; font-weight: bold; font-size: 16px;"><span>TOTAL:</span> <span>${g['total']:,.2f}</span></p>
-                </div>
-            </div>
-            
-            <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; text-align: center;">
-                <div style="border-top: 1px solid #000; width: 200px; padding-top: 5px;">Nombre y RUT Recinto Receptor</div>
-                <div style="border-top: 1px solid #000; width: 200px; padding-top: 5px;">Firma y Timbre Conductor</div>
-            </div>
-        </div>
+        </body>
+        </html>
         """
         
-        # Renderizamos explícitamente el HTML asegurando que Streamlit lo interprete visualmente
-        st.markdown(html_guia, unsafe_allow_html=True)
+        # Renderizado visual garantizado mediante componente HTML de Streamlit
+        import streamlit.components.v1 as components
+        components.html(html_guia, height=520, scrolling=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🖨️ Imprimir / Guardar Guía en PDF"):
-            st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")
-            st.markdown("""
-                <script>
-                    window.print();
-                </script>
-            """, unsafe_allow_html=True)
-                            
+            st.info("💡 Consejo: Haz clic derecho dentro del cuadro de la guía o usa la función de impresión de tu navegador para guardar como PDF.")
 
-    # Visualización limpia de la Guía Generada
-    
+# Visualización limpia de la Guía Generada
+   
