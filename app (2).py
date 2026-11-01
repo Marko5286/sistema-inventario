@@ -129,7 +129,7 @@ menu = st.sidebar.radio(
         "1. Creación de Materiales", "2. Ingreso de Materiales", "3. Picking de Materiales", 
         "4. Despacho y Guía", "5. Inventario", "6. Dashboard Gerencial", "7. Trazabilidad", 
         "8. Etiquetas", "9. Eliminar Transacciones", "10. Asistente IA", "11. Escáner de SKU", 
-        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico"
+        "12. Gestión de Bodegas", "13. Auditoría y Logs", "14. Registro Fotográfico","15. Logística Inversa"
     ],
     key="menu_principal_navegacion"
 )
@@ -452,3 +452,79 @@ elif menu == "14. Registro Fotográfico":
     if foto_subida is not None:
         st.image(foto_subida, caption="Evidencia registrada en sistema", use_container_width=True)
         st.success("Fotografía cargada correctamente para el expediente.")
+
+# ---------------------------------------------------------
+# MÓDULO 15: LOGÍSTICA INVERSA (DEVOLUCIONES)
+# ---------------------------------------------------------
+elif menu == "15. Logística Inversa":
+    st.header("🔄 Logística Inversa - Recepción de Devoluciones")
+    st.markdown("Gestiona el reingreso de mercadería por devoluciones de clientes, garantías o artículos defectuosos.")
+    
+    if st.session_state.materiales.empty:
+        st.info("Primero debes crear materiales en el sistema.")
+    else:
+        with st.form("form_logistica_inversa"):
+            st.subheader("Registrar Artículo Devuelto")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                sku_devuelto = st.selectbox("SKU del Producto Devuelto", st.session_state.materiales["SKU"], key="rev_sku")
+                cantidad_devuelta = st.number_input("Cantidad Devuelta", min_value=1, value=1, key="rev_cant")
+                motivo_devolucion = st.selectbox(
+                    "Motivo de la Devolución", 
+                    ["Devolución por Cliente / Cambio", "Producto Defectuoso / Falla", "Error en Despacho", "Garantía", "Otro"]
+                )
+            with c2:
+                cliente_origen = st.text_input("Cliente / Empresa Origen de la Devolución", key="rev_cliente")
+                estado_producto = st.selectbox("Estado del Artículo", ["Reutilizable (Vuelve a Stock)", "Dañado / Cuarentena (No sumar stock)"])
+                observaciones = st.text_area("Observaciones / Diagnóstico rápido", placeholder="Ej: Empaque abierto, sin piezas faltantes...")
+
+            if st.form_submit_button("Procesar Devolución"):
+                if not cliente_origen:
+                    st.error("Por favor, ingresa el nombre del cliente u origen de la devolución.")
+                else:
+                    mat_actual = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_devuelto].iloc[0]
+                    stock_actual = int(mat_actual["Stock_Actual"])
+                    
+                    # Si el producto es reutilizable, sumamos el stock de vuelta a la bodega
+                    if "Reutilizable" in estado_producto:
+                        nuevo_stock = stock_actual + cantidad_devuelta
+                        try:
+                            # Actualizar stock en Supabase
+                            supabase.table("materiales").update({"stock_actual": nuevo_stock}).eq("sku", sku_devuelto).execute()
+                            
+                            # Registrar el movimiento de tipo DEVOLUCIÓN en Supabase
+                            supabase.table("movimientos").insert({
+                                "id_mov": f"REV-{len(st.session_state.movimientos)+1:04d}",
+                                "tipo": "DEVOLUCIÓN", 
+                                "sku": sku_devuelto, 
+                                "cantidad": cantidad_devuelta,
+                                "origen_destino": f"Devolución: {cliente_origen} ({motivo_devolucion})",
+                                "usuario": st.session_state.get('usuario_actual', 'admin'),
+                                "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            }).execute()
+                            
+                            # Refrescar estados locales
+                            st.session_state.materiales = cargar_materiales_db()
+                            st.session_state.movimientos = cargar_movimientos_db()
+                            
+                            st.success(f"¡Devolución procesada con éxito! Se reingresaron {cantidad_devuelta} unidades del SKU {sku_devuelto} al stock.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al registrar la devolución en Supabase: {e}")
+                    else:
+                        # Si está dañado, solo registramos el movimiento en la bitácora sin sumar stock físico disponible
+                        try:
+                            supabase.table("movimientos").insert({
+                                "id_mov": f"REV-{len(st.session_state.movimientos)+1:04d}",
+                                "tipo": "CUARENTENA_DEV", 
+                                "sku": sku_devuelto, 
+                                "cantidad": cantidad_devuelta,
+                                "origen_destino": f"Devolución Dañada: {cliente_origen} ({motivo_devolucion})",
+                                "usuario": st.session_state.get('usuario_actual', 'admin'),
+                                "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            }).execute()
+                            st.session_state.movimientos = cargar_movimientos_db()
+                            st.warning(f"El producto fue registrado como dañado/cuarentena. **No** se sumó al stock actual, pero quedó guardado en la trazabilidad.")
+                        except Exception as e:
+                            st.error(f"Error al registrar en la base de datos: {e}")
