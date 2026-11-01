@@ -13,6 +13,43 @@ import io
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
+# PANTALLA DE LOGIN SI NO ESTÁ AUTENTICADO
+if not st.session_state.autenticado:
+    
+    # Columnas para centrar estéticamente el logo y el título
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        # Reemplaza "logo.png" por el nombre exacto de tu archivo si es distinto (ej: "logo.jpg")
+        try:
+            st.image("logo.png", width=220)
+        except Exception:
+            # Plan de respaldo por si el archivo no se encuentra temporalmente
+            st.markdown("<h1 style='text-align: center;'>📦</h1>", unsafe_allow_html=True)
+            
+        st.markdown("<h2 style='text-align: center;'>WMS MARKLOGISTIC</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray;'>Sistema de Gestión de Almacenes</p>", unsafe_allow_html=True)
+    
+    # Formulario de credenciales
+    with st.form("form_login"):
+        user_input = st.text_input("Usuario")
+        pass_input = st.text_input("Contraseña", type="password")
+        btn_login = st.form_submit_button("Iniciar Sesión", use_container_width=True)
+        
+        if btn_login:
+            datos_usuario = verificar_login(user_input, pass_input)
+            if datos_usuario:
+                st.session_state.autenticado = True
+                st.session_state.usuario = user_input
+                st.session_state.rol = datos_usuario["rol"]
+                st.session_state.nombre_usuario = datos_usuario["nombre_completo"]
+                st.success(f"¡Bienvenido, {datos_usuario['nombre_completo']}!")
+                st.rerun()
+            else:
+                st.error("Usuario o contraseña incorrectos.")
+                
+    st.stop()
+
 from supabase import create_client, Client
 try:
     from barcode import Code128
