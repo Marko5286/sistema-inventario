@@ -405,22 +405,54 @@ elif menu == "7. Trazabilidad":
     st.dataframe(st.session_state.movimientos, use_container_width=True)
 
 # ---------------------------------------------------------
-# MÓDULO 8: ETIQUETAS
+# MÓDULO 8: ETIQUETAS CON CÓDIGO DE BARRAS
 # ---------------------------------------------------------
 elif menu == "8. Etiquetas":
-    st.header("🏷️ Generación de Etiquetas SKU")
-    if not st.session_state.materiales.empty:
-        sku_et = st.selectbox("Seleccionar SKU para Etiqueta", st.session_state.materiales["SKU"], key="etiqueta_sku")
-        mat_et = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_et].iloc[0]
-        st.markdown(f"""
-        <div style="border: 2px dashed #333; padding: 20px; width: 300px; text-align: center; background: white; color: black;">
-            <h3>MARKLOGISTIC WMS</h3>
-            <h2>SKU: {mat_et['SKU']}</h2>
-            <p><b>Descripción:</b> {mat_et['Nombre']}</p>
-            <p><b>Ubicación:</b> {mat_et['Ubicacion']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
+    st.header("8. Generación de Etiquetas con Código de Barras")
+    st.markdown("Selecciona un producto para visualizar su etiqueta oficial y su código de barras listo para impresión.")
+    
+    if "materiales" in st.session_state and not st.session_state.materiales.empty:
+        df_et = st.session_state.materiales.copy()
+        
+        # Selector de SKU
+        sku_et = st.selectbox("Seleccione SKU para generar etiqueta", df_et["SKU"], key="sel_etiqueta_mod8")
+        prod_et = df_et[df_et["SKU"] == sku_et].iloc[0]
+        
+        st.divider()
+        
+        # Contenedor visual simulando el formato de una etiqueta física
+        st.markdown("### 🖨️ Vista Previa de Etiqueta")
+        
+        col_etiq1, col_etiq2 = st.columns([2, 1])
+        
+        with col_etiq1:
+            st.markdown(f"**Empresa:** WMS Marklogistic")
+            st.markdown(f"**Producto:** {prod_et.get('Nombre', 'N/A')}")
+            st.markdown(f"**Categoría:** {prod_et.get('Categoria', 'N/A')}")
+            st.markdown(f"**Bodega:** {prod_et.get('Bodega', 'N/A')}")
+            st.markdown(f"**Stock Actual:** {prod_et.get('Stock_Actual', 0)}")
+            
+        with col_etiq2:
+            st.markdown(f"**SKU:** `{sku_et}`")
+            
+        st.markdown("---")
+        
+        # Generar y mostrar el código de barras centrado
+        if HAS_BARCODE:
+            img_bar = generar_codigo_barras(sku_et)
+            if img_bar:
+                st.image(img_bar, caption=f"Código de Barras SKU: {sku_et}", width=350)
+            else:
+                st.error("No se pudo renderizar el código de barras para este SKU.")
+        else:
+            st.warning("⚠️ La librería `python-barcode` no está disponible en este entorno.")
+            
+        # Botón opcional de simulación de impresión
+        if st.button("🖨️ Enviar a Imprimir Etiqueta", key="btn_imprimir_etiqueta"):
+            st.success(f"Etiqueta del producto **{prod_et.get('Nombre')}** enviada a cola de impresión.")
+            
+    else:
+        st.info("⚠️ No hay materiales registrados en el sistema para generar etiquetas.")
 # ---------------------------------------------------------
 # MÓDULO 9: ELIMINAR TRANSACCIONES
 # ---------------------------------------------------------
