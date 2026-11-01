@@ -219,6 +219,7 @@ if rol_actual == "Administrador":
         "15. Emisión de Guías de Despacho",
         "16. Alertas de Stock",
         "17. Quiebre de Stock"
+    ]
     
 menu = st.sidebar.radio("Módulos del Sistema", lista_modulos, key="menu_principal_navegacion")
 
