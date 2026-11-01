@@ -724,7 +724,7 @@ elif menu == "16. Emisión de Guías de Despacho":
         if st.button("🖨️ Imprimir / Guardar Guía en PDF"):
             st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")                            
                                 
-   # ---------------------------------------------------------
+# ---------------------------------------------------------
 # MÓDULO 17: QUIEBRE DE STOCK Y ALERTAS
 # ---------------------------------------------------------
 elif menu == "17. Quiebre de Stock":
@@ -734,45 +734,47 @@ elif menu == "17. Quiebre de Stock":
     if st.session_state.materiales.empty:
         st.info("No hay materiales registrados en el sistema.")
     else:
-        df_mat = st.session_state.materiales.copy()
-        
-        # Verificar si existe la columna Stock_Minimo, si no, crearla con un valor por defecto
-        if "Stock_Minimo" not in df_mat.columns:
-            df_mat["Stock_Minimo"] = 5
+        # Creamos un contenedor principal limpio
+        with st.container():
+            df_mat = st.session_state.materiales.copy()
             
-        df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
-        df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
-        
-        # Filtrar productos en estado crítico
-        criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
-        
-        # Métricas principales
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Catálogo", len(df_mat))
-        with col2:
-            st.metric("Stock Normal", len(df_mat) - len(criticos))
-        with col3:
-            st.metric("🚨 En Quiebre / Crítico", len(criticos), delta=f"-{len(criticos)}" if len(criticos) > 0 else "0", delta_color="inverse")
+            # Verificar si existe la columna Stock_Minimo
+            if "Stock_Minimo" not in df_mat.columns:
+                df_mat["Stock_Minimo"] = 5
+                
+            df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
+            df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
             
-        st.markdown("---")
-        
-        if len(criticos) > 0:
-            st.warning(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición urgente.")
+            # Filtrar productos en estado crítico
+            criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
             
-            # Mostrar tabla interactiva nativa (sin fondos negros forzados)
-            st.dataframe(
-                criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
-                use_container_width=True,
-                hide_index=True
-            )
+            # Métricas principales utilizando contenedores nativos
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Catálogo", len(df_mat))
+            with col2:
+                st.metric("Stock Normal", len(df_mat) - len(criticos))
+            with col3:
+                st.metric("🚨 En Quiebre / Crítico", len(criticos), delta=f"-{len(criticos)}" if len(criticos) > 0 else "0", delta_color="inverse")
+                
+            st.markdown("---")
             
-            st.subheader("🛒 Sugerencia de Reposición")
-            sku_a_pedir = st.selectbox("Seleccionar SKU para calcular reposición", criticos["SKU"], key="sel_quiebre_sku")
-            prod_sel = criticos[criticos["SKU"] == sku_a_pedir].iloc[0]
-            
-            sugerido = (int(prod_sel["Stock_Minimo"]) * 3) - int(prod_sel["Stock_Actual"])
-            st.info(f"Para el producto **{prod_sel['Nombre']}** ({sku_a_pedir}), se recomienda comprar al menos **{sugerido} unidades** para recuperar el nivel óptimo de inventario.")
-            
-        else:
-            st.success("🎉 ¡Excelente! No hay productos en nivel de quiebre de stock. Todo el inventario está seguro.")
+            if len(criticos) > 0:
+                st.warning(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición urgente.")
+                
+                # Mostrar tabla interactiva nativa
+                st.dataframe(
+                    criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                st.subheader("🛒 Sugerencia de Reposición")
+                sku_a_pedir = st.selectbox("Seleccionar SKU para calcular reposición", criticos["SKU"], key="sel_quiebre_sku")
+                prod_sel = criticos[criticos["SKU"] == sku_a_pedir].iloc[0]
+                
+                sugerido = (int(prod_sel["Stock_Minimo"]) * 3) - int(prod_sel["Stock_Actual"])
+                st.info(f"Para el producto **{prod_sel['Nombre']}** ({sku_a_pedir}), se recomienda comprar al menos **{sugerido} unidades** para recuperar el nivel óptimo de inventario.")
+                
+            else:
+                st.success("🎉 ¡Excelente! No hay productos en nivel de quiebre de stock. Todo el inventario está seguro.")
