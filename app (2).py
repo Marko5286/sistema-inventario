@@ -619,7 +619,7 @@ elif menu == "16. Emisión de Guías de Despacho":
         st.subheader("👁️ Vista Previa del Documento Tributario (Guía de Despacho)")
         
         # HTML limpio empaquetado para componente web seguro
-        html_guia = f"""
+      html_guia = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -638,6 +638,23 @@ elif menu == "16. Emisión de Guías de Despacho":
                 .fila-total {{ display: flex; justify-content: space-between; margin: 4px 0; }}
                 .firmas {{ margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; text-align: center; }}
                 .linea-firma {{ border-top: 1px solid #000; width: 200px; padding-top: 5px; margin: 0 auto; }}
+
+                /* 🖨️ ESTO OCULTA TODO LO DEMÁS DE STREAMLIT AL IMPRIMIR */
+                @media print {{
+                    body * {{
+                        visibility: hidden;
+                    }}
+                    .guia-container, .guia-container * {{
+                        visibility: visible;
+                    }}
+                    .guia-container {{
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        border: none !important;
+                    }}
+                }}
             </style>
         </head>
         <body>
