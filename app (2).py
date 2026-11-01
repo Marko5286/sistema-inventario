@@ -10,6 +10,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from PIL import Image
 import io
+import plotly.express as px
 
 st.set_page_config(page_title="WMS Marklogistic", layout="wide")
 
