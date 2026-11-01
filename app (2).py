@@ -659,7 +659,7 @@ elif menu == "16. Emisión de Guías de Despacho":
                 <tbody>
                     <tr style="border-bottom: 1px solid #ddd;">
                         <td style="padding: 8px;">{g['sku']}</td>
-                        <td style="padding: 8px;">{g['descripciones']}</td>
+                        <td style="padding: 8px;">{g['descripcion']}</td>
                         <td style="padding: 8px; text-align: center;">{g['cantidad']}</td>
                         <td style="padding: 8px; text-align: right;">${g['precio_unit']:,.2f}</td>
                         <td style="padding: 8px; text-align: right;">${g['subtotal']:,.2f}</td>
