@@ -454,80 +454,52 @@ elif menu == "14. Registro Fotográfico":
         st.success("Fotografía cargada correctamente para el expediente.")
 
 # ---------------------------------------------------------
-# MÓDULO 15: LOGÍSTICA INVERSA (DEVOLUCIONES)
+# MÓDULO 15: ALERTAS DE STOCK (LIMPIO Y FORZADO CLARO)
 # ---------------------------------------------------------
-elif menu == "15. Logística Inversa":
-    st.header("🔄 Logística Inversa - Recepción de Devoluciones")
-    st.markdown("Gestiona el reingreso de mercadería por devoluciones de clientes, garantías o artículos defectuosos.")
+elif menu == "15. Alertas de Stock":
+    # CSS para forzar fondo claro y evitar pantallas negras
+    st.markdown("""
+        <style>
+            .stApp { background-color: #ffffff !important; color: #000000 !important; }
+            section[data-testid="stSidebar"] { background-color: #f8f9fa !important; }
+            div.stMarkdown, p, h1, h2, h3, span { color: #000000 !important; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.header("🚨 Panel de Alertas de Stock Crítico")
+    st.markdown("Monitoreo en tiempo real de productos que se encuentran bajo su stock mínimo de seguridad.")
     
     if st.session_state.materiales.empty:
-        st.info("Primero debes crear materiales en el sistema.")
+        st.info("No hay materiales registrados en el sistema.")
     else:
-        with st.form("form_logistica_inversa"):
-            st.subheader("Registrar Artículo Devuelto")
+        df_mat = st.session_state.materiales.copy()
+        if "Stock_Minimo" not in df_mat.columns:
+            df_mat["Stock_Minimo"] = 5
             
-            c1, c2 = st.columns(2)
-            with c1:
-                sku_devuelto = st.selectbox("SKU del Producto Devuelto", st.session_state.materiales["SKU"], key="rev_sku")
-                cantidad_devuelta = st.number_input("Cantidad Devuelta", min_value=1, value=1, key="rev_cant")
-                motivo_devolucion = st.selectbox(
-                    "Motivo de la Devolución", 
-                    ["Devolución por Cliente / Cambio", "Producto Defectuoso / Falla", "Error en Despacho", "Garantía", "Otro"]
-                )
-            with c2:
-                cliente_origen = st.text_input("Cliente / Empresa Origen de la Devolución", key="rev_cliente")
-                estado_producto = st.selectbox("Estado del Artículo", ["Reutilizable (Vuelve a Stock)", "Dañado / Cuarentena (No sumar stock)"])
-                observaciones = st.text_area("Observaciones / Diagnóstico rápido", placeholder="Ej: Empaque abierto, sin piezas faltantes...")
-
-            if st.form_submit_button("Procesar Devolución"):
-                if not cliente_origen:
-                    st.error("Por favor, ingresa el nombre del cliente u origen de la devolución.")
-                else:
-                    mat_actual = st.session_state.materiales[st.session_state.materiales["SKU"] == sku_devuelto].iloc[0]
-                    stock_actual = int(mat_actual["Stock_Actual"])
-                    
-                    # Si el producto es reutilizable, sumamos el stock de vuelta a la bodega
-                    if "Reutilizable" in estado_producto:
-                        nuevo_stock = stock_actual + cantidad_devuelta
-                        try:
-                            # Actualizar stock en Supabase
-                            supabase.table("materiales").update({"stock_actual": nuevo_stock}).eq("sku", sku_devuelto).execute()
-                            
-                            # Registrar el movimiento de tipo DEVOLUCIÓN en Supabase
-                            supabase.table("movimientos").insert({
-                                "id_mov": f"REV-{len(st.session_state.movimientos)+1:04d}",
-                                "tipo": "DEVOLUCIÓN", 
-                                "sku": sku_devuelto, 
-                                "cantidad": cantidad_devuelta,
-                                "origen_destino": f"Devolución: {cliente_origen} ({motivo_devolucion})",
-                                "usuario": st.session_state.get('usuario_actual', 'admin'),
-                                "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            }).execute()
-                            
-                            # Refrescar estados locales
-                            st.session_state.materiales = cargar_materiales_db()
-                            st.session_state.movimientos = cargar_movimientos_db()
-                            
-                            st.success(f"¡Devolución procesada con éxito! Se reingresaron {cantidad_devuelta} unidades del SKU {sku_devuelto} al stock.")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error al registrar la devolución en Supabase: {e}")
-                    else:
-                        # Si está dañado, solo registramos el movimiento en la bitácora sin sumar stock físico disponible
-                        try:
-                            supabase.table("movimientos").insert({
-                                "id_mov": f"REV-{len(st.session_state.movimientos)+1:04d}",
-                                "tipo": "CUARENTENA_DEV", 
-                                "sku": sku_devuelto, 
-                                "cantidad": cantidad_devuelta,
-                                "origen_destino": f"Devolución Dañada: {cliente_origen} ({motivo_devolucion})",
-                                "usuario": st.session_state.get('usuario_actual', 'admin'),
-                                "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            }).execute()
-                            st.session_state.movimientos = cargar_movimientos_db()
-                            st.warning(f"El producto fue registrado como dañado/cuarentena. **No** se sumó al stock actual, pero quedó guardado en la trazabilidad.")
-                        except Exception as e:
-                            st.error(f"Error al registrar en la base de datos: {e}")
+        df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
+        df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
+        
+        criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Productos", len(df_mat))
+        with col2:
+            st.metric("Stock Normal", len(df_mat) - len(criticos))
+        with col3:
+            st.metric("🚨 En Estado Crítico", len(criticos))
+            
+        st.markdown("---")
+        
+        if len(criticos) > 0:
+            st.warning(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición inmediata.")
+            st.dataframe(
+                criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.success("🎉 ¡Excelente noticia! No hay productos en nivel crítico.")
 # ---------------------------------------------------------
 # MÓDULO 16: EMISIÓN DE GUÍAS DE DESPACHO OFICIALES
 # ---------------------------------------------------------
@@ -725,56 +697,56 @@ elif menu == "16. Emisión de Guías de Despacho":
             st.info("💡 Consejo: Se abrirá la ventana de impresión de tu navegador. Selecciona 'Guardar como PDF' en la opción de impresora.")                            
                                 
 # ---------------------------------------------------------
-# MÓDULO 17: QUIEBRE DE STOCK Y ALERTAS
+# MÓDULO 17: QUIEBRE DE STOCK (LIMPIO Y FORZADO CLARO)
 # ---------------------------------------------------------
 elif menu == "17. Quiebre de Stock":
+    # CSS para forzar fondo claro y evitar pantallas negras
+    st.markdown("""
+        <style>
+            .stApp { background-color: #ffffff !important; color: #000000 !important; }
+            section[data-testid="stSidebar"] { background-color: #f8f9fa !important; }
+            div.stMarkdown, p, h1, h2, h3, span { color: #000000 !important; }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.header("🚨 Alertas de Quiebre de Stock")
     st.markdown("Monitoreo en tiempo real de productos que se encuentran bajo su stock mínimo de seguridad.")
     
     if st.session_state.materiales.empty:
         st.info("No hay materiales registrados en el sistema.")
     else:
-        # Creamos un contenedor principal limpio
-        with st.container():
-            df_mat = st.session_state.materiales.copy()
+        df_mat = st.session_state.materiales.copy()
+        if "Stock_Minimo" not in df_mat.columns:
+            df_mat["Stock_Minimo"] = 5
             
-            # Verificar si existe la columna Stock_Minimo
-            if "Stock_Minimo" not in df_mat.columns:
-                df_mat["Stock_Minimo"] = 5
-                
-            df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
-            df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
+        df_mat["Stock_Actual"] = pd.to_numeric(df_mat["Stock_Actual"], errors="coerce").fillna(0)
+        df_mat["Stock_Minimo"] = pd.to_numeric(df_mat["Stock_Minimo"], errors="coerce").fillna(5)
+        
+        criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Catálogo", len(df_mat))
+        with col2:
+            st.metric("Stock Normal", len(df_mat) - len(criticos))
+        with col3:
+            st.metric("🚨 En Quiebre / Crítico", len(criticos))
             
-            # Filtrar productos en estado crítico
-            criticos = df_mat[df_mat["Stock_Actual"] <= df_mat["Stock_Minimo"]]
+        st.markdown("---")
+        
+        if len(criticos) > 0:
+            st.warning(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición urgente.")
+            st.dataframe(
+                criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
+                use_container_width=True,
+                hide_index=True
+            )
             
-            # Métricas principales utilizando contenedores nativos
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Total Catálogo", len(df_mat))
-            with col2:
-                st.metric("Stock Normal", len(df_mat) - len(criticos))
-            with col3:
-                st.metric("🚨 En Quiebre / Crítico", len(criticos), delta=f"-{len(criticos)}" if len(criticos) > 0 else "0", delta_color="inverse")
-                
-            st.markdown("---")
+            st.subheader("🛒 Sugerencia de Reposición")
+            sku_a_pedir = st.selectbox("Seleccionar SKU para calcular reposición", criticos["SKU"], key="sel_quiebre_sku_17")
+            prod_sel = criticos[criticos["SKU"] == sku_a_pedir].iloc[0]
             
-            if len(criticos) > 0:
-                st.warning(f"¡Atención! Hay **{len(criticos)} productos** que requieren reposición urgente.")
-                
-                # Mostrar tabla interactiva nativa
-                st.dataframe(
-                    criticos[["SKU", "Nombre", "Stock_Actual", "Stock_Minimo", "Valor_Unitario"]],
-                    use_container_width=True,
-                    hide_index=True
-                )
-                
-                st.subheader("🛒 Sugerencia de Reposición")
-                sku_a_pedir = st.selectbox("Seleccionar SKU para calcular reposición", criticos["SKU"], key="sel_quiebre_sku")
-                prod_sel = criticos[criticos["SKU"] == sku_a_pedir].iloc[0]
-                
-                sugerido = (int(prod_sel["Stock_Minimo"]) * 3) - int(prod_sel["Stock_Actual"])
-                st.info(f"Para el producto **{prod_sel['Nombre']}** ({sku_a_pedir}), se recomienda comprar al menos **{sugerido} unidades** para recuperar el nivel óptimo de inventario.")
-                
-            else:
-                st.success("🎉 ¡Excelente! No hay productos en nivel de quiebre de stock. Todo el inventario está seguro.")
+            sugerido = (int(prod_sel["Stock_Minimo"]) * 3) - int(prod_sel["Stock_Actual"])
+            st.info(f"Para el producto **{prod_sel['Nombre']}** ({sku_a_pedir}), se recomienda comprar al menos **{sugerido} unidades**.")
+        else:
+            st.success("🎉 ¡Excelente! No hay productos en nivel de quiebre de stock.")
